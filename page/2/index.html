@@ -160,7 +160,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/26/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/25/%E6%9C%AA%E5%91%BD%E5%90%8D%E6%96%87%E4%BB%B6%E5%A4%B9/%E9%A6%96%E9%A1%B5/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -174,7 +174,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/26/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/" class="post-title-link" itemprop="url">MongoDB 无锁 Write FLow</a>
+            <a href="/2022/12/25/%E6%9C%AA%E5%91%BD%E5%90%8D%E6%96%87%E4%BB%B6%E5%A4%B9/%E9%A6%96%E9%A1%B5/" class="post-title-link" itemprop="url">首页</a>
         </h2>
 
         <div class="post-meta">
@@ -183,23 +183,16 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
-              
 
-              <time title="创建时间：2022-12-26 16:00:28 / 修改时间：16:57:26" itemprop="dateCreated datePublished" datetime="2022-12-26T16:00:28+08:00">2022-12-26</time>
+              <time title="创建时间：2022-12-25 06:01:28" itemprop="dateCreated datePublished" datetime="2022-12-25T06:01:28+08:00">2022-12-25</time>
             </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-12-26 17:39:29" itemprop="dateModified" datetime="2022-12-26T17:39:29+08:00">2022-12-26</time>
               </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
-                </span>
-            </span>
 
           
 
@@ -212,21 +205,12 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="MongoDB-无锁-Write-FLow"><a href="#MongoDB-无锁-Write-FLow" class="headerlink" title="MongoDB 无锁 Write FLow"></a>MongoDB 无锁 Write FLow</h1><h2 id="同一-key-的无锁读写"><a href="#同一-key-的无锁读写" class="headerlink" title="同一 key 的无锁读写"></a>同一 key 的无锁读写</h2><p>MongoDB 的一个 B+树索引中具有三个数据结构来存储键值对数据：</p>
-<ul>
-<li>WT_ROW 数组，存储原本 Check Point 时刻的值。</li>
-<li>WT_UPDATE 跳跃表数组，存储已有键值对的更新值。</li>
-<li>WT_INSERT_HEAD 跳跃表数组，存储新插入键值对的更新值。</li>
+          <p>欢迎访问我的个人博客，博客主要记录本人日常学习内容，并且提供本人所写工程的文档。</p>
+<h2 id="工程文档链接"><a href="#工程文档链接" class="headerlink" title="工程文档链接"></a>工程文档链接</h2><ul>
+<li><p>MVCC：一个基于跳跃表的进程内并发读写数据结构。</p>
+<p>项目链接： <a target="_blank" rel="noopener" href="https://tangrc99.github.io/MVCC">https://tangrc99.github.io/MVCC</a></p>
+</li>
 </ul>
-<p>MongoDB 中所有的写操作并不会直接修改原有的内存位置，而是将新数据写入到B+树索引节点中的跳跃表中。结合惰性删除机制，跳跃表是可以做到无锁读写的。</p>
-<p>但是这种设计会使得读取的流程较长，因为要查询数据需要依次搜索WT_UPDATE，WT_ROW和WT_INSERT_HEAD 这三个数据结构，当插入数据过多时，跳跃表的搜索性能是要比 WT_ROW 的有序数组结构差的。</p>
-<h2 id="Check-Point-技术"><a href="#Check-Point-技术" class="headerlink" title="Check Point 技术"></a>Check Point 技术</h2><p>MongoDB 中会定期对 B+ 树进行整理，防止插入数据过多，影响读取性能，Check Point 技术会定期整理内存和硬盘中的 B+树结构。</p>
-<p>当一次 Check Point 发生后，MongoDB 将会新建一个 B+树，所有的写入操作会被转移到新的 B+树中。而所有的刷盘以及分裂操作只会影响到旧的 B+ 树。具体过程比较复杂，可以参考《MongoDB 核心原理与实践》。</p>
-<h2 id="变长-Page-减少-B-树节点分裂"><a href="#变长-Page-减少-B-树节点分裂" class="headerlink" title="变长 Page 减少 B+ 树节点分裂"></a>变长 Page 减少 B+ 树节点分裂</h2><p>MongoDB 中的索引部分使用的是 B+ 树这种数据结构，一般来说 B+ 树在节点分裂的过程中是无法做到无锁的，但是 WiredTiger 基于变长 Page 的技术来避免 B+ 树分裂时加锁。</p>
-<p>在数据库系统中，B+树在硬盘中的页面大小通常是硬盘扇区的大小，这主要是考虑到硬盘读写的原子性，防止破坏 B+树节点的内部结构。因为这种考虑，B+树的硬盘节点通常都比较小。而比较小的 B+树节点可能就意味着需要经常进行分裂操作来保持 B+树的平衡性。</p>
-<p>MongoDB 的 B+ 树在内存中和在硬盘中的 page 大小是不相同的，内存中的 page 大小要远远大于硬盘中的 page 大小。当内存中的 B+树 page 需要刷盘时，会将内存 page 分裂为多个硬盘 page 写入到硬盘中，这就是变长 Page 技术。变长 Page 技术能够减少 B+ 树的持久化次数，还能够尽量避免 B+ 树因为插入而导致的分裂。引入了变长 Page 技术后，MongoDB 中索引 B+ 树的节点分裂会被转移到 reconcile 和 eviction 过程中，从而避免了在 Write Flow 中出现索引变更的情况。</p>
-<h2 id="插入过多时小粒度分裂"><a href="#插入过多时小粒度分裂" class="headerlink" title="插入过多时小粒度分裂"></a>插入过多时小粒度分裂</h2><p>仅仅依靠变长 Page 还不能够解决所有的问题，如果在某一时刻发生大量的写入操作，导致一个B+树节点在短时间内就达到了内存 page 的上限，这种情况下依旧需要发生 B+树节点的分裂。</p>
-<p>由于 MongoDB 中所有新插入的节点都是存在于 WT_INSERT_HEAD 跳跃表数组中的，当B+树节点因为插入数量过多需要分裂时，会将WT_INSERT_HEAD 中的最后一个跳跃表复制到新的节点中（MongoDB 中的主键值基本上是自增的，最后一个跳跃表中的节点在大部分情况下是最多的）。这种小粒度的分裂能够避免对B+树进行大面积修改。</p>
 
       
     </div>
@@ -245,7 +229,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/24/">24</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -313,7 +297,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">24</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

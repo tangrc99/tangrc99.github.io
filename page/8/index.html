@@ -160,7 +160,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/23/Redis%E4%B8%BA%E4%BB%80%E4%B9%88%E9%82%A3%E4%B9%88%E5%BF%AB/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/25/%E6%9C%AA%E5%91%BD%E5%90%8D%E6%96%87%E4%BB%B6%E5%A4%B9/k8s-proxy-%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -174,7 +174,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/23/Redis%E4%B8%BA%E4%BB%80%E4%B9%88%E9%82%A3%E4%B9%88%E5%BF%AB/" class="post-title-link" itemprop="url">redis 为什么那么快</a>
+            <a href="/2022/12/25/%E6%9C%AA%E5%91%BD%E5%90%8D%E6%96%87%E4%BB%B6%E5%A4%B9/k8s-proxy-%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">k8s proxy 网络模型</a>
         </h2>
 
         <div class="post-meta">
@@ -184,14 +184,14 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2022-12-23 21:34:03" itemprop="dateCreated datePublished" datetime="2022-12-23T21:34:03+08:00">2022-12-23</time>
+              <time title="创建时间：2022-12-25 16:53:15" itemprop="dateCreated datePublished" datetime="2022-12-25T16:53:15+08:00">2022-12-25</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-12-26 13:27:46" itemprop="dateModified" datetime="2022-12-26T13:27:46+08:00">2022-12-26</time>
+                <time title="修改时间：2022-12-26 15:16:27" itemprop="dateModified" datetime="2022-12-26T15:16:27+08:00">2022-12-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -199,11 +199,7 @@
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/redis/" itemprop="url" rel="index"><span itemprop="name">redis</span></a>
+                  <a href="/categories/%E4%BA%91%E6%8A%80%E6%9C%AF/" itemprop="url" rel="index"><span itemprop="name">云技术</span></a>
                 </span>
             </span>
 
@@ -218,42 +214,27 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="Redis-为什么那么快"><a href="#Redis-为什么那么快" class="headerlink" title="Redis 为什么那么快"></a>Redis 为什么那么快</h1><p>Redis 的速度为什么那么快？这个问题有点过于宽泛了，必须要确定 redis 的比较对象才方便进行比较。对比传统的硬盘数据库来说，redis 的读写操作大部分都只发生在内存中，不需要昂贵的硬盘 IO；对比较为新型的 NoSQL 数据库而言，这些数据库如 MongoDB 虽然也大量利用了内存缓存，但相比之下，redis 单索引、不保证数据安全性的特点使得 redis 的读写 flow 更加短，因此能够取得更好的效果；相比于同类型的缓存服务，如 memcached，redis 的速度其实并没有太大的优势，这是 redis 的单线程事务模型带来的缺点。</p>
-<h2 id="高效的数据结构"><a href="#高效的数据结构" class="headerlink" title="高效的数据结构"></a>高效的数据结构</h2><p>redis 是一个基于内存的数据库，因而可以使用更加高效灵活的数据结构——哈希表。由于哈希表的查询时间复杂度为 O(1)，在千万级别的数据量下，单次查询性能仍然能够保持在 us 级别。</p>
-<h2 id="高效的网络-IO-模型"><a href="#高效的网络-IO-模型" class="headerlink" title="高效的网络 IO 模型"></a>高效的网络 IO 模型</h2><p>最新版本的 redis 中，网络 IO 线程与事件处理线程是分离的，是一个非标准的 reactor 模式。这种非标准的设计主要是考虑了复杂度问题，如果使用多线程进行事务处理需要付出高昂的工程代价，并且只能够获得大概 8%左右的性能提升（参考 memcached 与 redis 的性能测试对比）。</p>
-<p>在引入多线程 IO 后，仍然只有主线程是负责 epoll 的逻辑的，流程可以简述如下：</p>
-<p>1、主线程负责接收建立连接请求，获取 socket 放入全局等待读处理队列<br>2、主线程处理完读事件之后，通过 RR(Round Robin) 将这些连接分配给这些 IO 线程<br>3、主线程阻塞等待 IO 线程读取 socket 完毕<br>4、主线程通过单线程的方式执行请求命令，请求数据读取并解析完成，但并不执行<br>5、主线程阻塞等待 IO 线程将数据回写 socket 完毕<br>6、解除绑定，清空等待队列</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 主线程</span></span><br><span class="line"><span class="keyword">while</span>(<span class="literal">true</span>)&#123;</span><br><span class="line">  <span class="keyword">if</span> 有可读 socket&#123;</span><br><span class="line">    平均分配 socket 给 IO 线程组</span><br><span class="line">  &#125;</span><br><span class="line">  等待所有 IO 线程组读取完成</span><br><span class="line">  </span><br><span class="line">  按照次序执行所有的 IO 请求</span><br><span class="line">    </span><br><span class="line">  等待所有 IO 线程组写入完成</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// IO 线程</span></span><br><span class="line"><span class="keyword">while</span>(<span class="literal">true</span>)&#123;</span><br><span class="line">  </span><br><span class="line">  等待主线程分配 IO 读事件</span><br><span class="line">  </span><br><span class="line">  通知主线程读取完成（原子操作）</span><br><span class="line">    </span><br><span class="line">  等待主线程分配 IO 读事件</span><br><span class="line">  </span><br><span class="line">  通知主线程写入完成（原子操作）</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>redis 这里的 IO 事件是按组进行的，主线程会阻塞等待一组中所有的 IO 事件读或者写完成。这里主要是为了防止事件乱序执行，否则可以等待单个 IO 完成后就执行任务。由于 IO 过程非常快，所以这里的性能损耗基本可以忽略不计。</p>
-<h2 id="成熟的事件调度机制"><a href="#成熟的事件调度机制" class="headerlink" title="成熟的事件调度机制"></a>成熟的事件调度机制</h2><p>redis 的事件主要可以分为 IO 事件、定时事件、后台线程事件这三种，主循环只负责处理 IO 事件和定时事件，这两种事件的处理速度较快因而可以放在一起处理。</p>
-<p>在 redis 的主循环处理流程伪代码可以表示如下：</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span>(<span class="literal">true</span>)&#123;</span><br><span class="line">	最大等待时间 = 最近定时任务 - 当前时间</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">if</span> 有IO事件可以处理 &#123;</span><br><span class="line">		<span class="keyword">if</span> IO为轻量级任务</span><br><span class="line">    	处理 IO 事件</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    	放入后台线程处理</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		休眠最大等待时间</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">if</span> 有定时任务可以处理</span><br><span class="line">		处理定时任务</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>由于我接触到 redis 比较早，在初学时比较困惑，为什么这种循环处理的逻辑能够保证客户端请求的高效处理，并且如何保证定时任务及时处理的。</p>
-<p>首先说明如何保证定时任务的处理。在主循环处理流程中，IO 事件即客户端请求事件是优先处理的，并不保证定时事件一定能够及时处理，但是这种延迟是非常细微的。以 <code>std::unordered_map</code> 为例，在 1000W 级别的数据中，平均的单条读取时间是 1us 级别的，因此单个 IO 事件即使是计算了读取和写入 socket 所耗费的时间，通常也是不足 1ms 的，只会是 10 us 级别。在这种操作速度的数量级下，即使是同一时间到达万级请求，也不会对定时任务造成秒级别的延迟，这是完全可以接受的。另外，受限于物理机器的网卡速度、协议栈复制速度等因素，一次主循环中并不会到达过多的请求。因此，完全不必担心定时任务会因为短时间内出现大量 IO 请求而延迟较大。</p>
-<p>既然用户 IO 请求不会过多影响定时任务的触发时机，那么定时任务显然也不会影响到 IO 事件的处理。redis 中的定时任务基本上可以分为以下几种：</p>
+          <h1 id="k8s-proxy-网络模型"><a href="#k8s-proxy-网络模型" class="headerlink" title="k8s proxy 网络模型"></a>k8s proxy 网络模型</h1><h3 id="iptables-模式"><a href="#iptables-模式" class="headerlink" title="iptables 模式"></a>iptables 模式</h3><p><img src="/images/DF43002E-5DBE-415E-94FB-6505B66D850A.jpg" alt="image">￼</p>
+<p>注意，所有的k8s 标记只分为两种，一种是需要转发的标记0x400，一种是需要丢弃的标记0x800。前者会最终在 POST 中被转发。</p>
+<p>下面解释一下为什么会有需要丢弃的数据包。由于规则链的建立并不是原子性的，所以可能会出现一种情况，规则链建立一半时，已经有相关的数据包到达了——这是一个非常危险的情况，可能会导致一些未定义的行为。因此，在规则正在建立的过程中，需要将相关数据包标记为 0x800，并最终丢弃掉。也就是 0x800 是用于标识规则链是否完全建立的。</p>
+<p>另外一种情况是按照用户的需求，对一些虚拟容器进行隔离操作。</p>
+<h3 id="iptables-clusterIP访问模式"><a href="#iptables-clusterIP访问模式" class="headerlink" title="iptables - clusterIP访问模式"></a>iptables - clusterIP访问模式</h3><p>这种访问模式一般是用于访问启动了多个实例的服务，并且需要进行负载均衡。客户端访问的链路可以表示为：</p>
+<p>PREROUTING -&gt; KUBE-SERVICE -&gt; KUBE-SVC-SERV -&gt; KUBE-SEP-POD</p>
+<p>​    所有外部流量都会被 KUBE-SERVICE 链截获，并检查是否有流量是流向某一clusterIP的，并将流量传递给对应的 KUBE-SVC-SERV。KUBE-SVC-SERV 根据设置的负载均衡算法，将流量转发给对应的 KUBE-SEP-POD 链，并最终在该链中进行 DNAT 处理。</p>
+<h3 id="iptables-NodePort-访问模式"><a href="#iptables-NodePort-访问模式" class="headerlink" title="iptables - NodePort 访问模式"></a>iptables - NodePort 访问模式</h3><p>这种方式通常用来访问单独启动的服务实例。客户端的访问链路可以表示为：</p>
+<p>PREROUTING -&gt; KUBE-SERVICE -&gt; KUBE-NODEPORTS -&gt; KUBE-SVC-XXX -&gt; KUBE-SEP-XXX</p>
+<p>单独启动的服务实例会单独注册在 KUBE-SERVICE链中，当clusterIP匹配完成后，才会进行 NodePort 规则匹配。<strong>使用 nodePort 方式来访问一个容器，其转发链路要更长，因此性能要稍差。</strong></p>
+<h3 id="ipvs-模式"><a href="#ipvs-模式" class="headerlink" title="ipvs 模式"></a>ipvs 模式</h3><p><img src="/images/71E894A0-C367-4B4F-A7DE-FF0275149CD4.jpg" alt="image">￼<br>ipvs 因为继承了 lvs 模块，所以其实是更加简单的。只需要在流量入口处进行流量区分和标记就可以。客户端进行访问的链路可以表示为：</p>
+<p>PREROUTING -&gt; KUBE-SERVICES -&gt; KUBE-CLUSTER-IP -&gt; INPUT -&gt; KUBE-FIREWALL -&gt; POSTROUTING</p>
+<p>或者为：</p>
+<p>PREROUTING –&gt; KUBE-SERVICES –&gt; KUBE-NODE-PORT –&gt; INPUT –&gt; KUBE-FIREWALL –&gt; POSTROUTING</p>
 <ul>
-<li>过期键的删除操作</li>
-<li>更新服务器状态</li>
-<li>清理过期和失效的客户端</li>
-<li>尝试开始持久化操作</li>
-<li>与其他服务器同步消息</li>
+<li>KUBE-SERVICES 链负责劫持所有的流量，进行粗删选，根据主机所设置的网段号来初步判断流量目标是否是k8s 服务。</li>
+<li>KUBE-CLUSTER-IP 负责第二次筛选，将网段正确的流量匹配ipset集合，如果通过集合，则标记为0x2000，如果失败则标记为0x4000。</li>
+<li>如果 KUBE-SERVICES 链没有通过筛选，则进入 KUBE-NODE-PORT 链中，判断是否是单独开启的服务实例。</li>
+<li>INPUT 与 KUBE-FIREWALL：判断是否有标记为 0x4000 的流量，如果有，直接丢弃。</li>
+<li>IPVS 与 POSTROUTING：将通过匹配的流量通过 nat 的方式转发到负载均衡算法计算后的地址。使用 nat 是因为可以很好地进行端口映射，这样会使得调度机制更加灵活，</li>
 </ul>
-<p>redis 中这些定时任务的执行时间通常更短，因为任务所查询的数据量级是远远小于 redis 数据库的数据量级的，并且 redis 内部具有计时机制来主动防止定时任务消耗过多时间。这些定时任务会每隔 100ms 执行一次，每次的总执行时间在 ms 级别，不会对客户端请求造成很大的延迟。</p>
-<p>归根结底，redis 采用的这种事件循环调度机制，是考虑到单个事件的执行时间非常短，这主要还是由于所有的操作都只与内存进行交互，现代计算机的内存速度是非常快的。</p>
-<h2 id="后台线程"><a href="#后台线程" class="headerlink" title="后台线程"></a>后台线程</h2><p>redis 中比较重量级的事件会考虑放入到后台线程中来完成，防止主循环的单次循环时间过长，使客户端请求延迟增加。会放入到后台线程中的事件主要有：</p>
-<ul>
-<li>大键的惰性删除</li>
-<li>AOF 持久化刷盘</li>
-<li>关闭 file descriptor</li>
-</ul>
-<p>这些事件在执行过程中，可能产生的耗时是毫秒级别的，与其他的事件的时间相差过大，直接在主线程中执行可能会造成循环时间过长。</p>
-<p>redis 中是通过队列的方式来实现主线程与后台线程之间的任务分配的，以上三个事件都有各自的队列，这是为了防止某一个类型的后台任务过多，从而阻塞了其他种类任务的执行。每次后台线程选择任务执行时会采用一定的策略公平公正地对三种任务执行，防止某一种事件过长时间无法执行。</p>
-<h2 id="合适的高可用架构"><a href="#合适的高可用架构" class="headerlink" title="合适的高可用架构"></a>合适的高可用架构</h2><p>redis 官方提供了哨兵模式的高可用架构，这是一个比较松散的高可用方案。相比于 etcd、MongoDB 中的高可用实现，redis 的哨兵模式会舍弃一部分的数据安全性来换取更高的性能。</p>
-<p>哨兵模式其本质上是一个能够自动切换节点的主从复制结构。同其他数据库的主从复制结构类似，redis 中的主从复制也是异步复制的过程。异步复制的好处是性能较高，不会过多影响主节点的吞吐量，这正是 redis 所需要的，但缺点就是会带来数据延迟，当主节点下线可能会造成一部分数据的丢失。但由于 redis 所存储的数据本身不需要过高的安全性，所以 redis 完全可以舍弃一部分安全性来换取更高的吞吐量。并且这种因主节点下线造成的数据丢失数量是非常少的。</p>
-<p>如果引入 raft、paxos 等选举算法，虽然能够保证更高的可用性，但是会造成非常严重的性能劣化。想象一下，引入这些选举算法，所有的客户端请求相当于是一个 2pc，需要引入主节点-从节点的通信延迟、从节点提交的延迟，这里性能可能会折半甚至更低。这就是为什么 redis 并没有引入选举算法——一切为了性能。</p>
-<p>哨兵模式的高可用体现在，故障自动恢复的容灾而不是数据一致性的保障。</p>
 
       
     </div>
@@ -272,7 +253,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/7/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><span class="page-number current">8</span><a class="page-number" href="/page/9/">9</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/9/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/7/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><span class="page-number current">8</span><a class="page-number" href="/page/9/">9</a><span class="space">&hellip;</span><a class="page-number" href="/page/24/">24</a><a class="extend next" rel="next" href="/page/9/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -340,7 +321,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">24</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

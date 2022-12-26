@@ -160,7 +160,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/01/MongoDB%20%E4%B8%8E%20MySQL/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/25/%E6%9C%AA%E5%91%BD%E5%90%8D%E6%96%87%E4%BB%B6%E5%A4%B9/Docker%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -174,7 +174,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/01/MongoDB%20%E4%B8%8E%20MySQL/" class="post-title-link" itemprop="url">MongoDB 与 MySQL 的一些读写优化</a>
+            <a href="/2022/12/25/%E6%9C%AA%E5%91%BD%E5%90%8D%E6%96%87%E4%BB%B6%E5%A4%B9/Docker%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">Docker 网络模型</a>
         </h2>
 
         <div class="post-meta">
@@ -184,14 +184,14 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2022-12-01 15:07:05" itemprop="dateCreated datePublished" datetime="2022-12-01T15:07:05+08:00">2022-12-01</time>
+              <time title="创建时间：2022-12-25 16:53:15" itemprop="dateCreated datePublished" datetime="2022-12-25T16:53:15+08:00">2022-12-25</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-12-26 15:22:28" itemprop="dateModified" datetime="2022-12-26T15:22:28+08:00">2022-12-26</time>
+                <time title="修改时间：2022-12-26 14:30:34" itemprop="dateModified" datetime="2022-12-26T14:30:34+08:00">2022-12-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -199,11 +199,7 @@
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
+                  <a href="/categories/%E4%BA%91%E6%8A%80%E6%9C%AF/" itemprop="url" rel="index"><span itemprop="name">云技术</span></a>
                 </span>
             </span>
 
@@ -218,29 +214,33 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="MongoDB-与-MySQL-的一些读写优化"><a href="#MongoDB-与-MySQL-的一些读写优化" class="headerlink" title="MongoDB 与 MySQL 的一些读写优化"></a>MongoDB 与 MySQL 的一些读写优化</h1><p>MongoDB 与 MySQL 的设计都是通用数据库的模式，但是从结果上来看，MongoDB 的写入性能要优于 MySQL，而 MySQL 的读取性能是优于 MongoDB 的，MongoDB 的事务隔离等级较 MySQL 要低，MongoDB 的设计是面向分布式数据库，其应用层日志的设计更加有新意。</p>
-<h2 id="读取链路的优化"><a href="#读取链路的优化" class="headerlink" title="读取链路的优化"></a>读取链路的优化</h2><p>​    由于 MongoDB 大量数据和索引是常驻内存的，所以性能是会比 MySQL 高很多的。MongoDB 的设计中牺牲了一定的读取性能来换取更高的写入性能。而 MySQL 大量数据是常驻在内存中的，因此做了较多的优化来换取更高的读取性能。</p>
-<h3 id="MySQL-读取链路优化"><a href="#MySQL-读取链路优化" class="headerlink" title="MySQL 读取链路优化"></a>MySQL 读取链路优化</h3><p>​    MySQL 在读取链路的优化主要有查询缓存、页缓存、自适应哈希索引、CheckPoint、覆盖索引、MRR 优化、ICP 优化</p>
-<h4 id="MRR-优化"><a href="#MRR-优化" class="headerlink" title="MRR 优化"></a>MRR 优化</h4><p>​    需要查询时，先根据辅助索引将 WHERE 语句中所有符合条件的主键值放入缓冲区，在缓冲区进行排序后查询。这样可以将随机 IO 转化为顺序 IO。</p>
-<h4 id="ICP-优化"><a href="#ICP-优化" class="headerlink" title="ICP 优化"></a>ICP 优化</h4><p>​    当索引取出时，会根据 WHERE 语句条件进行判断，这一优化是适用于联合索引，或者 WHERE 语句中包含主键值的情况。</p>
-<h2 id="写入链路的优化"><a href="#写入链路的优化" class="headerlink" title="写入链路的优化"></a>写入链路的优化</h2><h3 id="MongoDB-写入链路优化"><a href="#MongoDB-写入链路优化" class="headerlink" title="MongoDB 写入链路优化"></a>MongoDB 写入链路优化</h3><p>​    MongoDB 的写入链路主要做了以下几点优化：Check Point、Copy On Write、无锁 B+ 树、Insert List、事务组提交。</p>
-<h4 id="Check-Point"><a href="#Check-Point" class="headerlink" title="Check Point"></a>Check Point</h4><p>​    Check Point 技术允许 MongoDB 按照每一秒的频率对整个 B+ 树进行刷盘操作，这使得大量的写入操作在写入日志后不需要立刻进行刷盘，只需要写入到内存当中。结合Copy On Write可以使得 B+ 树在正常刷脏的过程中也不会阻塞写入。</p>
-<h4 id="Copy-On-Write"><a href="#Copy-On-Write" class="headerlink" title="Copy On Write"></a>Copy On Write</h4><p>​    Copy On Write 技术是在上一 Check Point 的基础上在内存中新开辟内存区域进行写入，这样做的好处主要有两点：第一是很好地区分了脏页，在刷脏的过程中减小了遍历的范围，提高了刷脏的效率，第二是能够减少刷脏过程中的阻塞时间，如果一页在刷脏过程中被写入，那么将会立刻开辟出一个新的缓冲区，写入操作将会写入到该缓冲区的跳跃表中，并不会造成写入的阻塞（但并不意味着不会增加写入的时间，事实上，在刷脏时写入将会等待缓冲区的分配，这会稍微延长写入时间）。</p>
-<h4 id="Insert-List"><a href="#Insert-List" class="headerlink" title="Insert List"></a>Insert List</h4><p>​    MongoDB 中所有的写入操作并不是在原有的位置上更新。每一个页表中都有多个跳跃表，插入操作会将值插入到统一的缓冲区内，并且在跳跃表中增加指向该值的指针，并且跳跃表是可以做到无锁并发的，可以大大提高写入的性能。但是这同时会造成读取链路变长，在读取时需要首先查找原有的值数组，然后再对跳跃表进行遍历。</p>
-<h4 id="无锁-B-树"><a href="#无锁-B-树" class="headerlink" title="无锁 B+ 树"></a>无锁 B+ 树</h4><p>​    这里主要是针对 B+ 树节点的分裂优化，由于 B+ 树节点的分裂会造成写入的阻塞，在 MongoDB 中只有单个节点短时间内插入过多数据时，才会允许 B+树节点的分裂，其余情况下，只有在 Check Point 或者冷淘汰过程中才会进行节点的分裂。所以 MongoDB 中内存中页面的大小可能与硬盘中的页面大小不相同，在刷入硬盘中时，会将内存中的页面分为几个较小的页面写入到硬盘中。</p>
-<p>​    单个节点插入过多数据时，会将最后一个插入跳跃表放入到新的节点中，这一过程是可以做到不阻塞的（先将剩下的插入操作引导至新的页面中，随后再将旧节点拷贝到新的页面上）。但是这种设计会对热点数据的读取性能造成一定的影响，最新插入的数据需要更多的查询次数，降低了读取性能。</p>
-<h4 id="事务组提交"><a href="#事务组提交" class="headerlink" title="事务组提交"></a>事务组提交</h4><p>​    事务组提交是数据库系统中比较常见的优化，但 MongoDB 与MySQL的组提交有所不同。MongoDB 中组提交的缓冲区很小，并且每次组提交后都会进行刷盘，而 MySQL 中时以文件的形式来进行刷盘的。MongoDB 中，一次组提交中线程会将 log 拷贝到缓冲区中，拷贝完成按照 log 的序列号进行提交，不会造成不同组的乱序提交。</p>
-<h3 id="MySQL-的写入链路优化"><a href="#MySQL-的写入链路优化" class="headerlink" title="MySQL 的写入链路优化"></a>MySQL 的写入链路优化</h3><p>MySQL 写入的优化主要集中在如何将随机 IO 转化为顺序 IO 上，这是因为在设计时 MySQL 的 B+树索引主要是存储在硬盘上的。</p>
-<h4 id="插入缓冲区"><a href="#插入缓冲区" class="headerlink" title="插入缓冲区"></a>插入缓冲区</h4><p>​    辅助索引的写入是统一写入到缓冲区后，再进行刷盘操作。这一优化是因为辅助索引通常并不是聚集的，直接写入会造成随机 IO，通常引入这样一个缓冲区，可以结合异步 IO 机制将随机 IO 转换为顺序 IO，提高刷盘时的性能。</p>
-<h4 id="Check-Point-技术"><a href="#Check-Point-技术" class="headerlink" title="Check Point 技术"></a>Check Point 技术</h4><p>​    MySQL 中同样是采取了该技术，当数据需要写入时会将对应的页读取到内存中，然后在内存中进行修改，随后该页并不会被立刻刷入到硬盘中，而是会由 master 线程进行刷盘。MySQL 中的该设计其实主要是考虑到热数据的问题，刚刚写入的数据被再次修改和读取的概率是比较大的，这一举措不仅优化了写入性能，还能够优化读取性能。</p>
-<h4 id="事务组提交-1"><a href="#事务组提交-1" class="headerlink" title="事务组提交"></a>事务组提交</h4><p>​    bin log 的组提交机制类似于 MongoDB。redo log 则是采用多个文件缓冲和双指针的机制，一个指针指向当前写入的文件缓冲区，另外一个指针指向需要刷盘的缓冲区，实现无锁写入。MySQL 的bin log组提交被 wiredtiger 中的 journal 组提交所借鉴，这确实是一个比较巧妙的设计，但是 MongoDB 中将应用层的日志也当做数据库中的记录，这一设计了避免了bin log 需要和 redo log 分开进行提交的缺陷。</p>
-<h4 id="异步-IO"><a href="#异步-IO" class="headerlink" title="异步 IO"></a>异步 IO</h4><p>​    异步 IO 是 MySQL 其他许多优化的基础，异步 IO 允许操作系统将多个 IO 操作合并并且重新排列顺序，使之更加符合硬盘的写入顺序。 </p>
-<h4 id="刷新邻接页"><a href="#刷新邻接页" class="headerlink" title="刷新邻接页"></a>刷新邻接页</h4><p>​    这一操作在固态硬盘时代好像是一个负优化，一般会关闭</p>
-<h3 id="对比"><a href="#对比" class="headerlink" title="对比"></a>对比</h3><p>​    MongoDB 的写入链路是比读取链路要短的，这一点与 MySQL 正好相反。对于单独的事务来看，由于应用层日志是不需要单独提交的，所以 MongoDB 的 WAL 写入理论上是要比 MySQL 快的，（事务在写入 WAL 后就可以返回）。</p>
-<p>​    在大量事务写入的情况下，很容易会造成热点页刷脏的问题。由于 MongoDB 允许内存与硬盘中 B+树大小不相同，并且针对内存中的 B+ 树做了写入优化，大量写入的情况下会优先写入到内存缓冲区中，并且优先在内存中进行分裂。在处理这种瞬时写入压力时，MongoDB 的设计会更加好，这主要是 MongoDB 的设计考虑到了大量的内存缓冲，并且牺牲了一部分读取性能换来的。</p>
-<p>​    最主要的是，MySQL 作为关系型数据库，其事务隔离等级要求较高，这同样会造成较大的性能损耗，例如外键约束、间隙锁等。</p>
-<p>​    但是，MongoDB 在指定主键插入时，由于插入的位置可能并不是页面内最后一个跳跃表，这样就可能会导致创建出多个新页面才能够将插入位置放入到新页面中，或者来不及进行内存节点分裂，导致页面被锁住禁止写入，这样会造成较大的性能毛刺。因为要插入一个非常大的跳跃表，并且还要完成多个页面的持久化。此外，指定主键时，如果数据库体量较大，导致大部分数据不能够常驻内存，MongoDB 可能还需要从硬盘中读取数据来确保主键是唯一的，这样就导致数据量较大时指定主键的插入性能非常低。</p>
-<p>​    所以，MongoDB 并不适合存储那些由用户指定，并且需要保证唯一性的数据，例如用户名称等，而订单编号这种情况可以直接使用 uuid 进行插入。</p>
+          <h1 id="Docker-网络模型"><a href="#Docker-网络模型" class="headerlink" title="Docker 网络模型"></a>Docker 网络模型</h1><p>Docker 容器为了实现网络隔离，可以看作连接在不同虚拟网卡上的主机。网络隔离的基本需求是不同虚拟主机直接网络不能够互通，虚拟主机可以访问外部设备，而外部设备不能够直接访问虚拟主机，只能够通过端口来访问。</p>
+<h3 id="根据链来分"><a href="#根据链来分" class="headerlink" title="根据链来分"></a>根据链来分</h3><ul>
+<li>FORWARD 拦截所有非本地流量，所有 docker 流量都被包含在这里。下图，ISO 是隔离不同网桥之间的互相访问。由于已经过滤掉了不同隔离网络之间的访问，所以 docker 链中是接受所有外界的流量到 docker 网卡中。再往下两条是允许虚拟网卡流量流向主机外部和网卡本身。<br><img src="/images/25044E49-54B6-443E-AD9D-28A50BA05F43.jpg" alt="image">￼</li>
+<li>OUTPUT 和PREROUTING链则是截获所有本地非容器流量，他们都公用 DOCKER 链，如果发现是要访问host:port，将其 DNAT 到对应的容器地址。<br><img src="/images/46722EDA-E303-4193-BA0E-FFF224792801.jpg" alt="image">￼</li>
+<li>POSTROUTING 链是将所有容器访问主机外的流量，伪装成本地流量。<br><img src="/images/FCF35C50-9952-49CA-8613-306460E4EE80.jpg" alt="image">￼</li>
+</ul>
+<h3 id="单机网桥模式"><a href="#单机网桥模式" class="headerlink" title="单机网桥模式"></a>单机网桥模式</h3><p>单机网桥模式是没有指定任何网络选项的容器，假设容器的虚拟 ip 为 172.10.0.x，由于该网段宿主机并没有暴露给外界，因此外界无法访问容器。但有一种例外情况，就是外界主机通过修改路由表强行将 172.10.0.x 的流量转发给宿主机。这样流量在到达宿主机后是可以匹配到一条路由规则的，从而实现外界流量访问虚拟容器。</p>
+<p>容器内部的出流量在宿主机的 POST 链做了 MASQUERADE 处理，所以可以访问外界。假设容器的虚拟 ip 为 172.10.0.x，容器所有的出流量都会经过宿主机的 OUTPUT 和 POSTROUTING 链后选择合适的网卡进行转发。根据 docker 设置的 iptables 规则，所有出流量在 POSTROUTING 链经过 MASQUERADE 的 SNAT 伪装成为宿主机流量。tcp 回路的时候，宿主机会发现该数据包经历过 SNAT 规则转发，自动将回包的地址修改为 172.10.0.x，经过本地的路由规则转发到 docker0 网桥后就可以发送给对应的虚拟容器。</p>
+<h3 id="网桥模式"><a href="#网桥模式" class="headerlink" title="网桥模式"></a>网桥模式</h3><p>网桥模式即使用 -p 选项进行端口映射来启动的容器。单机网桥模式会复用主机端的端口，外部流量通过宿主机的 ip 地址加对应的端口号来访问虚拟容器。因此流量只要是到达主机的对应端口，就默认一定是访问主机端的服务。只用端口来判断流量是否走向 docker 容器就可以了。</p>
+<ul>
+<li>外部流量入：外部流量需要走 PREROUTING-FORWARD-POSTROUTIN 链，外部流量的网卡是除了docker自带的网卡之外的所有网卡。所以这些流量都需要在 PREROUTING 做 DNAT 处理，将流量的目的地址修改为 docker 容器的网段。</li>
+<li>经过 DNAT 后，宿主机发现流量流向地址不是本地应用，转发到 FORWARD 和 POSTROUTING，并且根据路由表转发到容器对应的虚拟网卡里面。</li>
+<li>内部流量出：docker 容器出流量也是宿主机应用出流量，所以会从 docker 虚拟网卡发送到 OUTPUT 链，需要在 OUTPUT 链中进行 MASQUERADE 将发送到外部的流量全部 SNAT 为宿主机的地址；此外，还要将发送给本机暴露出的端口也进行 SNAT 处理，即自访问。</li>
+<li>不同网桥之间的隔离操作：一个网桥发送给其他网桥的流量不会 SNAT 和 DNAT，会被直接发送到虚拟网卡上。虚拟网卡的入链同样会走 PRE 链，检测到是虚拟网卡流量，直接不进行操作。放行到 FORWARD，检测到不同网桥之间的相互访问，由 ISO1 截获，由 ISO2 丢弃。</li>
+<li>用户安全性操作：所有外部流量在截获前，都会被DOCKER-USER 链截获，用户需要将自己的链接入 DOCKER-USER 链中。</li>
+</ul>
+<p>网桥模式中，主要是通过匹配端口号来实现外部流量的转发的，内部流量的流出过程与单机网桥模式是相同的。除此此外，网桥模式下还需要对不同 docker 网络段之间的流量进行隔离操作，防止没有连接的两个虚拟网络段之间相互通信。</p>
+<h3 id="DNS-服务器"><a href="#DNS-服务器" class="headerlink" title="DNS 服务器"></a>DNS 服务器</h3><p>对于使用了 network 选项启动的容器，docker 会自动使用 127.0.0.11 来创建一个 DNS 服务器，所有 docker 创建出的进程会使用该地址作为默认的 DNS 服务器。并且每一个服务名都会作为一个域名进行注册。该内嵌的 DNS 服务器会根据容器的网段地址来进行选择性查询，从而来实现不同网络驱动之间的域名隔离。</p>
+<h3 id="ROUTING-MESH模式"><a href="#ROUTING-MESH模式" class="headerlink" title="ROUTING MESH模式"></a>ROUTING MESH模式</h3><p>该模式的意思是，从任何一个宿主机上暴露端口访问，都可以被负载均衡到任一台宿主机的容器上。</p>
+<p><img src="/images/F0FC6715-47DA-4E75-AB35-A856B43431AA3.jpg" alt="image">￼</p>
+<ul>
+<li>外部流量入口：所有的外部流量都会被 PREROUTING 中的 DOCKER-INGRESS 链截获。如果流量目标端口是一个使用 overlay 网络模式的容器，那么该流量会被捕获到 172.18.0.2 容器中。</li>
+<li>ingress-sbox：用来进行第二步iptables 流量控制。这里是通过mark+ipvs的方式来完成的，ipvs 的 vip 被绑定到overlay-bridge上。FORWARD 和 INPUT 链都会对不同端口数据包进行不同的标记，当数据包通过 INPUT 进入ipvs的vip 时，根据不同的标记进行负载均衡。</li>
+<li>目标容器：直接对流量进行处理。</li>
+<li>容器流量出口：vxlan 流量出来经过容器后，会经重定向发送到挂在宿主机的虚拟网卡。此时，网卡会被 OUTPUT链截获，如果发现是发送给 overlay 网络的流量，则会被 DNAT 到 ingress-box中。注意，docker_gwbridge 没有做外部 DNAT，无法被外部访问。</li>
+<li>以上是实现了overlay网络与普通网络流量之间的隔离。这个隔离是使用一个容器来完成的。</li>
+</ul>
 
       
     </div>
@@ -259,7 +259,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/9/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/9/">9</a><span class="page-number current">10</span><a class="page-number" href="/page/11/">11</a><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/11/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/9/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/9/">9</a><span class="page-number current">10</span><a class="page-number" href="/page/11/">11</a><span class="space">&hellip;</span><a class="page-number" href="/page/24/">24</a><a class="extend next" rel="next" href="/page/11/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -327,7 +327,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">24</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

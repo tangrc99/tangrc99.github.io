@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="MongoDB 无锁 Write FLow同一 key 的无锁读写MongoDB 的一个 B+树索引中具有三个数据结构来存储键值对数据：  WT_ROW 数组，存储原本 Check Point 时刻的值。 WT_UPDATE 跳跃表数组，存储已有键值对的更新值。 WT_INSERT_HEAD 跳跃表数组，存储新插入键值对的更新值。  MongoDB 中所有的写操作并不会直接修改原有的内存位置，而是">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MongoDB 无锁 Write FLow">
+<meta property="og:url" content="http://example.com/2022/12/26/%E6%9C%AA%E5%91%BD%E5%90%8D%E6%96%87%E4%BB%B6%E5%A4%B9/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="MongoDB 无锁 Write FLow同一 key 的无锁读写MongoDB 的一个 B+树索引中具有三个数据结构来存储键值对数据：  WT_ROW 数组，存储原本 Check Point 时刻的值。 WT_UPDATE 跳跃表数组，存储已有键值对的更新值。 WT_INSERT_HEAD 跳跃表数组，存储新插入键值对的更新值。  MongoDB 中所有的写操作并不会直接修改原有的内存位置，而是">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-12-26T08:00:28.930Z">
+<meta property="article:modified_time" content="2022-12-26T08:57:26.256Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="MongoDB">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/2022/12/26/%E6%9C%AA%E5%91%BD%E5%90%8D%E6%96%87%E4%BB%B6%E5%A4%B9/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MongoDB 无锁 Write FLow | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/26/%E6%9C%AA%E5%91%BD%E5%90%8D%E6%96%87%E4%BB%B6%E5%A4%B9/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MongoDB 无锁 Write FLow
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-12-26 16:00:28 / 修改时间：16:57:26" itemprop="dateCreated datePublished" datetime="2022-12-26T16:00:28+08:00">2022-12-26</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="MongoDB-无锁-Write-FLow"><a href="#MongoDB-无锁-Write-FLow" class="headerlink" title="MongoDB 无锁 Write FLow"></a>MongoDB 无锁 Write FLow</h1><h2 id="同一-key-的无锁读写"><a href="#同一-key-的无锁读写" class="headerlink" title="同一 key 的无锁读写"></a>同一 key 的无锁读写</h2><p>MongoDB 的一个 B+树索引中具有三个数据结构来存储键值对数据：</p>
+<ul>
+<li>WT_ROW 数组，存储原本 Check Point 时刻的值。</li>
+<li>WT_UPDATE 跳跃表数组，存储已有键值对的更新值。</li>
+<li>WT_INSERT_HEAD 跳跃表数组，存储新插入键值对的更新值。</li>
+</ul>
+<p>MongoDB 中所有的写操作并不会直接修改原有的内存位置，而是将新数据写入到B+树索引节点中的跳跃表中。结合惰性删除机制，跳跃表是可以做到无锁读写的。</p>
+<p>但是这种设计会使得读取的流程较长，因为要查询数据需要依次搜索WT_UPDATE，WT_ROW和WT_INSERT_HEAD 这三个数据结构，当插入数据过多时，跳跃表的搜索性能是要比 WT_ROW 的有序数组结构差的。</p>
+<h2 id="Check-Point-技术"><a href="#Check-Point-技术" class="headerlink" title="Check Point 技术"></a>Check Point 技术</h2><p>MongoDB 中会定期对 B+ 树进行整理，防止插入数据过多，影响读取性能，Check Point 技术会定期整理内存和硬盘中的 B+树结构。</p>
+<p>当一次 Check Point 发生后，MongoDB 将会新建一个 B+树，所有的写入操作会被转移到新的 B+树中。而所有的刷盘以及分裂操作只会影响到旧的 B+ 树。具体过程比较复杂，可以参考《MongoDB 核心原理与实践》。</p>
+<h2 id="变长-Page-减少-B-树节点分裂"><a href="#变长-Page-减少-B-树节点分裂" class="headerlink" title="变长 Page 减少 B+ 树节点分裂"></a>变长 Page 减少 B+ 树节点分裂</h2><p>MongoDB 中的索引部分使用的是 B+ 树这种数据结构，一般来说 B+ 树在节点分裂的过程中是无法做到无锁的，但是 WiredTiger 基于变长 Page 的技术来避免 B+ 树分裂时加锁。</p>
+<p>在数据库系统中，B+树在硬盘中的页面大小通常是硬盘扇区的大小，这主要是考虑到硬盘读写的原子性，防止破坏 B+树节点的内部结构。因为这种考虑，B+树的硬盘节点通常都比较小。而比较小的 B+树节点可能就意味着需要经常进行分裂操作来保持 B+树的平衡性。</p>
+<p>MongoDB 的 B+ 树在内存中和在硬盘中的 page 大小是不相同的，内存中的 page 大小要远远大于硬盘中的 page 大小。当内存中的 B+树 page 需要刷盘时，会将内存 page 分裂为多个硬盘 page 写入到硬盘中，这就是变长 Page 技术。变长 Page 技术能够减少 B+ 树的持久化次数，还能够尽量避免 B+ 树因为插入而导致的分裂。引入了变长 Page 技术后，MongoDB 中索引 B+ 树的节点分裂会被转移到 reconcile 和 eviction 过程中，从而避免了在 Write Flow 中出现索引变更的情况。</p>
+<h2 id="插入过多时小粒度分裂"><a href="#插入过多时小粒度分裂" class="headerlink" title="插入过多时小粒度分裂"></a>插入过多时小粒度分裂</h2><p>仅仅依靠变长 Page 还不能够解决所有的问题，如果在某一时刻发生大量的写入操作，导致一个B+树节点在短时间内就达到了内存 page 的上限，这种情况下依旧需要发生 B+树节点的分裂。</p>
+<p>由于 MongoDB 中所有新插入的节点都是存在于 WT_INSERT_HEAD 跳跃表数组中的，当B+树节点因为插入数量过多需要分裂时，会将WT_INSERT_HEAD 中的最后一个跳跃表复制到新的节点中（MongoDB 中的主键值基本上是自增的，最后一个跳跃表中的节点在大部分情况下是最多的）。这种小粒度的分裂能够避免对B+树进行大面积修改。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/MongoDB/" rel="tag"><i class="fa fa-tag"></i> MongoDB</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/12/26/iptables%20%E8%BD%AC%E5%8F%91%E8%A7%84%E5%88%99/" rel="prev" title="iptables 转发规则">
+      <i class="fa fa-chevron-left"></i> iptables 转发规则
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/12/26/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/" rel="next" title="MongoDB 无锁 Write FLow">
+      MongoDB 无锁 Write FLow <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#MongoDB-%E6%97%A0%E9%94%81-Write-FLow"><span class="nav-number">1.</span> <span class="nav-text">MongoDB 无锁 Write FLow</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%90%8C%E4%B8%80-key-%E7%9A%84%E6%97%A0%E9%94%81%E8%AF%BB%E5%86%99"><span class="nav-number">1.1.</span> <span class="nav-text">同一 key 的无锁读写</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Check-Point-%E6%8A%80%E6%9C%AF"><span class="nav-number">1.2.</span> <span class="nav-text">Check Point 技术</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%8F%98%E9%95%BF-Page-%E5%87%8F%E5%B0%91-B-%E6%A0%91%E8%8A%82%E7%82%B9%E5%88%86%E8%A3%82"><span class="nav-number">1.3.</span> <span class="nav-text">变长 Page 减少 B+ 树节点分裂</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8F%92%E5%85%A5%E8%BF%87%E5%A4%9A%E6%97%B6%E5%B0%8F%E7%B2%92%E5%BA%A6%E5%88%86%E8%A3%82"><span class="nav-number">1.4.</span> <span class="nav-text">插入过多时小粒度分裂</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.gif">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">24</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Renchu Tang</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
