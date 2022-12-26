@@ -160,7 +160,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/25/k8s-proxy-%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/25/TCP%E4%B8%A4%E6%AC%A1%E6%8C%A5%E6%89%8B%E2%80%94%E2%80%94%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E6%8A%93%E5%8C%85%E5%BC%82%E5%B8%B8/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.gif">
@@ -174,7 +174,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/25/k8s-proxy-%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">k8s proxy 网络模型</a>
+            <a href="/2022/12/25/TCP%E4%B8%A4%E6%AC%A1%E6%8C%A5%E6%89%8B%E2%80%94%E2%80%94%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E6%8A%93%E5%8C%85%E5%BC%82%E5%B8%B8/" class="post-title-link" itemprop="url">TCP 两次挥手？记录一次抓包异常</a>
         </h2>
 
         <div class="post-meta">
@@ -183,23 +183,21 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
+              
 
-              <time title="创建时间：2022-12-25 16:53:15" itemprop="dateCreated datePublished" datetime="2022-12-25T16:53:15+08:00">2022-12-25</time>
+              <time title="创建时间：2022-12-25 15:16:45 / 修改时间：20:36:30" itemprop="dateCreated datePublished" datetime="2022-12-25T15:16:45+08:00">2022-12-25</time>
             </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-12-26 15:16:27" itemprop="dateModified" datetime="2022-12-26T15:16:27+08:00">2022-12-26</time>
-              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E4%BA%91%E6%8A%80%E6%9C%AF/" itemprop="url" rel="index"><span itemprop="name">云技术</span></a>
+                  <a href="/categories/%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">网络</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BD%91%E7%BB%9C/tcp/" itemprop="url" rel="index"><span itemprop="name">tcp</span></a>
                 </span>
             </span>
 
@@ -214,27 +212,29 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="k8s-proxy-网络模型"><a href="#k8s-proxy-网络模型" class="headerlink" title="k8s proxy 网络模型"></a>k8s proxy 网络模型</h1><h3 id="iptables-模式"><a href="#iptables-模式" class="headerlink" title="iptables 模式"></a>iptables 模式</h3><p><img src="/images/DF43002E-5DBE-415E-94FB-6505B66D850A.jpg" alt="image">￼</p>
-<p>注意，所有的k8s 标记只分为两种，一种是需要转发的标记0x400，一种是需要丢弃的标记0x800。前者会最终在 POST 中被转发。</p>
-<p>下面解释一下为什么会有需要丢弃的数据包。由于规则链的建立并不是原子性的，所以可能会出现一种情况，规则链建立一半时，已经有相关的数据包到达了——这是一个非常危险的情况，可能会导致一些未定义的行为。因此，在规则正在建立的过程中，需要将相关数据包标记为 0x800，并最终丢弃掉。也就是 0x800 是用于标识规则链是否完全建立的。</p>
-<p>另外一种情况是按照用户的需求，对一些虚拟容器进行隔离操作。</p>
-<h3 id="iptables-clusterIP访问模式"><a href="#iptables-clusterIP访问模式" class="headerlink" title="iptables - clusterIP访问模式"></a>iptables - clusterIP访问模式</h3><p>这种访问模式一般是用于访问启动了多个实例的服务，并且需要进行负载均衡。客户端访问的链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICE -&gt; KUBE-SVC-SERV -&gt; KUBE-SEP-POD</p>
-<p>​    所有外部流量都会被 KUBE-SERVICE 链截获，并检查是否有流量是流向某一clusterIP的，并将流量传递给对应的 KUBE-SVC-SERV。KUBE-SVC-SERV 根据设置的负载均衡算法，将流量转发给对应的 KUBE-SEP-POD 链，并最终在该链中进行 DNAT 处理。</p>
-<h3 id="iptables-NodePort-访问模式"><a href="#iptables-NodePort-访问模式" class="headerlink" title="iptables - NodePort 访问模式"></a>iptables - NodePort 访问模式</h3><p>这种方式通常用来访问单独启动的服务实例。客户端的访问链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICE -&gt; KUBE-NODEPORTS -&gt; KUBE-SVC-XXX -&gt; KUBE-SEP-XXX</p>
-<p>单独启动的服务实例会单独注册在 KUBE-SERVICE链中，当clusterIP匹配完成后，才会进行 NodePort 规则匹配。<strong>使用 nodePort 方式来访问一个容器，其转发链路要更长，因此性能要稍差。</strong></p>
-<h3 id="ipvs-模式"><a href="#ipvs-模式" class="headerlink" title="ipvs 模式"></a>ipvs 模式</h3><p><img src="/images/71E894A0-C367-4B4F-A7DE-FF0275149CD4.jpg" alt="image">￼<br>ipvs 因为继承了 lvs 模块，所以其实是更加简单的。只需要在流量入口处进行流量区分和标记就可以。客户端进行访问的链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICES -&gt; KUBE-CLUSTER-IP -&gt; INPUT -&gt; KUBE-FIREWALL -&gt; POSTROUTING</p>
-<p>或者为：</p>
-<p>PREROUTING –&gt; KUBE-SERVICES –&gt; KUBE-NODE-PORT –&gt; INPUT –&gt; KUBE-FIREWALL –&gt; POSTROUTING</p>
+          <h1 id="TCP-两次挥手？记录一次抓包异常"><a href="#TCP-两次挥手？记录一次抓包异常" class="headerlink" title="TCP 两次挥手？记录一次抓包异常"></a>TCP 两次挥手？记录一次抓包异常</h1><h2 id="问题简述"><a href="#问题简述" class="headerlink" title="问题简述"></a>问题简述</h2><p>我们都知道，正常的 TCP 关闭连接时是需要发生四次挥手的。但是在 wireshark 的一次抓包过程中，我却偶然发现了有一个 tcp 连接只发生了两次挥手，即客户端发送了 FIN 报文，并且收到了服务端的 ACK 报文，但是服务端却没有继续发送 FIN 报文，本次异常断开的抓包结果如下，图中的 192.168.10.1 是某经过系统刷机的路由器：</p>
+<p><img src="/images/image-20221225152318823.png" alt="img"></p>
+<p>这其实是由于服务端在收到客户端的关闭请求后，并没有使用系统调用 shutdown 或者 close 来对 tcp 通道进行关闭，导致这时的 tcp 连接变成了一个半双工的状态，即服务端仍然保持写入状态（虽然并没有数据需要写入)。这里可能是路由器的 http 服务中忘记对客户端连接进行关闭所导致的一次 tcp 异常断开。</p>
+<h2 id="孤儿-socket-在-tcp-挥手的作用"><a href="#孤儿-socket-在-tcp-挥手的作用" class="headerlink" title="孤儿 socket 在 tcp 挥手的作用"></a>孤儿 socket 在 tcp 挥手的作用</h2><p>在本次的 tcp 连接断开异常后，如果服务端还有数据需要写入，但是此时客户端中的浏览器已经关闭，这种情况下操作系统是如何处理的呢？</p>
+<p>这里需要提到一个概念：孤儿 socket。这是 socket 的一个特殊的状态，该状态下用户进程不再继续对 socket 持有，不进行写入和读取操作，但是 socket 仍未完成 tcp 的四次挥手，这时系统栈中仍然会保留该 socket 的资源来进行 tcp 挥手操作。孤儿 socket 的引入就是为了解决 tcp 连接不能够正常断开的情况的。在孤儿 socket 的引入后，一次 tcp 挥手的流程可以分为不同的情况：</p>
+<p>不优雅的 tcp 关闭（一）：客户端直接调用 close</p>
 <ul>
-<li>KUBE-SERVICES 链负责劫持所有的流量，进行粗删选，根据主机所设置的网段号来初步判断流量目标是否是k8s 服务。</li>
-<li>KUBE-CLUSTER-IP 负责第二次筛选，将网段正确的流量匹配ipset集合，如果通过集合，则标记为0x2000，如果失败则标记为0x4000。</li>
-<li>如果 KUBE-SERVICES 链没有通过筛选，则进入 KUBE-NODE-PORT 链中，判断是否是单独开启的服务实例。</li>
-<li>INPUT 与 KUBE-FIREWALL：判断是否有标记为 0x4000 的流量，如果有，直接丢弃。</li>
-<li>IPVS 与 POSTROUTING：将通过匹配的流量通过 nat 的方式转发到负载均衡算法计算后的地址。使用 nat 是因为可以很好地进行端口映射，这样会使得调度机制更加灵活，</li>
+<li>客户端需要关闭连接时，直接使用 close 系统调用，发送一个 FIN 报文，此后 socket 资源栈全部由系统负责（孤儿 socket）。</li>
+<li>服务端接收到 FIN 报文，并回复 ACK 报文，若此时服务端无数据需要写入，则再发送一个 FIN，接收到 ACK 后 socket 正常释放。</li>
+<li>若服务端接收到 FIN 报文后，仍然需要写入数据，由于对端已经全双工关闭，无法接受到数据，此时对端的操作系统协议栈在收到数据后会给服务端发送 RST 报文，提醒对端协议栈进行关闭。此时进程继续写入数据会收到一个 EOF 提醒，进程必须放弃写入，否则继续写入将会收到一个 SIGPIPE 信号。</li>
 </ul>
+<p>不优雅的 tcp 关闭（二）：客户端进程崩溃</p>
+<ul>
+<li>客户端进程崩溃会导致服务端进程不会收到任何 FIN 报文，此时的客户端 socket 同样是一个孤儿 socket。</li>
+<li>客户端进程崩溃的情况下，系统的协议栈会自动给对方发送 RST 报文来重置连接。</li>
+</ul>
+<p>优雅的 tcp 关闭：使用 shutdown 进行关闭</p>
+<ul>
+<li>客户端需要关闭连接时，使用 shutdown 关闭写入端，使 tcp 成为半双工状态，向对方发送 FIN 报文。</li>
+<li>服务端接收到 FIN 报文，回复 ACK 报文，在完成写入后使用 close 或 shutdown 系统调用关闭连接，发送 FIN 报文。</li>
+<li>客户端接收到 FIN 报文并且回复一个 ACK 报文。</li>
+</ul>
+<h2 id="HTTP-重定向"><a href="#HTTP-重定向" class="headerlink" title="HTTP 重定向"></a>HTTP 重定向</h2><p>如果仔细看上述的抓包结果，可以注意到当客户端收到一个 HTTP 302 报文后，客户端会主动关闭 tcp 连接，并且重启一个新的 tcp 连接来访问重定向后的 url。这是因为重定向后的结果可能在一个新的 host 下，所以旧连接不一定可用，重新启动一个 tcp 连接更加安全。</p>
 
       
     </div>
@@ -253,7 +253,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/24/">24</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -321,7 +321,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">24</span>
+          <span class="site-state-item-count">12</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
