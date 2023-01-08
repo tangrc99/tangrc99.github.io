@@ -20,28 +20,35 @@
     var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":"enable","trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta property="og:type" content="website">
-<meta property="og:title" content="Hexo">
-<meta property="og:url" content="http://example.com/page/2/index.html">
+  <meta name="description" content="使用 goroutine 模拟 redis IO 模型在 redis 6.0 之后，redis 引入了 IO 线程的概念，但是并没有改变原有的单线程执行事务的模式。这是因为网络 IO 和协议解析在一次请求耗时中的占比是非常大的。使用单线程的模型可以简化应用层数据结构的设计，从而使代码更加便于维护。 而 go 语言中，同样可以利用 goroutine 和 channel 来模拟 redis 的请求处">
+<meta property="og:type" content="article">
+<meta property="og:title" content="使用 goroutine 模拟 redis IO 模型">
+<meta property="og:url" content="http://example.com/2022/12/27/%E4%BD%BF%E7%94%A8%20goroutine%20%E6%A8%A1%E6%8B%9F%20redis%20IO%20%E6%A8%A1%E5%9E%8B/index.html">
 <meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="使用 goroutine 模拟 redis IO 模型在 redis 6.0 之后，redis 引入了 IO 线程的概念，但是并没有改变原有的单线程执行事务的模式。这是因为网络 IO 和协议解析在一次请求耗时中的占比是非常大的。使用单线程的模型可以简化应用层数据结构的设计，从而使代码更加便于维护。 而 go 语言中，同样可以利用 goroutine 和 channel 来模拟 redis 的请求处">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/images/image-20230108035814657.png">
+<meta property="article:published_time" content="2022-12-27T12:46:14.756Z">
+<meta property="article:modified_time" content="2023-01-08T10:12:34.989Z">
 <meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="go">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/images/image-20230108035814657.png">
 
-<link rel="canonical" href="http://example.com/page/2/">
+<link rel="canonical" href="http://example.com/2022/12/27/%E4%BD%BF%E7%94%A8%20goroutine%20%E6%A8%A1%E6%8B%9F%20redis%20IO%20%E6%A8%A1%E5%9E%8B/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : true,
-    isPost : false,
+    isHome : false,
+    isPost : true,
     lang   : 'zh-CN'
   };
 </script>
 
-  <title>Hexo</title>
+  <title>使用 goroutine 模拟 redis IO 模型 | Hexo</title>
   
 
 
@@ -182,9 +189,10 @@
         <div class="content-wrap">
           
 
-          <div class="content index posts-expand">
+          <div class="content post posts-expand">
             
-      
+
+    
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
@@ -200,10 +208,9 @@
       <meta itemprop="name" content="Hexo">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/12/27/%E4%BD%BF%E7%94%A8%20goroutine%20%E6%A8%A1%E6%8B%9F%20redis%20IO%20%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">使用 goroutine 模拟 redis IO 模型</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          使用 goroutine 模拟 redis IO 模型
+        </h1>
 
         <div class="post-meta">
             <span class="post-meta-item">
@@ -246,7 +253,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="使用-goroutine-模拟-redis-IO-模型"><a href="#使用-goroutine-模拟-redis-IO-模型" class="headerlink" title="使用 goroutine 模拟 redis IO 模型"></a>使用 goroutine 模拟 redis IO 模型</h1><p>在 redis 6.0 之后，redis 引入了 IO 线程的概念，但是并没有改变原有的单线程执行事务的模式。这是因为网络 IO 和协议解析在一次请求耗时中的占比是非常大的。使用单线程的模型可以简化应用层数据结构的设计，从而使代码更加便于维护。</p>
+        <h1 id="使用-goroutine-模拟-redis-IO-模型"><a href="#使用-goroutine-模拟-redis-IO-模型" class="headerlink" title="使用 goroutine 模拟 redis IO 模型"></a>使用 goroutine 模拟 redis IO 模型</h1><p>在 redis 6.0 之后，redis 引入了 IO 线程的概念，但是并没有改变原有的单线程执行事务的模式。这是因为网络 IO 和协议解析在一次请求耗时中的占比是非常大的。使用单线程的模型可以简化应用层数据结构的设计，从而使代码更加便于维护。</p>
 <p>而 go 语言中，同样可以利用 goroutine 和 channel 来模拟 redis 的请求处理方式，使用单一事务协程和多个协议解析协程的方式来处理客户端请求。这种处理方式不仅能够借助 go 语言的特点，还能够结合传统 reactor 事务模式的特点，使得代码更易于维护。这种模式下，网络 IO 可以分为 Accept Loop, IO Loop, Event Loop，分别完成建立新连接，解析客户端命令，处理客户端请求的功能。</p>
 <h2 id="抽象客户端连接"><a href="#抽象客户端连接" class="headerlink" title="抽象客户端连接"></a>抽象客户端连接</h2><p>由于 goroutine 不具备传统线程的特点，不能够直接从外部来改变协程的状态。可以将每一个客户端连接所对应的协程抽象为一个 Client Struct，也就是一个 Context 进行管理。</p>
 <figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Client <span class="keyword">struct</span> &#123;</span><br><span class="line">  </span><br><span class="line">	event *Request             <span class="comment">// 解析后的命令</span></span><br><span class="line">	raw []<span class="type">byte</span>               <span class="comment">// 解析前的命令</span></span><br><span class="line">	res <span class="keyword">chan</span> *Response <span class="comment">// 回包</span></span><br><span class="line"></span><br><span class="line">	cnn   net.Conn  <span class="comment">// 连接实例</span></span><br><span class="line">	id    uuid.UUID <span class="comment">// Cli 编号</span></span><br><span class="line">	tp    time.Time <span class="comment">// 通信时间戳</span></span><br><span class="line"></span><br><span class="line">	status ClientStatus  <span class="comment">// 状态 0 等待连接 1 正常 -1 退出 -2 异常</span></span><br><span class="line">	exit   <span class="type">bool</span>					 <span class="comment">// 退出标志</span></span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewClient</span><span class="params">(c net.Conn)</span></span> *Client &#123;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
@@ -280,25 +287,35 @@
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">使用 gnet 网络库</span></span><br><span class="line">Summary:</span><br><span class="line">  throughput summary: 64977.26 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.590     0.120     0.543     1.079     1.439     2.335</span><br></pre></td></tr></table></figure>
 
 
-      
     </div>
 
     
     
     
+
       <footer class="post-footer">
-        <div class="post-eof"></div>
+          
+          <div class="post-tags">
+              <a href="/tags/go/" rel="tag"><i class="fa fa-tag"></i> go</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/12/27/C++-%E6%9A%B4%E9%9C%B2%E9%83%A8%E5%88%86%E7%A7%81%E6%9C%89%E6%8E%A5%E5%8F%A3/" rel="prev" title="C++ 暴露部分私有接口">
+      <i class="fa fa-chevron-left"></i> C++ 暴露部分私有接口
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
       </footer>
+    
   </article>
   
   
   
-
-
-  
-  <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/18/">18</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
-  </nav>
 
 
 
@@ -350,6 +367,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8-goroutine-%E6%A8%A1%E6%8B%9F-redis-IO-%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.</span> <span class="nav-text">使用 goroutine 模拟 redis IO 模型</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8A%BD%E8%B1%A1%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BF%9E%E6%8E%A5"><span class="nav-number">1.1.</span> <span class="nav-text">抽象客户端连接</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Accept-Loop"><span class="nav-number">1.2.</span> <span class="nav-text">Accept Loop</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#IO-Loop"><span class="nav-number">1.3.</span> <span class="nav-text">IO Loop</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Event-Loop"><span class="nav-number">1.4.</span> <span class="nav-text">Event Loop</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BC%98%E7%BC%BA%E7%82%B9"><span class="nav-number">1.5.</span> <span class="nav-text">优缺点</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BC%98%E7%82%B9"><span class="nav-number">1.5.1.</span> <span class="nav-text">优点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BC%BA%E7%82%B9"><span class="nav-number">1.5.2.</span> <span class="nav-text">缺点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#redis-%E5%9C%BA%E6%99%AF%E4%B8%8B%E7%9A%84%E5%AF%B9%E6%AF%94"><span class="nav-number">1.5.3.</span> <span class="nav-text">redis 场景下的对比</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E7%93%B6%E9%A2%88"><span class="nav-number">1.6.</span> <span class="nav-text">性能瓶颈</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
