@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/favicon.ico" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":"enable","trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="MongoDB 复制集同步过程MongoDB Replica Set 是一种基于分布式选举和复制状态机的高可用架构，这一套模式虽然与 paxos、raft 协议非常相似，但实质上差异却非常大。raft 协议中，所有事务的提交都是线性的，所有节点会进行同步提交，因此可以保持很高的数据一致性，但是写性能会比较差；而 MongoDB 的复制集则是一种异步复制+选举算法的结合，通过调节事务的提交时间来完成">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MongoDB 复制集同步过程">
+<meta property="og:url" content="http://example.com/2022/12/26/MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E5%90%8C%E6%AD%A5%E8%BF%87%E7%A8%8B/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="MongoDB 复制集同步过程MongoDB Replica Set 是一种基于分布式选举和复制状态机的高可用架构，这一套模式虽然与 paxos、raft 协议非常相似，但实质上差异却非常大。raft 协议中，所有事务的提交都是线性的，所有节点会进行同步提交，因此可以保持很高的数据一致性，但是写性能会比较差；而 MongoDB 的复制集则是一种异步复制+选举算法的结合，通过调节事务的提交时间来完成">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/images/20jq7bq4ya.png">
+<meta property="article:published_time" content="2022-12-26T15:31:59.813Z">
+<meta property="article:modified_time" content="2022-12-26T15:33:44.970Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="MongoDB">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/images/20jq7bq4ya.png">
+
+<link rel="canonical" href="http://example.com/2022/12/26/MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E5%90%8C%E6%AD%A5%E8%BF%87%E7%A8%8B/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>MongoDB 复制集同步过程 | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/26/MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E5%90%8C%E6%AD%A5%E8%BF%87%E7%A8%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          MongoDB 复制集同步过程
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-12-26 23:31:59 / 修改时间：23:33:44" itemprop="dateCreated datePublished" datetime="2022-12-26T23:31:59+08:00">2022-12-26</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="MongoDB-复制集同步过程"><a href="#MongoDB-复制集同步过程" class="headerlink" title="MongoDB 复制集同步过程"></a>MongoDB 复制集同步过程</h1><p>MongoDB Replica Set 是一种基于分布式选举和复制状态机的高可用架构，这一套模式虽然与 paxos、raft 协议非常相似，但实质上差异却非常大。raft 协议中，所有事务的提交都是线性的，所有节点会进行同步提交，因此可以保持很高的数据一致性，但是写性能会比较差；而 MongoDB 的复制集则是一种异步复制+选举算法的结合，通过调节事务的提交时间来完成数据一致性的保证。</p>
+<h2 id="基于-Oplog-的数据同步机制"><a href="#基于-Oplog-的数据同步机制" class="headerlink" title="基于 Oplog 的数据同步机制"></a>基于 Oplog 的数据同步机制</h2><p>与 raft 协议类似，MongoDB 中也是采用复制状态机的模式来进行数据复制，在 MongoDB 中用于节点同步的日志类型称为 Oplog。Oplog 其实并不是一种日志文件，而是 WiredTiger 中一个特殊的 Collection，这种特殊的模式使得 MongoDB 中应用层日志、数据、索引实际上是作为一个事务整体写入的。这种设计能够有效地规避应用层日志与数据库日志不相同的问题，这个问题在 MySQL 中有所体现，并且困惑了开发者相当长一段时间。对比 etcd 的实现，可以认为 etcd 是按照 raft 状态机的模式，在 raft 节点之上构建一个数据库；而 MongoDB 其实仍然是一个传统的数据库同步模式，是一个基于数据库引擎的复制模式，这是两者之间的核心差异。</p>
+<h2 id="Oplog-的异步复制"><a href="#Oplog-的异步复制" class="headerlink" title="Oplog 的异步复制"></a>Oplog 的异步复制</h2><p>经过上一小节的讨论，MongoDB 的复制机制并不是 etcd 的模式，而是类似 MySQL 主从复制的模式。这样就能够更加轻松地理解为什么 Oplog 采取的一种异步复制的模式。</p>
+<img src="/images/20jq7bq4ya.png" alt="20jq7bq4ya" style="zoom: 67%;" />
+
+<p>Oplog 的异步复制是由从节点发起的，每一个从节点都会有一个特殊的线程用于从主节点拉取 Oplog，我们这里称之为拉取线程。当拉取线程只负责完成 Oplog 的复制，并写入到本地的 Collection 中，当写入完成后拉取线程就会继续向主节点请求下一批 Oplog。拉取线程在拉取 Oplog 过程中不会发生任何的阻塞。</p>
+<p>Oplog 的重放是由重放线程来完成的，根据设置 MongoDB 中可以存在多个重放线程来加快复制速度，默认的重放线程为 16 个。重放线程实际上是在模拟客户端的请求向数据库发送命令完成数据的复制。回放线程尽量累积大量数据才回放（批量并发执行效率高）。但是如果oplog比较少，会提前返回。但是极端情况下，可能会有最多阻塞1秒的情况。</p>
+<p>当重放线程完成重放后，会直接通知主节点自身的当前版本。心跳与版本上报是两个不同的过程，因为心跳周期两秒的间隔时间过长，如果使用心跳上报会导致客户端请求长时间被阻塞。心跳只用于无请求时的保活操作。</p>
+<h2 id="选举机制"><a href="#选举机制" class="headerlink" title="选举机制"></a>选举机制</h2><p>MongoDB 中的选举与 raft 算法也有着一定的区别。raft 算法中由于客户端请求必须到达多数节点才能够提交，因此在选举过程中需要考虑数据一致性的问题，防止数据回滚。而 MongoDB 中，客户端操作并不会因为未到达多数节点而提交失败，只会发生超时错误（超时错误不会导致回滚），因此 MongoDB 中的选举算法主要考虑如何更快地选择数据更多更新的节点，并且尽量保证不丢失数据。</p>
+<p>MongoDB 选举机制中比较特殊的地方在于：当选举完成后，新选举的主节点会要求所有的从节点发送自身的最近数据，并且取这些数据的并集作为集群视图，raft 协议中则是直接按照主节点的状态机作为新视图。这点不同主要是考虑到每个从节点进行 Oplog 重放的顺序可能不同，虽然 Oplog 的拉取是严格按照次数的，但是在重放过程中由于使用了多线程重放，可能会有一部分线程阻塞，发生事务提交的重排。</p>
+<h2 id="网络分区的风险"><a href="#网络分区的风险" class="headerlink" title="网络分区的风险"></a>网络分区的风险</h2><p>当 MongoDB 复制集集群中发生主节点网络分区时，虽然集群中已经完成了选举，但主节点在当前的心跳周期仍然可以处理客户端的请求。</p>
+<p>如果客户端的写入请求为 w:1，那么在这种情况下仍然是可以成功写入的，并且客户端并不会得到写入超时的通知，即客户端视角下无法得知异常发生，无法采取相关的异常处理操作。当主节点网络恢复后，这部分时间内发生的写请求会发生回滚，回滚的数据会被写入到回滚文件中，必须要人工进行数据维护。如果不使用高于 w:majority 的写入等级，就需要承受数据发生回滚的风险。</p>
+<p>发生网络分区时，客户端的读请求会因为不同的  Read Peference 而发生不同的处理。在约一个心跳周期的时间范围内，MongoDB 只能够保证采取相同Read Concern 和 Read Peference 的读请求保持正确的读顺序。当Read Concern 和 Read Peference 不同时，可能会出现读请求R1读到主节点的过期数据，读请求R2 读到其他节点的正常数据，当 R2 时间早于 R1 时就会出现读操作的不安全性。 最好对相同的 Collection 采取相同的读设置来获取更一致的视图。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/MongoDB/" rel="tag"><i class="fa fa-tag"></i> MongoDB</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/12/26/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/" rel="prev" title="MongoDB 无锁 Write FLow">
+      <i class="fa fa-chevron-left"></i> MongoDB 无锁 Write FLow
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2022/12/27/BSON%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/" rel="next" title="BSON结构分析">
+      BSON结构分析 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E5%90%8C%E6%AD%A5%E8%BF%87%E7%A8%8B"><span class="nav-number">1.</span> <span class="nav-text">MongoDB 复制集同步过程</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%9F%BA%E4%BA%8E-Oplog-%E7%9A%84%E6%95%B0%E6%8D%AE%E5%90%8C%E6%AD%A5%E6%9C%BA%E5%88%B6"><span class="nav-number">1.1.</span> <span class="nav-text">基于 Oplog 的数据同步机制</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Oplog-%E7%9A%84%E5%BC%82%E6%AD%A5%E5%A4%8D%E5%88%B6"><span class="nav-number">1.2.</span> <span class="nav-text">Oplog 的异步复制</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%80%89%E4%B8%BE%E6%9C%BA%E5%88%B6"><span class="nav-number">1.3.</span> <span class="nav-text">选举机制</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%88%86%E5%8C%BA%E7%9A%84%E9%A3%8E%E9%99%A9"><span class="nav-number">1.4.</span> <span class="nav-text">网络分区的风险</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">17</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Renchu Tang</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

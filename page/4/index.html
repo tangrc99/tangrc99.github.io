@@ -8,7 +8,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
-  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <link rel="mask-icon" href="/images/favicon.ico" color="#222">
 
 <link rel="stylesheet" href="/css/main.css">
 
@@ -17,7 +17,7 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":"enable","trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta property="og:type" content="website">
@@ -99,6 +99,7 @@
 
   <div class="site-nav-right">
     <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
     </div>
   </div>
 </div>
@@ -133,11 +134,38 @@
     <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
 
   </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
   </ul>
 </nav>
 
 
 
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
 
 </div>
     </header>
@@ -160,10 +188,10 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/25/k8s-proxy-%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/27/BSON%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="image" content="/images/avatar.png">
       <meta itemprop="name" content="tangrc99">
       <meta itemprop="description" content="">
     </span>
@@ -174,7 +202,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/25/k8s-proxy-%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">k8s proxy 网络模型</a>
+            <a href="/2022/12/27/BSON%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">BSON结构分析</a>
         </h2>
 
         <div class="post-meta">
@@ -184,22 +212,19 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2022-12-25 16:53:15" itemprop="dateCreated datePublished" datetime="2022-12-25T16:53:15+08:00">2022-12-25</time>
+              <time title="创建时间：2022-12-27 00:08:27" itemprop="dateCreated datePublished" datetime="2022-12-27T00:08:27+08:00">2022-12-27</time>
             </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-12-26 15:16:27" itemprop="dateModified" datetime="2022-12-26T15:16:27+08:00">2022-12-26</time>
-              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E4%BA%91%E6%8A%80%E6%9C%AF/" itemprop="url" rel="index"><span itemprop="name">云技术</span></a>
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
                 </span>
             </span>
 
@@ -214,27 +239,22 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="k8s-proxy-网络模型"><a href="#k8s-proxy-网络模型" class="headerlink" title="k8s proxy 网络模型"></a>k8s proxy 网络模型</h1><h3 id="iptables-模式"><a href="#iptables-模式" class="headerlink" title="iptables 模式"></a>iptables 模式</h3><p><img src="/images/DF43002E-5DBE-415E-94FB-6505B66D850A.jpg" alt="image">￼</p>
-<p>注意，所有的k8s 标记只分为两种，一种是需要转发的标记0x400，一种是需要丢弃的标记0x800。前者会最终在 POST 中被转发。</p>
-<p>下面解释一下为什么会有需要丢弃的数据包。由于规则链的建立并不是原子性的，所以可能会出现一种情况，规则链建立一半时，已经有相关的数据包到达了——这是一个非常危险的情况，可能会导致一些未定义的行为。因此，在规则正在建立的过程中，需要将相关数据包标记为 0x800，并最终丢弃掉。也就是 0x800 是用于标识规则链是否完全建立的。</p>
-<p>另外一种情况是按照用户的需求，对一些虚拟容器进行隔离操作。</p>
-<h3 id="iptables-clusterIP访问模式"><a href="#iptables-clusterIP访问模式" class="headerlink" title="iptables - clusterIP访问模式"></a>iptables - clusterIP访问模式</h3><p>这种访问模式一般是用于访问启动了多个实例的服务，并且需要进行负载均衡。客户端访问的链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICE -&gt; KUBE-SVC-SERV -&gt; KUBE-SEP-POD</p>
-<p>​    所有外部流量都会被 KUBE-SERVICE 链截获，并检查是否有流量是流向某一clusterIP的，并将流量传递给对应的 KUBE-SVC-SERV。KUBE-SVC-SERV 根据设置的负载均衡算法，将流量转发给对应的 KUBE-SEP-POD 链，并最终在该链中进行 DNAT 处理。</p>
-<h3 id="iptables-NodePort-访问模式"><a href="#iptables-NodePort-访问模式" class="headerlink" title="iptables - NodePort 访问模式"></a>iptables - NodePort 访问模式</h3><p>这种方式通常用来访问单独启动的服务实例。客户端的访问链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICE -&gt; KUBE-NODEPORTS -&gt; KUBE-SVC-XXX -&gt; KUBE-SEP-XXX</p>
-<p>单独启动的服务实例会单独注册在 KUBE-SERVICE链中，当clusterIP匹配完成后，才会进行 NodePort 规则匹配。<strong>使用 nodePort 方式来访问一个容器，其转发链路要更长，因此性能要稍差。</strong></p>
-<h3 id="ipvs-模式"><a href="#ipvs-模式" class="headerlink" title="ipvs 模式"></a>ipvs 模式</h3><p><img src="/images/71E894A0-C367-4B4F-A7DE-FF0275149CD4.jpg" alt="image">￼<br>ipvs 因为继承了 lvs 模块，所以其实是更加简单的。只需要在流量入口处进行流量区分和标记就可以。客户端进行访问的链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICES -&gt; KUBE-CLUSTER-IP -&gt; INPUT -&gt; KUBE-FIREWALL -&gt; POSTROUTING</p>
-<p>或者为：</p>
-<p>PREROUTING –&gt; KUBE-SERVICES –&gt; KUBE-NODE-PORT –&gt; INPUT –&gt; KUBE-FIREWALL –&gt; POSTROUTING</p>
+          <h1 id="BSON-结构分析"><a href="#BSON-结构分析" class="headerlink" title="BSON 结构分析"></a>BSON 结构分析</h1><h2 id="BSON-简介"><a href="#BSON-简介" class="headerlink" title="BSON 简介"></a>BSON 简介</h2><p>BSON 全称是 Binary JSON, 和 JSON 很像，但是采用二进制格式进行存储。相比 JSON 有以下优势：</p>
 <ul>
-<li>KUBE-SERVICES 链负责劫持所有的流量，进行粗删选，根据主机所设置的网段号来初步判断流量目标是否是k8s 服务。</li>
-<li>KUBE-CLUSTER-IP 负责第二次筛选，将网段正确的流量匹配ipset集合，如果通过集合，则标记为0x2000，如果失败则标记为0x4000。</li>
-<li>如果 KUBE-SERVICES 链没有通过筛选，则进入 KUBE-NODE-PORT 链中，判断是否是单独开启的服务实例。</li>
-<li>INPUT 与 KUBE-FIREWALL：判断是否有标记为 0x4000 的流量，如果有，直接丢弃。</li>
-<li>IPVS 与 POSTROUTING：将通过匹配的流量通过 nat 的方式转发到负载均衡算法计算后的地址。使用 nat 是因为可以很好地进行端口映射，这样会使得调度机制更加灵活，</li>
+<li><strong>访问速度更快。</strong>BSON 会存储 Value 的类型，相比于明文存储，不需要进行字符串类型到其他类型的转换操作。以整型 12345678 为例，JSON 需要将字符串转成整型，而 BSON 中存储了整型类型标志，并用 4 个字节直接存储了整型值；</li>
+<li><strong>存储空间更低。</strong>还是以整型 12345678 为例，JSON 采用明文存储的方式需要 8 个字节，但是 BSON 对于 Int32 的值统一采用 4 字节存储，Long 和 Double 采用 8 字节存储。 当然这里说存储空间更低也分具体情况，比如对于小整型，BSON 消耗的空间反而更高；</li>
+<li><strong>数据类型更丰富。</strong>BSON 相比 JSON，增加了 BinData，TimeStamp，ObjectID，Decimal128 等类型。</li>
 </ul>
+<h2 id="BSON-存储格式"><a href="#BSON-存储格式" class="headerlink" title="BSON 存储格式"></a>BSON 存储格式</h2><p>一条最简单的 BSON 文档，从前向后可以拆解成以下几个部分：</p>
+<ol>
+<li>文档的总长度， 占 4 个字节；</li>
+<li>Value 类型，参考<a target="_blank" rel="noopener" href="https://github.com/mongodb/mongo/blob/r4.2.21/src/mongo/bson/bsontypes.h#L59-L110">代码定义</a>，占 1 个字节；</li>
+<li>Key 的 String 表示形式（Key 只能 String 类型），长度不固定，以 ‘\0’ 结尾，占 len(Key)+1 个字节；</li>
+<li>Value 的二进制存储，比如 Int32 占 4 字节，Long 和 Double 占 8 个字节等；</li>
+<li>文档以 ‘\0’ 结尾，也就是在遍历 BSON 到末尾时，常见的 EOO(End Of Object)，占 1 个字节；</li>
+</ol>
+<h2 id="紧凑格式的缺点"><a href="#紧凑格式的缺点" class="headerlink" title="紧凑格式的缺点"></a>紧凑格式的缺点</h2><p>BSON 的存储格式非常紧凑，不同的键值对之间是无间隔存储。因此，修改 BSON 中的某一字段意味着需要组织处一个新的 BSON 对象。如果增加、删除或者修改了某个字段，要生成新 BSON 文档，而非在原有 BSON 文档上原地修改。</p>
+<p>在使用 MongoDB 时，可以使用 JSON 格式来暂时存储数据以便在不同的程序模块之间传递。当数据需要插入 MongoDB 时，再将数据封存，转换为 BSON 格式。</p>
 
       
     </div>
@@ -253,7 +273,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/17/">17</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -312,7 +332,7 @@
       <div class="site-overview-wrap sidebar-panel">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
     <img class="site-author-image" itemprop="image" alt="tangrc99"
-      src="/images/avatar.gif">
+      src="/images/avatar.png">
   <p class="site-author-name" itemprop="name">tangrc99</p>
   <div class="site-description" itemprop="description"></div>
 </div>
@@ -321,20 +341,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">17</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-count">10</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-count">12</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -410,6 +430,10 @@
   
 
 
+
+
+  
+<script src="/js/local-search.js"></script>
 
 
 

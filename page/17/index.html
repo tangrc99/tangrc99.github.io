@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/favicon.ico" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":"enable","trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta property="og:type" content="website">
+<meta property="og:title" content="Hexo">
+<meta property="og:url" content="http://example.com/page/17/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:author" content="tangrc99">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/page/17/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : true,
+    isPost : false,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content index posts-expand">
+            
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/08/23/C++%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%AE%9E%E8%B7%B5%E7%AC%94%E8%AE%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/08/23/C++%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%AE%9E%E8%B7%B5%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">C++ 并发编程实践笔记</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-08-23 15:48:04" itemprop="dateCreated datePublished" datetime="2021-08-23T15:48:04+08:00">2021-08-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-12-27 04:02:57" itemprop="dateModified" datetime="2022-12-27T04:02:57+08:00">2022-12-27</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/C/" itemprop="url" rel="index"><span itemprop="name">C++</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="序论"><a href="#序论" class="headerlink" title="序论"></a>序论</h1><h2 id="并发的一些基本概念"><a href="#并发的一些基本概念" class="headerlink" title="并发的一些基本概念"></a>并发的一些基本概念</h2><ul>
+<li><p>并发：在单个系统中可以同时执行多个独立的任务，这些任务可是不是在同一时刻开始的。<strong>并发的关注点为任务分离和任务响应</strong></p>
+</li>
+<li><p>并行：是指系统在同一时刻创建出多个并发的线程，这些任务的开始间隔很小，近似为同一时刻。<strong>并行的关注点再数据批量处理</strong></p>
+</li>
+<li><p>C++中，同一进程的线程之间是共享同一片内存地址的；而进程之间的内存地址之间是隔离开的。因此，进程之间的通信十分复杂，或通信速度较慢；而线程之间的通信简单，且速度很快。</p>
+</li>
+<li><p>并发的缺点：并发的设计和维护的代价非常大，也更容易引起错误。过多的线程也会造成系统的运行效率下降。</p>
+</li>
+<li><p>C++标准库对系统底层工具进行了封装，<strong>这代表其会产生一定的抽象代价</strong>     </p>
+</li>
+</ul>
+<h2 id="并行的常用方式"><a href="#并行的常用方式" class="headerlink" title="并行的常用方式"></a>并行的常用方式</h2><ul>
+<li>任务并行：将一个大任务分为几部分，各自单独运行。数据分批次，算法是整体的。<strong>任务并行常常用来提升任务运行速度</strong></li>
+<li>数据并行：将一个算法分为几部分，形成线程之间的流水线工作。<strong>数据并行常常用来提升数据吞吐量</strong></li>
+</ul>
+<h2 id="并发编程常用思想"><a href="#并发编程常用思想" class="headerlink" title="并发编程常用思想"></a>并发编程常用思想</h2><p>​    下面介绍的是在并发编程中经常会用到的一些模式和思想。</p>
+<h3 id="函数化编程"><a href="#函数化编程" class="headerlink" title="函数化编程"></a>函数化编程</h3><p>​    函数化编程是指函数的结果只依赖于传入函数的参数，而不依赖于外部的状态。通常所说的外部状态有：全局变量，外部域变量、系统参数等，<strong>注意不要忽略系统参数</strong>。函数化编程具有以下的优点：</p>
+<ul>
+<li><strong>可再现性</strong>：函数化编程的结果与输入一一对应，可以避免一些预料之外的错误。</li>
+<li><strong>低条件竞争</strong>：函数化编程不依赖外部参数，因而很难会发生条件竞争。</li>
+<li><strong>高并发</strong>：采用函数化编程，可以在同一时刻并发多个线程，而不会造成阻塞。</li>
+</ul>
+<h3 id="通信顺序处理"><a href="#通信顺序处理" class="headerlink" title="通信顺序处理"></a>通信顺序处理</h3><p>​    通信顺序处理是指线程之间的消息只通过消息队列传递，而不使用共享地址空间。由于 C++线程共享一块地址空间，所以 C++只能够模拟而非真正实现通信顺序处理。</p>
+<p>​    基于通信顺序处理，可以实现多线程下的有限状态机</p>
+<h3 id="线程安全"><a href="#线程安全" class="headerlink" title="线程安全"></a>线程安全</h3><p>​    指数据结构在多线程环境下，无数据的丢失和损毁，所有的数据需要维持原样且无条件竞争。    <strong>单纯使用锁会导致序列化，即线程只能轮流访问被保护的数据；在数据结构这个节点上并不能实现真正的并发</strong>；线程安全的含义：</p>
+<ul>
+<li>确保无线程能看到修改够数据结构的“不变量”时的状态，即<strong>数据修改对任何线程是原子的</strong></li>
+<li>小心会引起条件竞争的接口，提供完整操作的函数，而非<strong>操作步骤</strong></li>
+<li>注意数据结构的行为是否会产生异常，从而确保“不变量”的状态，即<strong>实现“异常-安全”</strong></li>
+<li>降低死锁概率，限制锁的范围，降低锁的粒度，避免嵌套锁的存在。</li>
+</ul>
+<h1 id="线程管理"><a href="#线程管理" class="headerlink" title="线程管理"></a>线程管理</h1><h2 id="简单地定义一个模板的初始化"><a href="#简单地定义一个模板的初始化" class="headerlink" title="简单地定义一个模板的初始化"></a>简单地定义一个模板的初始化</h2><p>C++线程是一个模板类，提供的函数对象和数据（除 <code>std::ref()</code>外）都会被复制到新的线程中去，<strong>如果拷贝后主线程的函数或数据发生变化不会造成子线程的变化，这可能会导致一些错误</strong>。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span><span class="string">&lt;thread&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">SomeClass</span>&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">	<span class="function"><span class="type">void</span> <span class="title">someFunction</span><span class="params">(<span class="type">int</span> &amp; num)</span></span>&#123; &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="function"><span class="type">void</span> <span class="title">createFunction</span><span class="params">()</span></span>&#123;</span><br><span class="line">    <span class="comment">//调用类的成员函数时要加上 &amp;类型::</span></span><br><span class="line">    <span class="comment">//默认参数需要拷贝到新线程中去，除非显示使用 std::ref</span></span><br><span class="line">    <span class="function">std::thread <span class="title">thread1</span><span class="params">(&amp;SomeClass::someFunction,<span class="keyword">this</span>,std::ref(num))</span></span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">//一个线程可以被 Join 一次，主线程运行至 join 处</span></span><br><span class="line"><span class="comment">//会等待其他线程运行完毕</span></span><br><span class="line"><span class="keyword">if</span>(thread1.joinable)</span><br><span class="line">	thread1.<span class="built_in">join</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">//detach 通常用来分离守护线程,被分离后的线程不能 Join</span></span><br><span class="line"><span class="comment">//守护线程：没有显显式的用户接口，在后台持续运行，可能会贯穿整个应用生命周期</span></span><br><span class="line">	thread1.<span class="built_in">detach</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">//yield 用来主动让出时间片，即若有其他线程在等待，则优先让其他线程运行</span></span><br><span class="line">	thread1.<span class="built_in">yield</span>();</span><br></pre></td></tr></table></figure>
+
+
+
+<ul>
+<li>std::thread 变量是一个右值类型，不能够拷贝和赋值，只能够使用 std::move 进行移动操作。</li>
+</ul>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//假设有两个线程 thread1、thread2 </span></span><br><span class="line"></span><br><span class="line">thread1 = thread2 <span class="comment">//这是错误的</span></span><br><span class="line">thread1.<span class="built_in">swap</span>(thread2);<span class="comment">//thread1和 thread2 相互交换</span></span><br><span class="line"></span><br><span class="line">thread1 = std::<span class="built_in">move</span>(thread2)	<span class="comment">// thread2交给 thread1 管理，自身变为空值；thread1原本的会直接被终止，不抛出异常</span></span><br><span class="line">  </span><br><span class="line"><span class="comment">//函数可以返回一个 std::thread 类型的对象</span></span><br><span class="line">std::thread <span class="built_in">createThread</span>()&#123;</span><br><span class="line">  <span class="comment">//返回的对象必须被初始化</span></span><br><span class="line">  std::thread <span class="built_in">t</span>();</span><br><span class="line">  <span class="keyword">return</span> t;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<ul>
+<li>有关 thread 的一些操作</li>
+</ul>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//线程的标识符</span></span><br><span class="line">std::this_thread::<span class="built_in">get_id</span>();	<span class="comment">//获得当前运行线程的 id</span></span><br><span class="line">thread1.<span class="built_in">get_id</span>();	<span class="comment">//获得 thread1 的 id</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//获得允许运行的最大线程数量</span></span><br><span class="line"><span class="comment">//注意，这个数量并不是安全的，因为同一时间在多个线程中调用会返回同一个值</span></span><br><span class="line"><span class="comment">//如果按照这个数量来创建线程，往往会超出系统负载</span></span><br><span class="line"><span class="type">int</span> max_thread_num = std::thread::<span class="built_in">hardware_concurrency</span>();</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<ul>
+<li>多线程编程中的“异常-安全”</li>
+</ul>
+<h1 id="线程间的共享数据——mutex"><a href="#线程间的共享数据——mutex" class="headerlink" title="线程间的共享数据——mutex"></a>线程间的共享数据——mutex</h1><p>​    问题来源：当多个线程同时访问一个共享的数据时，它只保留刚刚读取时的信息，若读取后数据被更新，线程并不会保证其所使用的数据为最新版本。当多个线程同时要修改一个数据，就会引发一些问题，这叫作条件竞争。<strong>条件竞争是时间敏感的，通常难以在 debug 模式下进行复现</strong></p>
+<h2 id="互斥量"><a href="#互斥量" class="headerlink" title="互斥量"></a>互斥量</h2><p>​    c++中的基本互斥量有三种：<code>std::mutex</code> 、 <code>std::shared_mutex</code>和<code>std::recursive_mutex</code>。互斥量本身不绑定任何一个数据，它相当于标志出一个临界区，使用同一个互斥量的线程不能够进入同一个临界区，而非禁止访问资源。</p>
+<p>​    <code>std::shared_mutex</code> 是一个<strong>读者-写者锁</strong>。用它来保护一个数组的时候，允许在不同的元素上进行读写操作；即他只会保护被写的那一个元素，而非是保护整个数组。</p>
+<p>​    <code>std::recursive_mutex</code>是一个<strong>嵌套锁</strong>。嵌套锁用于并发访问的类上，用于解决成员函数之间的嵌套使用。如一个类中有 A 和 B 两个函数，两个函数都具有独立功能，但 B 依赖于 A 实现，且 A 和 B 都使用了锁。使用嵌套锁可以解决这个问题，但<strong>不推荐</strong>。推荐——将公共部分提取出来作为 private 函数，再设计两套接口来分别调用这个函数。</p>
+<h3 id="使用互斥量"><a href="#使用互斥量" class="headerlink" title="使用互斥量"></a>使用互斥量</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;mutex&gt;</span></span></span><br><span class="line"></span><br><span class="line">std::mutex mtx;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">someFunction</span><span class="params">()</span></span>&#123;</span><br><span class="line">	<span class="function">std::lock_guard&lt;std::mutex&gt; <span class="title">guard</span><span class="params">(mtx)</span></span>;		<span class="comment">//不推荐直接对 mutex 进行操作</span></span><br><span class="line">  <span class="comment">//临界区</span></span><br><span class="line">&#125;<span class="comment">//离开作用域时退出临界区</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="避免指针指向临界区资源"><a href="#避免指针指向临界区资源" class="headerlink" title="避免指针指向临界区资源"></a>避免指针指向临界区资源</h3><p>使用互斥量时，防止有指针指向临界区内的数据，互斥量向底层传递，不向顶层传递</p>
+<p>互斥量可以锁住一个对象本身以及其所用到的所有资源，但是不能够锁住指向这个对象的指针</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">std::mutex mtx;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> i=<span class="number">1</span>;</span><br><span class="line"><span class="type">int</span> *_ptr=&amp;i;	<span class="comment">//通过_ptr 可以指向i</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">someFunction</span><span class="params">()</span></span>&#123;</span><br><span class="line">	<span class="function">std::lock_guard&lt;std::mutex&gt; <span class="title">guard</span><span class="params">(mtx)</span></span>;		<span class="comment">//不推荐直接对 mutex 进行操作</span></span><br><span class="line">  <span class="comment">//临界区</span></span><br><span class="line">  i++;</span><br><span class="line">&#125;<span class="comment">//离开作用域时退出临界区</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">otherFunction</span><span class="params">()</span></span>&#123;</span><br><span class="line">  *_ptr--;	<span class="comment">//虽然 someFunction 中对 i 上锁，但是通过指针仍然可以访问该数据</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="接口间的条件竞争"><a href="#接口间的条件竞争" class="headerlink" title="接口间的条件竞争"></a>接口间的条件竞争</h3><p>​    接口间的竞争来源：考虑一个 STL 标准容器，其中的 empty 在调用时测试的可能是一个不空的数组，但是这个值返回时可能会有其他线程更改了数组，导致数组变为空的。</p>
+<p>​    解决方法有几种：</p>
+<ol>
+<li><p>在多线程程序中，尽量避免定义一些描述数据结构“状态”的函数，如 <code>size()、empty()</code>等。</p>
+</li>
+<li><p>将状态函数使用时对整个数据结构加锁（会导致其他线程阻塞，并发度下降）</p>
+</li>
+<li><p>将状态函数与其他功能函数集成在一起，如使用 try_pop，若失败返回一个空变量。</p>
+</li>
+</ol>
+<h3 id="使用互斥量可能造成死锁问题"><a href="#使用互斥量可能造成死锁问题" class="headerlink" title="使用互斥量可能造成死锁问题"></a>使用互斥量可能造成死锁问题</h3><p>​    死锁来源：不同线程尝试进入临界区的顺序不同，锁住互斥量的顺序不同。</p>
+<ul>
+<li><p>按照一定的优先级顺序来声明信号量，确保锁住互斥量的顺序是一致的。</p>
+<p><strong>优先锁住高频率使用的互斥量，从而来降低线程之间的竞争</strong></p>
+</li>
+<li><p>使用 <code>std::lock()</code>来一次性锁住多个互斥量</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;mutex&gt;</span></span></span><br><span class="line">std::mutex mtx1,mtx2;</span><br><span class="line"></span><br><span class="line"><span class="comment">//在声明lock 时，相当于向系统一次性申请多个互斥量</span></span><br><span class="line">std::<span class="built_in">lock</span>(mtx1,mtx2);</span><br><span class="line"><span class="function">std::lock_guard&lt;std::mutex&gt; <span class="title">lock1</span><span class="params">(mtx1,std::adopt_lock)</span></span>;</span><br><span class="line"><span class="function">std::lock_guard&lt;std::mutex&gt; <span class="title">lock2</span><span class="params">(mtx2,std::adopt_lock)</span></span>;</span><br><span class="line"><span class="comment">//如果 lock1 或 lock2 发生异常，那么将会自动释放所有互斥量</span></span><br></pre></td></tr></table></figure></li>
+<li><p>使用<code>std::scoped_lock&lt;&gt;</code>来一次性锁住多个互斥量，<strong>C++17标准</strong></p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;mutex&gt;</span></span></span><br><span class="line">std::mutex mtx1,mtx2;</span><br><span class="line"></span><br><span class="line"><span class="comment">//在声明lock 时，相当于向系统一次性申请多个互斥量</span></span><br><span class="line"><span class="function">std::scoped_lock <span class="title">guard</span><span class="params">(mtx1,mtx2)</span></span>;</span><br></pre></td></tr></table></figure></li>
+<li><p>当线程已经进入临界区后，尽量避免调用其他用户提供的代码</p>
+<p><strong>因为其他用户可能在底层使用了锁，可能会造成死锁</strong></p>
+</li>
+<li><p>在多线程环境下，访问有回路的数据结构，如图、双向列表等要规定访问顺序。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//一个可能会造成死锁的例子</span></span><br><span class="line"><span class="comment">//假设有一个列表 A-B-C</span></span><br><span class="line"></span><br><span class="line"><span class="comment">////thread1 执行功能从 A 结点删除 B</span></span><br><span class="line"><span class="comment">////thread2 执行功能从 B 结点删除 A</span></span><br><span class="line"></span><br><span class="line"><span class="comment">////规定互斥量必须从 A 开始按照顺序获取，才不会造成死锁</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="使用层级互斥锁来避免死锁"><a href="#使用层级互斥锁来避免死锁" class="headerlink" title="使用层级互斥锁来避免死锁"></a>使用层级互斥锁来避免死锁</h2><p>​    层次锁：高层次的锁将无法锁住低层次的锁，从而可以按照层级来设计代码，防止层级之间的死锁。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">hierarchical_mutex <span class="title">high_level_mutex</span><span class="params">(<span class="number">10000</span>)</span></span>; <span class="comment">// 1</span></span><br><span class="line"><span class="function">hierarchical_mutex <span class="title">low_level_mutex</span><span class="params">(<span class="number">5000</span>)</span></span>; <span class="comment">// 2</span></span><br><span class="line"><span class="function">hierarchical_mutex <span class="title">other_mutex</span><span class="params">(<span class="number">6000</span>)</span></span>; <span class="comment">// 3</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">do_low_level_stuff</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">low_level_func</span><span class="params">()</span></span>&#123;</span><br><span class="line"><span class="function">std::lock_guard&lt;hierarchical_mutex&gt; <span class="title">lk</span><span class="params">(low_level_mutex)</span></span>; <span class="comment">// 4</span></span><br><span class="line">	<span class="keyword">return</span> <span class="built_in">do_low_level_stuff</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">high_level_stuff</span><span class="params">(<span class="type">int</span> some_param)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">high_level_func</span><span class="params">()</span></span>&#123;</span><br><span class="line">	<span class="function">std::lock_guard&lt;hierarchical_mutex&gt; <span class="title">lk</span><span class="params">(high_level_mutex)</span></span>; <span class="comment">// 6</span></span><br><span class="line"></span><br><span class="line">	<span class="built_in">high_level_stuff</span>(<span class="built_in">low_level_func</span>()); <span class="comment">// 5</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="type">void</span> <span class="title">thread_a</span><span class="params">()</span></span>&#123;</span><br><span class="line">	<span class="built_in">high_level_func</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="type">void</span> <span class="title">do_other_stuff</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="type">void</span> <span class="title">other_stuff</span><span class="params">()</span></span>&#123;	</span><br><span class="line"></span><br><span class="line"><span class="built_in">high_level_func</span>();</span><br><span class="line"></span><br><span class="line"><span class="built_in">do_other_stuff</span>();</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">thread_b</span><span class="params">()</span> </span>&#123;</span><br><span class="line">	<span class="function">std::lock_guard&lt;hierarchical_mutex&gt; <span class="title">lk</span><span class="params">(other_mutex)</span></span>; <span class="comment">// 9</span></span><br><span class="line"></span><br><span class="line">	<span class="built_in">other_stuff</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="std-unique-lock"><a href="#std-unique-lock" class="headerlink" title="std::unique_lock()"></a><code>std::unique_lock()</code></h2><p>这是一个“延边锁”，通常运用在提前声明互斥量，但不直接加锁的情况下（如一个循环中）。<strong>std::unique_lock 开销较大</strong></p>
+<p><strong>将锁声明在外部作用域中，在内部作用域需要不停地进行加锁和解锁</strong>。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;mutex&gt;</span></span></span><br><span class="line">std::mutex mtx;</span><br><span class="line"></span><br><span class="line"><span class="function">std::unique_lock&lt;std::mutex&gt; <span class="title">lk</span><span class="params">(mtx,std::defer_lock)</span></span>;<span class="comment">//这里声明了互斥量，但是并没有真正加锁</span></span><br><span class="line"><span class="keyword">while</span>(<span class="literal">true</span>)&#123;</span><br><span class="line">	std::<span class="built_in">lock</span>(lk);	<span class="comment">//在这里才真正被加锁</span></span><br><span class="line">	<span class="built_in">doSomething</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">///////////////std::unique_lock 也可以被传递//////////////////</span></span><br><span class="line"></span><br><span class="line"><span class="function">std::unique_lock&lt;std::mutex&gt; <span class="title">getLock</span><span class="params">()</span></span>&#123;</span><br><span class="line">  <span class="function">std::unique_lock&lt;std::mutex&gt; <span class="title">lk</span><span class="params">(mtx,std::adopt_lock)</span></span>;</span><br><span class="line">  <span class="comment">////这里锁住一些变量</span></span><br><span class="line">  <span class="keyword">return</span> lk;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="锁的粒度与线程阻塞"><a href="#锁的粒度与线程阻塞" class="headerlink" title="锁的粒度与线程阻塞"></a>锁的粒度与线程阻塞</h2><p>​    锁的粒度是一个摆手术语，用来描述通过一个锁保护的数据量的大小。</p>
+<ul>
+<li><p>若锁的粒度过大，可能会造成线程的竞争激烈，许多线程因为无法进入临界区而被阻塞，从而大大降低系统的并发性。</p>
+</li>
+<li><p>但过小粒度的锁，会造成锁本身占用系统的资源过大，而且也会造成程序的设计维护问题。</p>
+</li>
+<li><p><strong>只有当一个程序准备好所有资源后，再去请求一个锁，可以明显地降低线程的阻塞</strong></p>
+</li>
+</ul>
+<h2 id="资源初始化——std-call-once"><a href="#资源初始化——std-call-once" class="headerlink" title="资源初始化——std::call_once"></a>资源初始化——<code>std::call_once</code></h2><p>​    资源初始化是一个看似简单，但其实十分复杂的问题，使用<code>std::call_once</code>可以显著降低多线程中资源初始化的风险。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">std::once_flag resource_flag;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">initCamera</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">createCamera</span><span class="params">()</span></span>&#123;</span><br><span class="line">  <span class="comment">//注意，这里的使用和 std::thread 类似，函数不能加（），如果是类内函数需要标注</span></span><br><span class="line">	std::<span class="built_in">call_once</span>(resource_flag,initCamera);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="避免使用双重锁"><a href="#避免使用双重锁" class="headerlink" title="避免使用双重锁"></a>避免使用双重锁</h2><h1 id="并发同步操作"><a href="#并发同步操作" class="headerlink" title="并发同步操作"></a>并发同步操作</h1><p>​    期望值解决的是线程之间应当如何解决通信问题。使用共享内存区域进行线程通信的方法虽然简单，但是在无形之中阻塞了程序，造成工作效率的下降；并且，使用<code>std::thread</code>是无法进行函数的右值返回的，因而需要<strong>条件变量</strong>和<strong>期望值</strong>来解决线程之间的简单通信问题。</p>
+<h2 id="条件变量"><a href="#条件变量" class="headerlink" title="条件变量"></a>条件变量</h2><p>​    STL 中条件变量主要有两种：<code>std::condition_variable</code>以及<code>std::condition_variable_any</code>。后者可以接受任何锁类型，但是开销较大，一般只采用前一种类型。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">std::mutex mtx;</span><br><span class="line"><span class="function">std::condition_variable cond</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">someFunction</span><span class="params">()</span></span>&#123;</span><br><span class="line">	<span class="function">std::lock_guard&lt;std::mutex&gt; <span class="title">lk</span><span class="params">(mtx)</span></span>;</span><br><span class="line">	<span class="comment">/////////一系列功能///////////</span></span><br><span class="line">	cond.<span class="built_in">notify_one</span>();</span><br><span class="line">  cond.<span class="built_in">notify_all</span>();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/////////等待的地方要和通知的地方实用相同的锁</span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">main</span><span class="params">()</span></span>&#123;</span><br><span class="line">    	<span class="function">std::unique_lock&lt;std::mutex&gt; <span class="title">lk</span><span class="params">(mtx)</span></span>;	<span class="comment">//注意，等待这里建议使用 unique_lock，因为解锁更加方便</span></span><br><span class="line">			cond.<span class="built_in">wait</span>(lk,[]()&#123;	<span class="comment">// 如果不满足后续条件，那么将会解锁 lk</span></span><br><span class="line">				<span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">		&#125;)	<span class="comment">//只有在接收了通知并且 lambda 表达式返回 true 时才能进入临界区</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>​    </p>
+<h2 id="期望值std-future"><a href="#期望值std-future" class="headerlink" title="期望值std::future"></a>期望值<code>std::future</code></h2><p>​    期望值用于<strong>仅仅等待一次的情况</strong>；使用<code>std::condition_varivable</code>时，每次尝试进入临界区都会进行等待，这对于<strong>重复调用的函数</strong>会造成较差的性能。</p>
+<p>​    期望值分为唯一期望值<code>std::future&lt;&gt;</code> 以及<code>std::shared_future&lt;&gt;</code>。后者可以被多个线程使用，前者只能被使用一次。<strong>两者都是只能被移动而不能够被拷贝</strong></p>
+<h3 id="std-async"><a href="#std-async" class="headerlink" title="std::async"></a><code>std::async</code></h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;future&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">someFunction</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">//这里函数名同样也是不能带括号，其他规则同 thread</span></span><br><span class="line">std::future&lt;<span class="type">int</span>&gt; future1 = std::<span class="built_in">async</span>(someFuncion，std::launch::async);	<span class="comment">//函数必须在该线程上运行</span></span><br><span class="line">std::future&lt;<span class="type">int</span>&gt; future2 = std::<span class="built_in">async</span>(someFuncion，std::launch::defered);	<span class="comment">//需要结果时才会运行</span></span><br><span class="line">std::future&lt;<span class="type">int</span>&gt; future3 = std::<span class="built_in">async</span>(someFuncion，std::launch::defered|std::launch::async);	<span class="comment">//由系统选择</span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> result = future2.<span class="built_in">get</span>();	<span class="comment">//使用 get()函数来调取结果，future2 在这里才会被运行</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="std-packaged-task-lt-gt"><a href="#std-packaged-task-lt-gt" class="headerlink" title="std::packaged_task&lt;&gt;"></a><code>std::packaged_task&lt;&gt;</code></h3><p>​    <code>std::packaged_task&lt;函数类型（函数参数类型）&gt;</code>这是用来打包一个函数任务的，通常用来在主线程将任务打包并将结果期望绑定，再将运行放入子线程中。    </p>
+<p>​    <strong>当打包的任务出现异常时，该异常会被自动传播到主线程去，需要在主线程解决</strong></p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">////packaged_task仅仅是将一个可执行任务打包，而并没有执行这个任务</span></span><br><span class="line"><span class="comment">////future 相当于一个指针，指向一个 packaged_task 的返回值。</span></span><br><span class="line"><span class="comment">////当使用 future 的时候，线程会等待返回结果（如果没有运行就会一直等待）</span></span><br><span class="line"><span class="function">std::packaged_task&lt;<span class="title">int</span><span class="params">(<span class="type">int</span>)</span>&gt; <span class="title">tsk</span><span class="params">(test)</span></span>;</span><br><span class="line">std::future&lt;<span class="type">int</span>&gt; fut = tsk.<span class="built_in">get_future</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">////使用 std::move将 packaged_task 放入一个线程中</span></span><br><span class="line"><span class="function">std::thread <span class="title">th</span><span class="params">(std::move(tsk), <span class="number">1</span>)</span></span>;</span><br><span class="line"><span class="type">int</span> val = fut.<span class="built_in">get</span>();</span><br><span class="line">std::cout &lt;&lt; <span class="string">&quot;Main thread gets value &quot;</span> &lt;&lt; val &lt;&lt; std::endl;</span><br><span class="line">th.<span class="built_in">join</span>();</span><br></pre></td></tr></table></figure>
+
+<h3 id="std-promise"><a href="#std-promise" class="headerlink" title="std::promise"></a><code>std::promise</code></h3><p>​    <code>std::promise</code>允许用户自由地在子线程和主线程之间<strong>合适的位置来处理异常</strong>。可以实现子线程不抛出异常。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;future&gt;</span></span></span><br><span class="line"></span><br><span class="line">std::promise&lt;<span class="type">int</span>&gt; promise;</span><br><span class="line"></span><br><span class="line"><span class="comment">//假设这是一个将要单独在一个线程中运行的函数</span></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">someFunction</span><span class="params">()</span></span>&#123;</span><br><span class="line">  <span class="keyword">try</span>&#123;</span><br><span class="line">      promise.<span class="built_in">set_value</span>(<span class="number">1</span>);<span class="comment">// 正常运行，将结果送入期望中</span></span><br><span class="line">  &#125;<span class="built_in">catch</span>()&#123;</span><br><span class="line">    	promise.<span class="built_in">set_exception</span>(std::<span class="built_in">current_exception</span>());<span class="comment">//promise 会直接在子线程中对异常进行处理，而非送回到主线程去</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="共享期望-std-shared-future"><a href="#共享期望-std-shared-future" class="headerlink" title="共享期望 std::shared_future"></a>共享期望 std::shared_future</h2><p>​    共享期望允许多个线程共同获取一个结果，如何初始化一个共享期望：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">////////////////直接绑定//////////////////</span></span><br><span class="line"><span class="function">std::packaged_task&lt;<span class="title">int</span><span class="params">(<span class="type">int</span>)</span>&gt; <span class="title">tsk</span><span class="params">(test)</span></span>;</span><br><span class="line">std::shared_future&lt;<span class="type">int</span>&gt; fut = tsk.<span class="built_in">get_future</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">///////////////绑定已有期望///////////////</span></span><br><span class="line">std::shared_future&lt;<span class="type">int</span>&gt; fut = future.<span class="built_in">share</span>();	</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="限定等待时间"><a href="#限定等待时间" class="headerlink" title="限定等待时间"></a>限定等待时间</h2><p>​    除了按照条件等待，线程之间还可以设置等待时间，用于防止过长的等待而造成的线程阻塞。</p>
+<h3 id="C-中的时钟"><a href="#C-中的时钟" class="headerlink" title="C++中的时钟"></a>C++中的时钟</h3><p>​    C++的时钟库是<code>&lt;chrono&gt;</code>，该库可以调用系统时间（是一个不稳定的时钟：稳定时钟的节拍均匀且不可调整；系统时钟通常可以调整节拍）。</p>
+<p>​    C++时钟量，两个时间点相减表示一个时间段；时间点加减时间段等于时间点，<strong>会发生隐式的类型转换</strong>。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//指定时钟节拍：</span></span><br><span class="line">std::ratio&lt;<span class="number">1</span>,<span class="number">25</span>&gt;	<span class="comment">//代表一秒钟有 25 个节拍</span></span><br><span class="line">std::ratio&lt;<span class="number">5</span>,<span class="number">2</span>&gt;	<span class="comment">//代表五秒钟有两个节拍</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//获取系统时钟当前的时间</span></span><br><span class="line"><span class="keyword">auto</span> now = std::chrono::system_clock::<span class="built_in">now</span>()</span><br><span class="line">  </span><br><span class="line"><span class="comment">//如何表示一段时延，第一个参数是数据类型，第二个参数是单位</span></span><br><span class="line">std::chrono::duration&lt;,&gt;	</span><br><span class="line">std::chrono::duration&lt;<span class="type">int</span>,std::ratio&lt;<span class="number">60</span>,<span class="number">1</span>&gt;&gt;</span><br><span class="line">std::chrono::<span class="built_in">duration</span>&lt;<span class="type">long</span> <span class="type">long</span>, std::milli&gt;(<span class="number">100</span>)	</span><br><span class="line">  </span><br><span class="line"><span class="comment">//使用 std::chrono::时间量来表示时间段</span></span><br><span class="line">std::chrono::<span class="built_in">nanoseconds</span>(<span class="number">15</span>);	<span class="comment">//表示15纳秒</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//时间变量之间的相互转化</span></span><br><span class="line">std::<span class="function">chrono::milliseconds <span class="title">ms</span><span class="params">(<span class="number">54802</span>)</span></span>;</span><br><span class="line">std::chrono::seconds s = std::chrono::<span class="built_in">duration_cast</span>&lt;std::chrono::seconds&gt;(ms);</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="std-wait-for"><a href="#std-wait-for" class="headerlink" title="std::wait_for"></a><code>std::wait_for</code></h3><p>​    <code>std::wait_for</code>    用来限制等待线程期望值的时间，但实际等待的时间一般会比指定的时间要长，因为等待期间处理机可能会将线程调出。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">std::future&lt;<span class="type">int</span>&gt; future1 = std::<span class="built_in">async</span>(someFuncion，std::launch::async);	</span><br><span class="line"><span class="comment">//////////////////////////限定线程只等待期望值35ms/////////////////////////////////</span></span><br><span class="line"><span class="keyword">if</span>(future.<span class="built_in">wait_for</span>(std::chrono::<span class="built_in">milliseconds</span>(<span class="number">35</span>)) == std::future_status::ready)</span><br><span class="line">  future.<span class="built_in">get</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">//调用 wait_for 可能会返回的结果：</span></span><br><span class="line">std::future_status::ready			<span class="comment">//代表等待的线程已经完成，期望值可以被 get</span></span><br><span class="line">std::future_status::deferred	<span class="comment">//代表等待的线程被阻滞（没有在运行）</span></span><br><span class="line">std::future_status::timeout		<span class="comment">//代表等待的线程运行超时了</span></span><br><span class="line">  </span><br><span class="line">  </span><br><span class="line"><span class="comment">//////////对 condition_variable 使用 wait_for()/////////////</span></span><br><span class="line">std::condition_variable cond;</span><br><span class="line"><span class="function">std::unique_lock&lt;std::mutex&gt; <span class="title">lk</span><span class="params">(mtx)</span></span>;</span><br><span class="line">cond.<span class="built_in">wait</span>(lk,std::chrono::<span class="built_in">milliseconds</span>(<span class="number">35</span>));</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="std-wait-until"><a href="#std-wait-until" class="headerlink" title="std::wait_until"></a><code>std::wait_until</code></h3><p>​    相比于<code>std::wait_for</code>，<code>std::wait_until</code>等待的时间由绝对时间决定；因此搭配时间点加时间段，可以实现等待准确的指定时间。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">std::future&lt;<span class="type">int</span>&gt; future1 = std::<span class="built_in">async</span>(someFuncion，std::launch::async);	</span><br><span class="line"><span class="comment">//////////////////////////限定线程只等待期望值35ms/////////////////////////////////</span></span><br><span class="line"><span class="keyword">if</span>(future.<span class="built_in">wait_for</span>(std::chrono::system_clock::<span class="built_in">now</span>() + std::chrono::<span class="built_in">milliseconds</span>(<span class="number">35</span>)</span><br><span class="line">                   == std::future_status::ready)</span><br><span class="line">  future.<span class="built_in">get</span>();</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="互斥时间锁"><a href="#互斥时间锁" class="headerlink" title="互斥时间锁"></a>互斥时间锁</h3><p>​    互斥时间锁是一种与时间相关联的互斥信号量，其在尝试进入临界区时，会限定一段时间，当限定的时间结束后，仍未进入临界区，将会放弃进入临界区的行为。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">std::timed_mutex	tmtx;</span><br><span class="line">std::recursive_timed_mutex	rtmtx;</span><br><span class="line"><span class="comment">//尝试在 35ms 的时间内获进入临界区，返回返回值为 bool 类型</span></span><br><span class="line">tmtx.<span class="built_in">try_lock_for</span>(std::chrono::<span class="built_in">milliseconds</span>(<span class="number">35</span>));</span><br><span class="line">rtmtx.<span class="built_in">try_lock_for</span>(std::chrono::<span class="built_in">milliseconds</span>(<span class="number">35</span>));</span><br></pre></td></tr></table></figure>
+
+
+
+<h3 id="std-experimental-额外功能"><a href="#std-experimental-额外功能" class="headerlink" title="std::experimental 额外功能"></a>std::experimental 额外功能</h3><figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">std::experimental::when_all	<span class="comment">//用来收集多个线程的期望</span></span><br><span class="line"></span><br><span class="line">std::experimental::when_any	<span class="comment">//用来收集多个线程中任意一个的期望</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="原子操作"><a href="#原子操作" class="headerlink" title="原子操作"></a>原子操作</h1><p>​    原子操作是指不可被分割的操作；即对于处理机来说，原子操作只有两个状态：未开始、已完成。</p>
+<p>​    原子操作经常被用于指定线程访问的顺序从而实现无锁编程，相较于互斥信号量，占用的系统资源更少；但是相应地编程难度也大大提升。</p>
+<p>​    <strong>原子操作的用法</strong>：</p>
+<ul>
+<li>作为一个通信的标识符，在线程间传递完成状态等信息。</li>
+<li>作为一个模板，在数据结构修改时作为间接容器来存储要 I/O 的数据。<strong>当获得原子变量的权限后，才能进行修改</strong></li>
+</ul>
+<h2 id="C-中的原子类型"><a href="#C-中的原子类型" class="headerlink" title="C++中的原子类型"></a>C++中的原子类型</h2><p>​    C++的标准原子类型定义在头文件<code>&lt;atomic&gt;</code>中，这些所有的操作都是原子的。<strong>但其中的大部分都是使用互斥锁来模拟的（性能比用户使用互斥锁要好很多），只有 std::atomic_flag 是保证无锁的。</strong></p>
+<p>​    <strong>C++中的标准原子类型不能进行拷贝和赋值，没有相关的操作符，但可以隐式转化成对应的内置类型。</strong></p>
+<p>​    C++中的原子类型可以分为 std::atomic_flag 和 std::atomic&lt;&gt;。前者保证无锁，后者通常是有锁的。</p>
+<table>
+<thead>
+<tr>
+<th align="center">原子类型</th>
+<th align="center">相关特化类</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">atomic_bool</td>
+<td align="center">std::atomic<bool></td>
+</tr>
+<tr>
+<td align="center">atomic_char</td>
+<td align="center">std::atomic<char></td>
+</tr>
+<tr>
+<td align="center">atomic_schar</td>
+<td align="center">std::atomic<signed char></td>
+</tr>
+<tr>
+<td align="center">atomic_uchar</td>
+<td align="center">std::atomic<unsigned char></td>
+</tr>
+<tr>
+<td align="center">atomic_int</td>
+<td align="center">std::atomic<int></td>
+</tr>
+<tr>
+<td align="center">atomic_uint</td>
+<td align="center">std::atomic<unsigned int></td>
+</tr>
+<tr>
+<td align="center">atomic_short</td>
+<td align="center">std::atomic<short></td>
+</tr>
+<tr>
+<td align="center">atomic_ushort</td>
+<td align="center">std::atomic<unsigned short></td>
+</tr>
+<tr>
+<td align="center">atomic_long</td>
+<td align="center">std::atomic<long></td>
+</tr>
+<tr>
+<td align="center">atomic_ulong</td>
+<td align="center">std::atomic<unsigned long></td>
+</tr>
+<tr>
+<td align="center">atomic_llong</td>
+<td align="center">std::atomic<long long></td>
+</tr>
+<tr>
+<td align="center">atomic_ullong</td>
+<td align="center">std::atomic<unsigned long long></td>
+</tr>
+<tr>
+<td align="center">atomic_char16_t</td>
+<td align="center">std::atomic<char16_t></td>
+</tr>
+<tr>
+<td align="center">atomic_char32_t</td>
+<td align="center">std::atomic<char32_t></td>
+</tr>
+<tr>
+<td align="center">atomic_wchar_t</td>
+<td align="center">std::atomic<wchar_t></td>
+</tr>
+</tbody></table>
+<h2 id="std-atomic-flag"><a href="#std-atomic-flag" class="headerlink" title="std::atomic_flag"></a><code>std::atomic_flag</code></h2><p>​    <code>std::atomic_flag</code>代表了一个bool 标志，可以在<strong>“设置”</strong>和<strong>“清除”</strong>两个状态之间转换。其初始化的标志位是“清除”状态。它具有两个个成员函数<code>clear()</code>、<code>test_and_set()</code>，前者是一个存储操作，后者是一个“读-改-写”操作。<code>test_and_set()</code>操作意味着，若读取出的值和要设置的值相同则无操作，若不同则设置为新值。</p>
+<p>​    <code>std::atomic_flag</code>对象不能被拷贝和赋值，因为这两种操作会破坏其原子性。<strong>经常被用于实现自旋锁</strong></p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//使用 std::atomic_flag 实现一个自旋锁</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">SpinLockMutex</span>&#123;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">	std::atomic_flag flag;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">  <span class="built_in">SpinLockMutex</span>() : <span class="built_in">flag</span>(ATOMIC_FLAG_INIT)&#123;&#125;	<span class="comment">//std::atomic_flag的唯一构造方式</span></span><br><span class="line">  </span><br><span class="line">  <span class="function"><span class="type">void</span> <span class="title">lock</span><span class="params">()</span></span>&#123;</span><br><span class="line">    <span class="keyword">while</span>(flag.<span class="built_in">test_and_set</span>(std::memory_order_acquire));	<span class="comment">//尝试对std::atomic_flag上锁</span></span><br><span class="line">  &#125;</span><br><span class="line">  </span><br><span class="line">  <span class="function"><span class="type">void</span> <span class="title">unlock</span><span class="params">()</span></span>&#123;</span><br><span class="line">    flag.<span class="built_in">clear</span>(std::memory_order_release);	<span class="comment">//清除锁</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="std-atomic-lt-gt"><a href="#std-atomic-lt-gt" class="headerlink" title="std::atomic&lt;&gt;"></a><code>std::atomic&lt;&gt;</code></h2><p>​    <code>std::atomic&lt;bool&gt;</code>能够自由选择初始化的值，并且可以使用非原子的 bool 类型进行构造，但其具有抽象代价，不保证无锁。     <code>std::atomic&lt;bool&gt;</code>具有三个基本的成员函数：存储操作<code>store()</code>、加载操作<code>load()</code>、“读-改-写”操作<code>exchange()</code>；还具备两个特殊的“比较/交换”操作：<code>compare_exchange_weak()</code>、<code>compare_exchange_strong()</code>。</p>
+<ul>
+<li><strong>“比较/交换”操作</strong>：是原子类型编程的基石，它比较原子变量的当前值和一个期望值。当两值相等时，存储所提供的值；当两值不等时，期望值会被更新为原子变量中的值。<code>compare_exchange_weak()</code>不保证存储操作成功、<code>compare_exchange_strong()</code>保证存储操作成功。</li>
+</ul>
+<p>​    <code>std::atomic&lt;T*&gt;</code>继承了<code>std::atomic&lt;bool&gt;</code>的全部操作，只是返回类型不同；此外还具有“读-改-写”操作<code>fetch_add()</code>和<code>fetch_sub()</code>，用于在存储地址上进行<strong>原子加法和原子减法</strong>。</p>
+<ul>
+<li>除了基本类型外，用户可以用 class来自定义一个原子变量，前提是<strong>必须有拷贝赋值运算符，即不能有虚函数和基类，并且必须使用编译器默认创建的拷贝赋值操作</strong>。</li>
+</ul>
+<p>​    原子类型的操作函数具有两种调用方式，一种是作为原子变量的成员函数使用，另外一种是直接采用非成员函数的调用方式。非成员函数的调用方式通常是在成员函数名前加上“atomic_”前缀。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//成员函数版调用</span></span><br><span class="line">std::atomic&lt;<span class="type">int</span>&gt; aint;</span><br><span class="line">aint.<span class="built_in">load</span>();</span><br><span class="line"></span><br><span class="line"><span class="comment">//非成员函数版本调用</span></span><br><span class="line">std::<span class="built_in">atomic_load</span>(&amp;atomic_var,new_value);</span><br><span class="line">std::<span class="built_in">atomic_load_explicit</span>(&amp;atomic_var,new_value,std::memory_order_release);<span class="comment">//需要指定内存序</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="操作排序"><a href="#操作排序" class="headerlink" title="操作排序"></a>操作排序</h2><p>​    利用原子操作可以实现对不同操作的排序，从而实现线程之间的有序，这是依赖于原子操作的同步发生与先行发生的。</p>
+<ul>
+<li><p>同步发生：同步发生只能在原子类型之间进行，即同一原子变量的原子操作具有同步传递性，改变后的状态会立刻传递给任何需要用到该原子变量的线程中去。</p>
+</li>
+<li><p>先行发生：先行发生发生在非原子操作上，且依赖于同步发生。即同步发生的原子操作可以视为一个时间点，在此时间点基础上，若一个操作先于该原子操作，则具有先行性。（A-原子解锁，原子锁-B，那么 A 会先于 B 发生）。</p>
+<p>C++一共具有三种内存模型和六种内存操作，其对应关系如下：</p>
+<ul>
+<li><p><strong>排序一致性序列</strong>，对应memory_order_seq_cst</p>
+</li>
+<li><p><strong>获取-释放序列</strong>，对应 memory_order_consume,memory_order_acquire,memory_order_release,memory_order_acq_rel</p>
+</li>
+<li><p><strong>松散序列</strong>，对应 memory_order_relaxed</p>
+<p><a target="_blank" rel="noopener" href="https://blog.csdn.net/wxj1992/article/details/103656486?utm_medium=distribute.pc_relevant.none-task-blog-2~default~baidujs_title~default-0.base&spm=1001.2101.3001.4242">对几种内存操作的详细介绍</a></p>
+</li>
+</ul>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//一个简单的原子操作排序，①永远在②前面</span></span><br><span class="line">std::atomic&lt;<span class="type">int</span>&gt; count;</span><br><span class="line"><span class="comment">///////////thread1/////////////</span></span><br><span class="line"><span class="type">int</span> signal;		<span class="comment">//操作顺序①</span></span><br><span class="line">count.<span class="built_in">store</span>(signal,std::memory::release);</span><br><span class="line"><span class="comment">///////////thread2/////////////</span></span><br><span class="line"><span class="type">int</span> received_signal = count.<span class="built_in">load</span>(std::memory::acquire);</span><br><span class="line">std::cout &lt;&lt; received_singal;		<span class="comment">//操作顺序②</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+<h2 id="栅栏"><a href="#栅栏" class="headerlink" title="栅栏"></a>栅栏</h2><p>​    栅栏对内存序列进行约束，使其无法对任何数据进行修改。栅栏属于全局操作，执行栅栏操作可以影响到线程中的其他原子操作。<strong>利用栅栏操作可以在不依赖原子变量的情况下实现排序</strong>。</p>
+<p>​    <strong>栅栏既可以和栅栏进行同步，也可以和原子操作进行同步</strong>。</p>
+<p>​    栅栏一共分为六种，分别具有不同的效果：</p>
+<table>
+<thead>
+<tr>
+<th align="left">内存序列类型</th>
+<th>栅栏类型</th>
+<th align="center">栅栏效果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">memory_order_relaxed</td>
+<td>没有任何效果</td>
+<td align="center">无效果</td>
+</tr>
+<tr>
+<td align="left">memory_order_acquire/memory_order_consume</td>
+<td>acquire fence</td>
+<td align="center">阻止loadstore重排和storestore重排</td>
+</tr>
+<tr>
+<td align="left">memory_order_release</td>
+<td>release fence</td>
+<td align="center">阻止loadload重排和loadstore重排</td>
+</tr>
+<tr>
+<td align="left">memory_order_acq_rel</td>
+<td>full fence</td>
+<td align="center">防止loadload、loadstore、storestore重排</td>
+</tr>
+<tr>
+<td align="left">memory_order_seq_cst</td>
+<td>保证有单独全序的full fence</td>
+<td align="center">防止loadload、loadstore、storestore重排</td>
+</tr>
+</tbody></table>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//利用栅栏进行同步的实例</span></span><br><span class="line"><span class="function">std::string <span class="title">computation</span><span class="params">(<span class="type">int</span>)</span></span>;</span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">print</span><span class="params">( std::string )</span></span>;</span><br><span class="line"> </span><br><span class="line">std::atomic&lt;<span class="type">int</span>&gt; arr[<span class="number">3</span>] = &#123; <span class="number">-1</span>, <span class="number">-1</span>, <span class="number">-1</span> &#125;;	<span class="comment">//use atomic data to communicate</span></span><br><span class="line">std::string data[<span class="number">1000</span>] <span class="comment">//non-atomic data</span></span><br><span class="line"> </span><br><span class="line"><span class="comment">// Thread A, compute 3 values</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">ThreadA</span><span class="params">( <span class="type">int</span> v0, <span class="type">int</span> v1, <span class="type">int</span> v2 )</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"><span class="comment">//assert( 0 &lt;= v0, v1, v2 &lt; 1000 );</span></span><br><span class="line">data[v0] = <span class="built_in">computation</span>(v0);</span><br><span class="line">data[v1] = <span class="built_in">computation</span>(v1);</span><br><span class="line">data[v2] = <span class="built_in">computation</span>(v2);</span><br><span class="line">std::<span class="built_in">atomic_thread_fence</span>(std::memory_order_release);</span><br><span class="line">std::<span class="built_in">atomic_store_explicit</span>(&amp;arr[<span class="number">0</span>], v0, std::memory_order_relaxed);</span><br><span class="line">std::<span class="built_in">atomic_store_explicit</span>(&amp;arr[<span class="number">1</span>], v1, std::memory_order_relaxed);</span><br><span class="line">std::<span class="built_in">atomic_store_explicit</span>(&amp;arr[<span class="number">2</span>], v2, std::memory_order_relaxed);</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line"><span class="comment">// Thread B, prints between 0 and 3 values already computed.</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">ThreadB</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"><span class="type">int</span> v0 = std::<span class="built_in">atomic_load_explicit</span>(&amp;arr[<span class="number">0</span>], std::memory_order_relaxed);</span><br><span class="line"><span class="type">int</span> v1 = std::<span class="built_in">atomic_load_explicit</span>(&amp;arr[<span class="number">1</span>], std::memory_order_relaxed);</span><br><span class="line"><span class="type">int</span> v2 = std::<span class="built_in">atomic_load_explicit</span>(&amp;arr[<span class="number">2</span>], std::memory_order_relaxed);</span><br><span class="line">std::<span class="built_in">atomic_thread_fence</span>(std::memory_order_acquire);</span><br><span class="line"><span class="comment">// v0, v1, v2 might turn out to be -1, some or all of them.</span></span><br><span class="line"><span class="comment">// otherwise it is safe to read the non-atomic data because of the fences:</span></span><br><span class="line"><span class="keyword">if</span>( v0 != <span class="number">-1</span> ) &#123; <span class="built_in">print</span>( data[v0] ); &#125;</span><br><span class="line"><span class="keyword">if</span>( v1 != <span class="number">-1</span> ) &#123; <span class="built_in">print</span>( data[v1] ); &#125;</span><br><span class="line"><span class="keyword">if</span>( v2 != <span class="number">-1</span> ) &#123; <span class="built_in">print</span>( data[v2] ); &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="基于锁的并发数据结构"><a href="#基于锁的并发数据结构" class="headerlink" title="基于锁的并发数据结构"></a>基于锁的并发数据结构</h1><p>​    被用于共享的数据结构需要进行专门设计，否则可能会造成死锁、线程阻塞等一系列问题。以下是并发数据结构的设计目标：</p>
+<ul>
+<li><p>确保无线程能看到修改够数据结构的“不变量”时的状态，即<strong>数据修改对任何线程是原子的</strong></p>
+</li>
+<li><p>小心会引起条件竞争的接口，提供完整操作的函数，而非<strong>操作步骤</strong></p>
+</li>
+<li><p>注意数据结构的行为是否会产生异常，从而确保“不变量”的状态，即<strong>实现“异常-安全”</strong></p>
+</li>
+<li><p>降低死锁概率，限制锁的范围，降低锁的粒度，避免嵌套锁的存在。</p>
+</li>
+<li></li>
+</ul>
+<h1 id="无锁并发数据结构"><a href="#无锁并发数据结构" class="headerlink" title="无锁并发数据结构"></a>无锁并发数据结构</h1><p>​    无锁并发结构基于原子操作，通常是<strong>无阻塞的</strong>，<strong>自旋的</strong>；即处于等待状态下的线程会处于一个空循环load()状态，而不会进入阻塞状态。通常情况下，无锁结构的性能要优于有锁结构。</p>
+<ul>
+<li><strong>并发最大化</strong>：无锁结构可以允许多个不同功能的线程并发地访问数据结构，但不允许具有相同功能的线程同时访问。</li>
+<li><strong>增加鲁棒性</strong>：有锁结构中，若一个线程在获取锁状态下被终止，共享数据结构将被破坏。</li>
+<li><strong>访问线程无限制</strong>：通过操作顺序的约束，理论上无访问线程的限制。</li>
+<li><strong>无死锁问题</strong>：因为没有使用互斥量，故不会发生死锁。</li>
+<li><strong>不正确使用可能会降低整体性能</strong>：乒乓缓存等效应存在，对设计要求很高。不当设计会降低性能。</li>
+</ul>
+<h2 id="需要注意的一些问题"><a href="#需要注意的一些问题" class="headerlink" title="需要注意的一些问题"></a>需要注意的一些问题</h2><ul>
+<li>尽可能使用<code>std::memory_order_seq_cst</code>，该内存序列是总序的，实现比较简单。只有在<strong>该内存序列上完成了所要设计的相关功能后，才考虑使用其他序列进行性能优化</strong></li>
+<li>无锁并发数据结构不能在任何一个线程中删除某一节点，因此<strong>使用智能指针来进行管理</strong></li>
+<li><strong>“ABA 问题”</strong>：数据结构中的值被交换出后，进行了一些修改导致不合法（尤其是），再被交换回数据结构会造成一系列问题。</li>
+<li><strong>识别忙等待和帮助其他线程</strong>：当线程处于等待过程中，可以让其帮助正在工作的线程完成工作。</li>
+</ul>
+<h1 id="并发代码设计"><a href="#并发代码设计" class="headerlink" title="并发代码设计"></a>并发代码设计</h1><p>​    本章主要讲如何从系统的角度来设计并发代码，即如何分配工作使得代码的效率更高。</p>
+<p>​    “可扩展”代码：随着系统的核数增加，代码的性能增加，理想情况下是线性增长的。</p>
+<h2 id="数据划分"><a href="#数据划分" class="headerlink" title="数据划分"></a>数据划分</h2><p>​    将一个大任务分为几部分，各自单独运行。数据分批次，算法是整体的。<strong>常常用来提升任务运行速度</strong></p>
+<ul>
+<li>递归划分：每个任务线程都有开辟子线程的能力，会短时间内产生大量的线程，每个线程负责完成一小部分工作。</li>
+</ul>
+<h2 id="任务划分"><a href="#任务划分" class="headerlink" title="任务划分"></a>任务划分</h2><p>​    将任务看成几个部分，每个部分分别用一个线程独立完成工作。</p>
+<p>​    <strong>当通过任务类型进行划分时，不应该让各个线程处于完全隔离的状态，而是采用流水线的方式进行并发</strong></p>
+<h2 id="避免共享内存"><a href="#避免共享内存" class="headerlink" title="避免共享内存"></a>避免共享内存</h2><p>​    在多线程环境下使用共享内存可能会造成许多性能问题，<strong>尽量避免线程访问外部数据</strong>，<strong>尽量使用指针访问外部数据</strong></p>
+<ul>
+<li><p><strong>乒乓缓存</strong>：因为每个线程的内部变量是独立的，若有多个线程同时访问一个共享数据结构，会导致该数据结构不停地在每个处理机缓存中拷贝（每个线程都要保留最新状态），大大降低运行效率。</p>
+<p>解决方法：使用互斥量对多行缓存进行保护，提高锁的粒度</p>
+</li>
+<li><p><strong>伪共享</strong>：因为处理器缓存是以行来存储的，若一个内存行的数据被多个线程所使用（数据粒度太小），会大大降低数据访问的速度（因为一个内存行一次只能被一个线程访问）。</p>
+<p>解决方法：内存对齐、数据紧凑</p>
+</li>
+<li><p><strong>休眠造成缓存转移</strong>：当一个使用缓存的线程休眠后，可能被调至其他处理机运行，从而导致缓存的复制。</p>
+<p>解决方法：已经使用缓存区的线程，防止其休眠或被调度</p>
+</li>
+</ul>
+<h2 id="异常-安全"><a href="#异常-安全" class="headerlink" title="异常-安全"></a>异常-安全</h2><p>​    多线程环境下，要求在发生异常的情况下<strong>不抛出异常，保持共享数据结构的安全性</strong>，显然会带来额外的开销。<strong>每个线程必须在退出前处理好所有异常，保证异常不被抛出和传播（特殊情况，如果一个工作线程（不与主线程外交互），可以在其主线程上统一处理异常）</strong></p>
+<p>​    通常，可能出现异常的情况有：</p>
+<ul>
+<li><strong>分配资源</strong>：创建对象，创建指针，开辟内存区域等。</li>
+<li><strong>内存异常</strong>：内存溢出，指针越界等。</li>
+<li><strong>指针异常</strong>：更改指针绑定时失败。</li>
+<li><strong>函数调用</strong>：函数调用时，底层可能会抛出一些异常</li>
+</ul>
+<h1 id="高级线程管理"><a href="#高级线程管理" class="headerlink" title="高级线程管理"></a>高级线程管理</h1><p>​    仅仅采用创建线程对象的方式是难以在线程的整个生命周期对其进行管理的，如果需要对线程进行更加灵活和精细的管理，常常需要引入“线程池”和“中断线程”的方式来进行管理。</p>
+<h2 id="线程池"><a href="#线程池" class="headerlink" title="线程池"></a>线程池</h2><p>​    <strong>线程池</strong>集中管理相似度较高的一组任务。这些任务被提交到线程池中的任务将并发执行，提交的任务将会挂在任务队列 上。队列中的每一个任务都会被池中的工作线程所获取，当任务执行完成后，再回到线程池中获取下一个任务。</p>
+<p>​    <strong>线程池中的线程并不是直接运行任务函数，而是运行一个从任务队列中调用任务并加以运行的函数，这是为了方便线程池的初始化。</strong></p>
+<p>​    高级线程池通常具备以下几个模块：</p>
+<ul>
+<li><p><strong>共享任务队列</strong>：用户将需要被运行的任务投入到共享任务队列中等待被调用。</p>
+</li>
+<li><p><strong>期望队列</strong>：期望队列与共享任务队列中的任务绑定，用户从此处获取运行结果。</p>
+</li>
+<li><p><strong>线程池</strong>：集中构造、析构和管理的一组线程，在线程空闲时使用 yield 或者尝试任务窃取。</p>
+</li>
+<li><p><strong>本地任务队列</strong>：线程池中的线程将共享任务队列拷贝到本地，避免因任务量过小导致乒乓缓存。</p>
+</li>
+<li><p><strong>任务窃取</strong>：当线程无任务可以运行时，可以尝试从其他线程的本地任务队列中窃取。</p>
+</li>
+</ul>
+<h2 id="中断线程"><a href="#中断线程" class="headerlink" title="中断线程"></a>中断线程</h2><p>​    <strong>中断线程</strong>是对<code>std::thread</code>的一层封装，允许用户主动地去中断线程，被中断的线程会完成一些<strong>必要工作</strong>后退出。</p>
+<h1 id="并行算法"><a href="#并行算法" class="headerlink" title="并行算法"></a>并行算法</h1><p>​    C++17版本引入了一些并行算法（保证线程安全），建议直接使用。这些并行算法是对之前标准库的重载，用法与函数名相同，<strong>只是引入了一个额外的策略参数（第一个）</strong>，策略参数一共有三种，被定义在<code>&lt;execution&gt;</code>头文件中：</p>
+<ul>
+<li><code>std::execution::seq</code>：要求函数的所有操作都在当前线程下<strong>单线程</strong>完成，<strong>不并行且不并发</strong>。</li>
+<li><code>std::execution::par</code>：在多个线程中执行，并且线程各自具有自己的顺序任务。即<strong>并行但不并发。</strong></li>
+<li><code>std::execution::par_unseq</code>：算法在多个线程中执行，并且线程可以具有并发的多个任务。即<strong>并行和并发。</strong></li>
+</ul>
+<p>​    执行并发算法时，如果算法运行触发了异常机制，且该异常未在调用算法的线程中被捕获，那么算法会自动调用<code>std::terminate</code>来中断。</p>
+<p>​    标准库中的大多数被执行策略重载的算法都在 <code>&lt;algorithm&gt;</code> 和 <code>&lt;numeric&gt;</code>头文件中，目前已经包括：</p>
+<p>​    all_of，any_of， none_of，for_each，for_each_n，find，find_if，find_end，find_first_of，adjacent_find， count，count_if，mismatch，equal，search，search_n，copy，copy_n，copy_if，move， swap_ranges，transform，replace，replace_if，replace_copy，replace_copy_if，fill， fill_n，generate，generate_n，remove，remove_if，remove_copy，remove_copy_if，unique， unique_copy，reverse，reverse_copy，rotate，rotate_copy，is_partitioned，partition， stable_partition，partition_copy，sort，stable_sort，partial_sort，partial_sort_copy， is_sorted，is_sorted_until，nth_element，merge，inplace_merge，includes，set_union， set_intersection，set_difference，set_symmetric_difference，is_heap，is_heap_until， min_element，max_element，minmax_element，lexicographical_compare，reduce， transform_reduce，exclusive_scan，inclusive_scan，transform_exclusive_scan， transform_inclusive_scan和adjacent_difference</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+
+  
+  <nav class="pagination">
+    <a class="extend prev" rel="prev" href="/page/16/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><span class="page-number current">17</span>
+  </nav>
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">17</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Renchu Tang</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

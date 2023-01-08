@@ -8,7 +8,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
-  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <link rel="mask-icon" href="/images/favicon.ico" color="#222">
 
 <link rel="stylesheet" href="/css/main.css">
 
@@ -17,7 +17,7 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":"enable","trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta property="og:type" content="website">
@@ -99,6 +99,7 @@
 
   <div class="site-nav-right">
     <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
     </div>
   </div>
 </div>
@@ -133,11 +134,38 @@
     <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
 
   </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
   </ul>
 </nav>
 
 
 
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
 
 </div>
     </header>
@@ -160,10 +188,10 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/25/TCP%E4%B8%A4%E6%AC%A1%E6%8C%A5%E6%89%8B%E2%80%94%E2%80%94%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E6%8A%93%E5%8C%85%E5%BC%82%E5%B8%B8/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/26/iptables%20%E8%BD%AC%E5%8F%91%E8%A7%84%E5%88%99/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="image" content="/images/avatar.png">
       <meta itemprop="name" content="tangrc99">
       <meta itemprop="description" content="">
     </span>
@@ -174,7 +202,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/25/TCP%E4%B8%A4%E6%AC%A1%E6%8C%A5%E6%89%8B%E2%80%94%E2%80%94%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E6%8A%93%E5%8C%85%E5%BC%82%E5%B8%B8/" class="post-title-link" itemprop="url">TCP 两次挥手？记录一次抓包异常</a>
+            <a href="/2022/12/26/iptables%20%E8%BD%AC%E5%8F%91%E8%A7%84%E5%88%99/" class="post-title-link" itemprop="url">iptables 转发规则</a>
         </h2>
 
         <div class="post-meta">
@@ -185,20 +213,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2022-12-25 15:16:45 / 修改时间：20:36:30" itemprop="dateCreated datePublished" datetime="2022-12-25T15:16:45+08:00">2022-12-25</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">网络</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BD%91%E7%BB%9C/tcp/" itemprop="url" rel="index"><span itemprop="name">tcp</span></a>
-                </span>
+              <time title="创建时间：2022-12-26 14:14:28 / 修改时间：15:04:41" itemprop="dateCreated datePublished" datetime="2022-12-26T14:14:28+08:00">2022-12-26</time>
             </span>
 
           
@@ -212,29 +227,27 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="TCP-两次挥手？记录一次抓包异常"><a href="#TCP-两次挥手？记录一次抓包异常" class="headerlink" title="TCP 两次挥手？记录一次抓包异常"></a>TCP 两次挥手？记录一次抓包异常</h1><h2 id="问题简述"><a href="#问题简述" class="headerlink" title="问题简述"></a>问题简述</h2><p>我们都知道，正常的 TCP 关闭连接时是需要发生四次挥手的。但是在 wireshark 的一次抓包过程中，我却偶然发现了有一个 tcp 连接只发生了两次挥手，即客户端发送了 FIN 报文，并且收到了服务端的 ACK 报文，但是服务端却没有继续发送 FIN 报文，本次异常断开的抓包结果如下，图中的 192.168.10.1 是某经过系统刷机的路由器：</p>
-<p><img src="/images/image-20221225152318823.png" alt="img"></p>
-<p>这其实是由于服务端在收到客户端的关闭请求后，并没有使用系统调用 shutdown 或者 close 来对 tcp 通道进行关闭，导致这时的 tcp 连接变成了一个半双工的状态，即服务端仍然保持写入状态（虽然并没有数据需要写入)。这里可能是路由器的 http 服务中忘记对客户端连接进行关闭所导致的一次 tcp 异常断开。</p>
-<h2 id="孤儿-socket-在-tcp-挥手的作用"><a href="#孤儿-socket-在-tcp-挥手的作用" class="headerlink" title="孤儿 socket 在 tcp 挥手的作用"></a>孤儿 socket 在 tcp 挥手的作用</h2><p>在本次的 tcp 连接断开异常后，如果服务端还有数据需要写入，但是此时客户端中的浏览器已经关闭，这种情况下操作系统是如何处理的呢？</p>
-<p>这里需要提到一个概念：孤儿 socket。这是 socket 的一个特殊的状态，该状态下用户进程不再继续对 socket 持有，不进行写入和读取操作，但是 socket 仍未完成 tcp 的四次挥手，这时系统栈中仍然会保留该 socket 的资源来进行 tcp 挥手操作。孤儿 socket 的引入就是为了解决 tcp 连接不能够正常断开的情况的。在孤儿 socket 的引入后，一次 tcp 挥手的流程可以分为不同的情况：</p>
-<p>不优雅的 tcp 关闭（一）：客户端直接调用 close</p>
+          <h1 id="Iptables-转发规则"><a href="#Iptables-转发规则" class="headerlink" title="Iptables 转发规则"></a>Iptables 转发规则</h1><p>iptables 是 linux 中的防火墙模块，用于网络包的过滤与转发，一共可以分为五链四表。</p>
+<p><img src="/images/BD5561C0-D097-4A4F-BF4F-146FA15C46D7.jpg" alt="image">￼</p>
+<h3 id="iptbles-的匹配规则"><a href="#iptbles-的匹配规则" class="headerlink" title="iptbles 的匹配规则"></a>iptbles 的匹配规则</h3><p>一台主机中，可能会具有多个网卡，这些网卡会有不同的网络地址，但是所有网卡会共用同一个 iptables 匹配规则，也会共用宿主机的路由转发规则。</p>
+<p><strong>在路由选择中，只有最终判断为本地地址，如 127.0.0.1，本机的网卡地址的网络包才会被转发到 INPUT</strong>，而 docker 虚拟网卡上挂载的地址，则会被转发到虚拟网卡上，而不是直接进入INPUT 链中。注意，虚拟网卡上的转发是不经过 iptables 的，一个网络包到达 docker0 网卡后只会经过网卡的转发规则，直接被转发到对应的进程中。在进入 docker 进程后，使用的 iptables 规则和宿主机 iptables 规则是不相同的。</p>
+<p>外部的流量在PREROUTING 链进行 DNAT 后，会根据目的网络地址来判断是否能够匹配本地路由地址，否则将会被转发到 FORWARD 链中。</p>
+<p>内部的流量流出时，会直接根据目的地址判断是否为本地流量，如果是本地流量则不经过 OUTPUT 链，直接被转发到 INPUT 链中。<strong>这意味着 localhost 与 127.0.0.1 这两个地址是不会经过任何的DNAT 的。</strong>如果目的地址不是本机地址，那么会经过 OUTPUT 和 POSTROUTING链进行 DNAT 和 SNAT，这时候会再次通过路由表判断流量的地址转发到具体的网卡上。</p>
+<h3 id="不容易理解的地方"><a href="#不容易理解的地方" class="headerlink" title="不容易理解的地方"></a>不容易理解的地方</h3><p>如果一个主机挂载了一个 docker0 网卡，那么 iptables 的转发规则就会稍微有些难以理解。</p>
 <ul>
-<li>客户端需要关闭连接时，直接使用 close 系统调用，发送一个 FIN 报文，此后 socket 资源栈全部由系统负责（孤儿 socket）。</li>
-<li>服务端接收到 FIN 报文，并回复 ACK 报文，若此时服务端无数据需要写入，则再发送一个 FIN，接收到 ACK 后 socket 正常释放。</li>
-<li>若服务端接收到 FIN 报文后，仍然需要写入数据，由于对端已经全双工关闭，无法接受到数据，此时对端的操作系统协议栈在收到数据后会给服务端发送 RST 报文，提醒对端协议栈进行关闭。此时进程继续写入数据会收到一个 EOF 提醒，进程必须放弃写入，否则继续写入将会收到一个 SIGPIPE 信号。</li>
+<li>172.0.0.x 网段不是本机的 ip 地址，因此在路由选择中不会转发给 INPUT，而是会转发给 FORWARD，然后经过 POSTROUTING，然后转发给 docker0 网卡，docker0 网卡会根据目的 ip 地址将网络包转发给虚拟机，注意此时的虚拟机收到网络包后已经不与宿主机使用同一个 iptables。</li>
+<li>localhost 和 127.0.0.1 会经过路由选择后直接转发给 INPUT，不能够经过任何的 DNAT 修改，因此针对 localhost 的转发都是无效的。</li>
+<li>DNAT 和 SNAT 是具有记忆性的。如果一次 tcp 中，宿主机给出流量做了 DNAT，那么收到这个 tcp 的回包时，将会自动进行反操作，因此 docker 中的虚拟容器只需要一次 DNAT 就可以访问外界流量了。</li>
 </ul>
-<p>不优雅的 tcp 关闭（二）：客户端进程崩溃</p>
-<ul>
-<li>客户端进程崩溃会导致服务端进程不会收到任何 FIN 报文，此时的客户端 socket 同样是一个孤儿 socket。</li>
-<li>客户端进程崩溃的情况下，系统的协议栈会自动给对方发送 RST 报文来重置连接。</li>
-</ul>
-<p>优雅的 tcp 关闭：使用 shutdown 进行关闭</p>
-<ul>
-<li>客户端需要关闭连接时，使用 shutdown 关闭写入端，使 tcp 成为半双工状态，向对方发送 FIN 报文。</li>
-<li>服务端接收到 FIN 报文，回复 ACK 报文，在完成写入后使用 close 或 shutdown 系统调用关闭连接，发送 FIN 报文。</li>
-<li>客户端接收到 FIN 报文并且回复一个 ACK 报文。</li>
-</ul>
-<h2 id="HTTP-重定向"><a href="#HTTP-重定向" class="headerlink" title="HTTP 重定向"></a>HTTP 重定向</h2><p>如果仔细看上述的抓包结果，可以注意到当客户端收到一个 HTTP 302 报文后，客户端会主动关闭 tcp 连接，并且重启一个新的 tcp 连接来访问重定向后的 url。这是因为重定向后的结果可能在一个新的 host 下，所以旧连接不一定可用，重新启动一个 tcp 连接更加安全。</p>
+<h3 id="如何做-NAT-转换"><a href="#如何做-NAT-转换" class="headerlink" title="如何做 NAT 转换"></a>如何做 NAT 转换</h3><p>1、首先需要开启端口转发<br>2、<code> sudo iptables -t nat -A PREROUTING -d x.x.x.x -p tcp -dport x -j DNAT --to-destinaton x.x.x.x:x</code></p>
+<p>3、<code> sudo iptables -t nat -A POSTROUTING -d x.x.x.x -p tcp -dport x -j SNAT --to-source x.x.x.x</code></p>
+<p>4、需要在 FORWARD 链中放行流量，例如</p>
+<p><code>sudo iptables -A FORWARD  -i eth0 -o eth0 -j ACCEPT</code></p>
+<p>5、如果只需要在本主机进行端口转换，则应该使用重定向来代替</p>
+<p><code>sudo iptables -t nat -A PREROUTING -d 127.0.0.1 -dport x -j REDIRECT to-ports x</code></p>
+<h3 id="利用-string模块完成应用层过滤"><a href="#利用-string模块完成应用层过滤" class="headerlink" title="利用 string模块完成应用层过滤"></a>利用 string模块完成应用层过滤</h3><p>iptables 的 string 模块可以将网络包中的关键词进行匹配，从而实现禁止访问某些 url，禁止访问某些内容，或者禁止回复某些内容的效果。具体代码如下：</p>
+<p><code>sudo iptables -t filter INPUT -m string --algo bm --string &#39;sf&#39; -j DROP</code></p>
+<p>但是，iptables 不能够确定字符串出现的位置，因此可能会出现误伤的情况。</p>
 
       
     </div>
@@ -253,7 +266,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/17/">17</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -312,7 +325,7 @@
       <div class="site-overview-wrap sidebar-panel">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
     <img class="site-author-image" itemprop="image" alt="tangrc99"
-      src="/images/avatar.gif">
+      src="/images/avatar.png">
   <p class="site-author-name" itemprop="name">tangrc99</p>
   <div class="site-description" itemprop="description"></div>
 </div>
@@ -321,20 +334,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">17</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-count">10</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-count">12</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -410,6 +423,10 @@
   
 
 
+
+
+  
+<script src="/js/local-search.js"></script>
 
 
 

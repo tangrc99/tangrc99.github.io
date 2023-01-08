@@ -8,7 +8,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
-  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <link rel="mask-icon" href="/images/favicon.ico" color="#222">
 
 <link rel="stylesheet" href="/css/main.css">
 
@@ -17,7 +17,7 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":"enable","trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta property="og:type" content="website">
@@ -99,6 +99,7 @@
 
   <div class="site-nav-right">
     <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
     </div>
   </div>
 </div>
@@ -133,11 +134,38 @@
     <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
 
   </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
   </ul>
 </nav>
 
 
 
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
 
 </div>
     </header>
@@ -160,10 +188,10 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/25/Docker%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/26/MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E5%90%8C%E6%AD%A5%E8%BF%87%E7%A8%8B/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="image" content="/images/avatar.png">
       <meta itemprop="name" content="tangrc99">
       <meta itemprop="description" content="">
     </span>
@@ -174,7 +202,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/25/Docker%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">Docker 网络模型</a>
+            <a href="/2022/12/26/MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E5%90%8C%E6%AD%A5%E8%BF%87%E7%A8%8B/" class="post-title-link" itemprop="url">MongoDB 复制集同步过程</a>
         </h2>
 
         <div class="post-meta">
@@ -183,23 +211,21 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
+              
 
-              <time title="创建时间：2022-12-25 16:53:15" itemprop="dateCreated datePublished" datetime="2022-12-25T16:53:15+08:00">2022-12-25</time>
+              <time title="创建时间：2022-12-26 23:31:59 / 修改时间：23:33:44" itemprop="dateCreated datePublished" datetime="2022-12-26T23:31:59+08:00">2022-12-26</time>
             </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-12-26 14:30:34" itemprop="dateModified" datetime="2022-12-26T14:30:34+08:00">2022-12-26</time>
-              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E4%BA%91%E6%8A%80%E6%9C%AF/" itemprop="url" rel="index"><span itemprop="name">云技术</span></a>
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
                 </span>
             </span>
 
@@ -214,33 +240,19 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="Docker-网络模型"><a href="#Docker-网络模型" class="headerlink" title="Docker 网络模型"></a>Docker 网络模型</h1><p>Docker 容器为了实现网络隔离，可以看作连接在不同虚拟网卡上的主机。网络隔离的基本需求是不同虚拟主机直接网络不能够互通，虚拟主机可以访问外部设备，而外部设备不能够直接访问虚拟主机，只能够通过端口来访问。</p>
-<h3 id="根据链来分"><a href="#根据链来分" class="headerlink" title="根据链来分"></a>根据链来分</h3><ul>
-<li>FORWARD 拦截所有非本地流量，所有 docker 流量都被包含在这里。下图，ISO 是隔离不同网桥之间的互相访问。由于已经过滤掉了不同隔离网络之间的访问，所以 docker 链中是接受所有外界的流量到 docker 网卡中。再往下两条是允许虚拟网卡流量流向主机外部和网卡本身。<br><img src="/images/25044E49-54B6-443E-AD9D-28A50BA05F43.jpg" alt="image">￼</li>
-<li>OUTPUT 和PREROUTING链则是截获所有本地非容器流量，他们都公用 DOCKER 链，如果发现是要访问host:port，将其 DNAT 到对应的容器地址。<br><img src="/images/46722EDA-E303-4193-BA0E-FFF224792801.jpg" alt="image">￼</li>
-<li>POSTROUTING 链是将所有容器访问主机外的流量，伪装成本地流量。<br><img src="/images/FCF35C50-9952-49CA-8613-306460E4EE80.jpg" alt="image">￼</li>
-</ul>
-<h3 id="单机网桥模式"><a href="#单机网桥模式" class="headerlink" title="单机网桥模式"></a>单机网桥模式</h3><p>单机网桥模式是没有指定任何网络选项的容器，假设容器的虚拟 ip 为 172.10.0.x，由于该网段宿主机并没有暴露给外界，因此外界无法访问容器。但有一种例外情况，就是外界主机通过修改路由表强行将 172.10.0.x 的流量转发给宿主机。这样流量在到达宿主机后是可以匹配到一条路由规则的，从而实现外界流量访问虚拟容器。</p>
-<p>容器内部的出流量在宿主机的 POST 链做了 MASQUERADE 处理，所以可以访问外界。假设容器的虚拟 ip 为 172.10.0.x，容器所有的出流量都会经过宿主机的 OUTPUT 和 POSTROUTING 链后选择合适的网卡进行转发。根据 docker 设置的 iptables 规则，所有出流量在 POSTROUTING 链经过 MASQUERADE 的 SNAT 伪装成为宿主机流量。tcp 回路的时候，宿主机会发现该数据包经历过 SNAT 规则转发，自动将回包的地址修改为 172.10.0.x，经过本地的路由规则转发到 docker0 网桥后就可以发送给对应的虚拟容器。</p>
-<h3 id="网桥模式"><a href="#网桥模式" class="headerlink" title="网桥模式"></a>网桥模式</h3><p>网桥模式即使用 -p 选项进行端口映射来启动的容器。单机网桥模式会复用主机端的端口，外部流量通过宿主机的 ip 地址加对应的端口号来访问虚拟容器。因此流量只要是到达主机的对应端口，就默认一定是访问主机端的服务。只用端口来判断流量是否走向 docker 容器就可以了。</p>
-<ul>
-<li>外部流量入：外部流量需要走 PREROUTING-FORWARD-POSTROUTIN 链，外部流量的网卡是除了docker自带的网卡之外的所有网卡。所以这些流量都需要在 PREROUTING 做 DNAT 处理，将流量的目的地址修改为 docker 容器的网段。</li>
-<li>经过 DNAT 后，宿主机发现流量流向地址不是本地应用，转发到 FORWARD 和 POSTROUTING，并且根据路由表转发到容器对应的虚拟网卡里面。</li>
-<li>内部流量出：docker 容器出流量也是宿主机应用出流量，所以会从 docker 虚拟网卡发送到 OUTPUT 链，需要在 OUTPUT 链中进行 MASQUERADE 将发送到外部的流量全部 SNAT 为宿主机的地址；此外，还要将发送给本机暴露出的端口也进行 SNAT 处理，即自访问。</li>
-<li>不同网桥之间的隔离操作：一个网桥发送给其他网桥的流量不会 SNAT 和 DNAT，会被直接发送到虚拟网卡上。虚拟网卡的入链同样会走 PRE 链，检测到是虚拟网卡流量，直接不进行操作。放行到 FORWARD，检测到不同网桥之间的相互访问，由 ISO1 截获，由 ISO2 丢弃。</li>
-<li>用户安全性操作：所有外部流量在截获前，都会被DOCKER-USER 链截获，用户需要将自己的链接入 DOCKER-USER 链中。</li>
-</ul>
-<p>网桥模式中，主要是通过匹配端口号来实现外部流量的转发的，内部流量的流出过程与单机网桥模式是相同的。除此此外，网桥模式下还需要对不同 docker 网络段之间的流量进行隔离操作，防止没有连接的两个虚拟网络段之间相互通信。</p>
-<h3 id="DNS-服务器"><a href="#DNS-服务器" class="headerlink" title="DNS 服务器"></a>DNS 服务器</h3><p>对于使用了 network 选项启动的容器，docker 会自动使用 127.0.0.11 来创建一个 DNS 服务器，所有 docker 创建出的进程会使用该地址作为默认的 DNS 服务器。并且每一个服务名都会作为一个域名进行注册。该内嵌的 DNS 服务器会根据容器的网段地址来进行选择性查询，从而来实现不同网络驱动之间的域名隔离。</p>
-<h3 id="ROUTING-MESH模式"><a href="#ROUTING-MESH模式" class="headerlink" title="ROUTING MESH模式"></a>ROUTING MESH模式</h3><p>该模式的意思是，从任何一个宿主机上暴露端口访问，都可以被负载均衡到任一台宿主机的容器上。</p>
-<p><img src="/images/F0FC6715-47DA-4E75-AB35-A856B43431AA3.jpg" alt="image">￼</p>
-<ul>
-<li>外部流量入口：所有的外部流量都会被 PREROUTING 中的 DOCKER-INGRESS 链截获。如果流量目标端口是一个使用 overlay 网络模式的容器，那么该流量会被捕获到 172.18.0.2 容器中。</li>
-<li>ingress-sbox：用来进行第二步iptables 流量控制。这里是通过mark+ipvs的方式来完成的，ipvs 的 vip 被绑定到overlay-bridge上。FORWARD 和 INPUT 链都会对不同端口数据包进行不同的标记，当数据包通过 INPUT 进入ipvs的vip 时，根据不同的标记进行负载均衡。</li>
-<li>目标容器：直接对流量进行处理。</li>
-<li>容器流量出口：vxlan 流量出来经过容器后，会经重定向发送到挂在宿主机的虚拟网卡。此时，网卡会被 OUTPUT链截获，如果发现是发送给 overlay 网络的流量，则会被 DNAT 到 ingress-box中。注意，docker_gwbridge 没有做外部 DNAT，无法被外部访问。</li>
-<li>以上是实现了overlay网络与普通网络流量之间的隔离。这个隔离是使用一个容器来完成的。</li>
-</ul>
+          <h1 id="MongoDB-复制集同步过程"><a href="#MongoDB-复制集同步过程" class="headerlink" title="MongoDB 复制集同步过程"></a>MongoDB 复制集同步过程</h1><p>MongoDB Replica Set 是一种基于分布式选举和复制状态机的高可用架构，这一套模式虽然与 paxos、raft 协议非常相似，但实质上差异却非常大。raft 协议中，所有事务的提交都是线性的，所有节点会进行同步提交，因此可以保持很高的数据一致性，但是写性能会比较差；而 MongoDB 的复制集则是一种异步复制+选举算法的结合，通过调节事务的提交时间来完成数据一致性的保证。</p>
+<h2 id="基于-Oplog-的数据同步机制"><a href="#基于-Oplog-的数据同步机制" class="headerlink" title="基于 Oplog 的数据同步机制"></a>基于 Oplog 的数据同步机制</h2><p>与 raft 协议类似，MongoDB 中也是采用复制状态机的模式来进行数据复制，在 MongoDB 中用于节点同步的日志类型称为 Oplog。Oplog 其实并不是一种日志文件，而是 WiredTiger 中一个特殊的 Collection，这种特殊的模式使得 MongoDB 中应用层日志、数据、索引实际上是作为一个事务整体写入的。这种设计能够有效地规避应用层日志与数据库日志不相同的问题，这个问题在 MySQL 中有所体现，并且困惑了开发者相当长一段时间。对比 etcd 的实现，可以认为 etcd 是按照 raft 状态机的模式，在 raft 节点之上构建一个数据库；而 MongoDB 其实仍然是一个传统的数据库同步模式，是一个基于数据库引擎的复制模式，这是两者之间的核心差异。</p>
+<h2 id="Oplog-的异步复制"><a href="#Oplog-的异步复制" class="headerlink" title="Oplog 的异步复制"></a>Oplog 的异步复制</h2><p>经过上一小节的讨论，MongoDB 的复制机制并不是 etcd 的模式，而是类似 MySQL 主从复制的模式。这样就能够更加轻松地理解为什么 Oplog 采取的一种异步复制的模式。</p>
+<img src="/images/20jq7bq4ya.png" alt="20jq7bq4ya" style="zoom: 67%;" />
+
+<p>Oplog 的异步复制是由从节点发起的，每一个从节点都会有一个特殊的线程用于从主节点拉取 Oplog，我们这里称之为拉取线程。当拉取线程只负责完成 Oplog 的复制，并写入到本地的 Collection 中，当写入完成后拉取线程就会继续向主节点请求下一批 Oplog。拉取线程在拉取 Oplog 过程中不会发生任何的阻塞。</p>
+<p>Oplog 的重放是由重放线程来完成的，根据设置 MongoDB 中可以存在多个重放线程来加快复制速度，默认的重放线程为 16 个。重放线程实际上是在模拟客户端的请求向数据库发送命令完成数据的复制。回放线程尽量累积大量数据才回放（批量并发执行效率高）。但是如果oplog比较少，会提前返回。但是极端情况下，可能会有最多阻塞1秒的情况。</p>
+<p>当重放线程完成重放后，会直接通知主节点自身的当前版本。心跳与版本上报是两个不同的过程，因为心跳周期两秒的间隔时间过长，如果使用心跳上报会导致客户端请求长时间被阻塞。心跳只用于无请求时的保活操作。</p>
+<h2 id="选举机制"><a href="#选举机制" class="headerlink" title="选举机制"></a>选举机制</h2><p>MongoDB 中的选举与 raft 算法也有着一定的区别。raft 算法中由于客户端请求必须到达多数节点才能够提交，因此在选举过程中需要考虑数据一致性的问题，防止数据回滚。而 MongoDB 中，客户端操作并不会因为未到达多数节点而提交失败，只会发生超时错误（超时错误不会导致回滚），因此 MongoDB 中的选举算法主要考虑如何更快地选择数据更多更新的节点，并且尽量保证不丢失数据。</p>
+<p>MongoDB 选举机制中比较特殊的地方在于：当选举完成后，新选举的主节点会要求所有的从节点发送自身的最近数据，并且取这些数据的并集作为集群视图，raft 协议中则是直接按照主节点的状态机作为新视图。这点不同主要是考虑到每个从节点进行 Oplog 重放的顺序可能不同，虽然 Oplog 的拉取是严格按照次数的，但是在重放过程中由于使用了多线程重放，可能会有一部分线程阻塞，发生事务提交的重排。</p>
+<h2 id="网络分区的风险"><a href="#网络分区的风险" class="headerlink" title="网络分区的风险"></a>网络分区的风险</h2><p>当 MongoDB 复制集集群中发生主节点网络分区时，虽然集群中已经完成了选举，但主节点在当前的心跳周期仍然可以处理客户端的请求。</p>
+<p>如果客户端的写入请求为 w:1，那么在这种情况下仍然是可以成功写入的，并且客户端并不会得到写入超时的通知，即客户端视角下无法得知异常发生，无法采取相关的异常处理操作。当主节点网络恢复后，这部分时间内发生的写请求会发生回滚，回滚的数据会被写入到回滚文件中，必须要人工进行数据维护。如果不使用高于 w:majority 的写入等级，就需要承受数据发生回滚的风险。</p>
+<p>发生网络分区时，客户端的读请求会因为不同的  Read Peference 而发生不同的处理。在约一个心跳周期的时间范围内，MongoDB 只能够保证采取相同Read Concern 和 Read Peference 的读请求保持正确的读顺序。当Read Concern 和 Read Peference 不同时，可能会出现读请求R1读到主节点的过期数据，读请求R2 读到其他节点的正常数据，当 R2 时间早于 R1 时就会出现读操作的不安全性。 最好对相同的 Collection 采取相同的读设置来获取更一致的视图。</p>
 
       
     </div>
@@ -259,7 +271,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/4/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/6/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/4/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/17/">17</a><a class="extend next" rel="next" href="/page/6/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -318,7 +330,7 @@
       <div class="site-overview-wrap sidebar-panel">
         <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
     <img class="site-author-image" itemprop="image" alt="tangrc99"
-      src="/images/avatar.gif">
+      src="/images/avatar.png">
   <p class="site-author-name" itemprop="name">tangrc99</p>
   <div class="site-description" itemprop="description"></div>
 </div>
@@ -327,20 +339,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">17</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-count">10</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-count">12</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -416,6 +428,10 @@
   
 
 
+
+
+  
+<script src="/js/local-search.js"></script>
 
 
 
