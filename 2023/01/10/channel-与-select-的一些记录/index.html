@@ -20,28 +20,33 @@
     var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta property="og:type" content="website">
-<meta property="og:title" content="Hexo">
-<meta property="og:url" content="http://example.com/page/2/index.html">
+  <meta name="description" content="channel 与 select 的一些记录本篇文章用于记录本人学习到的与 channel 与 select 有关的一些知识。 CSP 并发模型CSP 并发模型是指“不要通过共享内存来通信，而应该通过通信来共享内存”。go 语言的并发模型是基于 CSP 模型的，这得益于完备的 go、channel、select 体系。这一模型的核心思想是尽量降低程序模块之间的耦合度，尽可能地将每一个模块封装为状态">
+<meta property="og:type" content="article">
+<meta property="og:title" content="channel 与 select 的一些记录">
+<meta property="og:url" content="http://example.com/2023/01/10/channel-%E4%B8%8E-select-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/index.html">
 <meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="channel 与 select 的一些记录本篇文章用于记录本人学习到的与 channel 与 select 有关的一些知识。 CSP 并发模型CSP 并发模型是指“不要通过共享内存来通信，而应该通过通信来共享内存”。go 语言的并发模型是基于 CSP 模型的，这得益于完备的 go、channel、select 体系。这一模型的核心思想是尽量降低程序模块之间的耦合度，尽可能地将每一个模块封装为状态">
 <meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-01-09T18:06:00.666Z">
+<meta property="article:modified_time" content="2023-01-09T23:33:34.239Z">
 <meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="go">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="http://example.com/page/2/">
+<link rel="canonical" href="http://example.com/2023/01/10/channel-%E4%B8%8E-select-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : true,
-    isPost : false,
+    isHome : false,
+    isPost : true,
     lang   : 'zh-CN'
   };
 </script>
 
-  <title>Hexo</title>
+  <title>channel 与 select 的一些记录 | Hexo</title>
   
 
 
@@ -182,9 +187,10 @@
         <div class="content-wrap">
           
 
-          <div class="content index posts-expand">
+          <div class="content post posts-expand">
             
-      
+
+    
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
@@ -200,10 +206,9 @@
       <meta itemprop="name" content="Hexo">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/01/10/channel-%E4%B8%8E-select-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">channel 与 select 的一些记录</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          channel 与 select 的一些记录
+        </h1>
 
         <div class="post-meta">
             <span class="post-meta-item">
@@ -240,7 +245,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="channel-与-select-的一些记录"><a href="#channel-与-select-的一些记录" class="headerlink" title="channel 与 select 的一些记录"></a>channel 与 select 的一些记录</h1><p>本篇文章用于记录本人学习到的与 channel 与 select 有关的一些知识。</p>
+        <h1 id="channel-与-select-的一些记录"><a href="#channel-与-select-的一些记录" class="headerlink" title="channel 与 select 的一些记录"></a>channel 与 select 的一些记录</h1><p>本篇文章用于记录本人学习到的与 channel 与 select 有关的一些知识。</p>
 <h2 id="CSP-并发模型"><a href="#CSP-并发模型" class="headerlink" title="CSP 并发模型"></a>CSP 并发模型</h2><p>CSP 并发模型是指“不要通过共享内存来通信，而应该通过通信来共享内存”。go 语言的并发模型是基于 CSP 模型的，这得益于完备的 go、channel、select 体系。这一模型的核心思想是尽量降低程序模块之间的耦合度，尽可能地将每一个模块封装为状态机的形式，在不同的模块之间通过数据或标志位的传递来改变状态机的行为。</p>
 <p>在 C++程序中，线程之间的通信大多数场景也是遵循这一思想的。大部分线程之间会选择使用队列、原子标志位、期望值来进行同步，而不是多个线程同时去并发访问同一数据结构。毕竟无锁数据结构的设计非常复杂，并且可以设计为无锁形式的数据结构非常有限；而采取加锁的形式来保证线程安全可能会因为竞争而带来比较严重的性能问题。</p>
 <p>C++的并发编程中，简单的控制同步可以直接使用原子量来完成，数据类型的传递可以使用队列来完成。但是，如果状态机中的某个状态具有多个分支，可能就需要使用多个原子量、或者使用多态类型的队列，在实际编程过程中可能会比较繁琐。而 go 语言中的 select 语句可以很好地实现信号的多路复用，使得一个程序的模块可以更加轻松地使用复杂的状态机。这也是为什么 goroutine 并没有提供外界退出的方式，而是必须从自身的逻辑中退出。go 语言的编程逻辑中，更希望每一个 goroutine 中封装的是一个完成的状态机，每一个 goroutine 都是一个独立的模块，从而实现程序不同模块间的低耦合。</p>
@@ -269,25 +274,35 @@
 
 <p>可以看到，如果发现取出的 sudog 结构体是由 select 语句注册的，那么会使用 CAS 语句将 selectDone 标志位设置为 1。虽然在进入 dequeue 函数前已经对 hchan 加锁，但是这里的 selectDone 标志位也被注册到了其他 hchan 结构体中，可能会发生 concurrency unsafe。如果成功修改标志位，代表本次操作是第一个通知 select 的操作，此时才会进行数据拷贝；如果修改失败，那么会将忽略本次操作，并且再一次尝试取出 sudog。</p>
 
-      
     </div>
 
     
     
     
+
       <footer class="post-footer">
-        <div class="post-eof"></div>
+          
+          <div class="post-tags">
+              <a href="/tags/go/" rel="tag"><i class="fa fa-tag"></i> go</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/01/09/gnet-%E4%B8%8E-net-%E7%BD%91%E7%BB%9C%E5%BA%93%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94/" rel="prev" title="gnet 与 net 网络库性能对比">
+      <i class="fa fa-chevron-left"></i> gnet 与 net 网络库性能对比
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
       </footer>
+    
   </article>
   
   
   
-
-
-  
-  <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
-  </nav>
 
 
 
@@ -339,6 +354,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#channel-%E4%B8%8E-select-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95"><span class="nav-number">1.</span> <span class="nav-text">channel 与 select 的一些记录</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#CSP-%E5%B9%B6%E5%8F%91%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.1.</span> <span class="nav-text">CSP 并发模型</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#hchan"><span class="nav-number">1.2.</span> <span class="nav-text">hchan</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#channel-%E7%9A%84%E5%B9%B6%E5%8F%91%E8%AF%BB%E5%86%99"><span class="nav-number">1.3.</span> <span class="nav-text">channel 的并发读写</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#select-%E7%9A%84%E9%98%BB%E5%A1%9E%E4%B8%8E%E5%94%A4%E9%86%92"><span class="nav-number">1.4.</span> <span class="nav-text">select 的阻塞与唤醒</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
