@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/favicon.ico" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="gnet 与 net 网络库性能对比在使用 go 语音进行网络编程时，由于 net.Conn.Read 提供的是阻塞读，通常需要将每一个客户端连接放在一个协程中处理，这种方式虽然比较简单，但是会带来一定的性能损耗。 测试背景在使用 go 语言仿写 redis 服务器时，我尝试使用了三种不同的基础架构：  每一个客户端开启协程负责协议解析、命令执行、消息写回，数据库采用读写锁； 每一个客户端开启协程">
+<meta property="og:type" content="article">
+<meta property="og:title" content="gnet 与 net 网络库性能对比">
+<meta property="og:url" content="http://example.com/2023/01/09/gnet-%E4%B8%8E-net-%E7%BD%91%E7%BB%9C%E5%BA%93%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94/index.html">
+<meta property="og:site_name" content="Hexo">
+<meta property="og:description" content="gnet 与 net 网络库性能对比在使用 go 语音进行网络编程时，由于 net.Conn.Read 提供的是阻塞读，通常需要将每一个客户端连接放在一个协程中处理，这种方式虽然比较简单，但是会带来一定的性能损耗。 测试背景在使用 go 语言仿写 redis 服务器时，我尝试使用了三种不同的基础架构：  每一个客户端开启协程负责协议解析、命令执行、消息写回，数据库采用读写锁； 每一个客户端开启协程">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/images/pprof-1.png">
+<meta property="og:image" content="http://example.com/images/pprof-2.png">
+<meta property="og:image" content="http://example.com/images/pprof-3.png">
+<meta property="article:published_time" content="2023-01-09T14:49:45.797Z">
+<meta property="article:modified_time" content="2023-01-09T15:57:36.368Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="go">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/images/pprof-1.png">
+
+<link rel="canonical" href="http://example.com/2023/01/09/gnet-%E4%B8%8E-net-%E7%BD%91%E7%BB%9C%E5%BA%93%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>gnet 与 net 网络库性能对比 | Hexo</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Hexo</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2023/01/09/gnet-%E4%B8%8E-net-%E7%BD%91%E7%BB%9C%E5%BA%93%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Hexo">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          gnet 与 net 网络库性能对比
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-01-09 22:49:45 / 修改时间：23:57:36" itemprop="dateCreated datePublished" datetime="2023-01-09T22:49:45+08:00">2023-01-09</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="gnet-与-net-网络库性能对比"><a href="#gnet-与-net-网络库性能对比" class="headerlink" title="gnet 与 net 网络库性能对比"></a>gnet 与 net 网络库性能对比</h1><p>在使用 go 语音进行网络编程时，由于 net.Conn.Read 提供的是阻塞读，通常需要将每一个客户端连接放在一个协程中处理，这种方式虽然比较简单，但是会带来一定的性能损耗。</p>
+<h2 id="测试背景"><a href="#测试背景" class="headerlink" title="测试背景"></a>测试背景</h2><p>在使用 go 语言仿写 redis 服务器时，我尝试使用了三种不同的基础架构：</p>
+<ol>
+<li>每一个客户端开启协程负责协议解析、命令执行、消息写回，数据库采用读写锁；</li>
+<li>每一个客户端开启协程负责协议解析，等待事务协程完成命令执行后，再由客户端协程写入消息，协程使用 channel 通信；</li>
+<li>使用 gnet 网络库，采用传统单线程 reactor 模式。</li>
+</ol>
+<p>经过 redis-benchmark 的性能测试，在双核四线程的 CPU 上，这三者的并发量以及 redis-server 的并发量分别如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">redis-server</span> </span><br><span class="line">Summary:</span><br><span class="line">  throughput summary: 76982.29 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.387     0.152     0.351     0.655     0.799     1.511</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">方式 1，单独设置事务协程</span></span><br><span class="line">Summary:</span><br><span class="line">  throughput summary: 46289.86 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.611     0.048     0.551     0.919     1.999     3.711</span><br><span class="line">        </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">方式 2，不单独设置事务协程</span></span><br><span class="line">Summary:     </span><br><span class="line">  throughput summary: 42680.32 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.620     0.048     0.599     0.863     1.279     4.871</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">方式 3，使用 gnet 网络库</span></span><br><span class="line">Summary:</span><br><span class="line">  throughput summary: 67977.26 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.590     0.120     0.543     1.079     1.439     2.335</span><br></pre></td></tr></table></figure>
+
+<p>很显然，使用 gnet 网络库的并发量要远远高于使用原生的 go 语言网络库，并发量基本上可以达到 redis-server 的 90%左右，考虑到 go 语言中的 GC 机制，这是一个非常不错的并发量。</p>
+<h2 id="火焰图分析"><a href="#火焰图分析" class="headerlink" title="火焰图分析"></a>火焰图分析</h2><p>使用 pprof 工具分别对这三种方式进行分析。</p>
+<h3 id="单独设置事务协程"><a href="#单独设置事务协程" class="headerlink" title="单独设置事务协程"></a>单独设置事务协程</h3><p>在单独设置事务协程时，火焰图如下。可以看到事务的执行时间只占总时间片的 5%左右，其余的 CPU 时间片主要是用于网络 IO 以及 runtime 调度协程。</p>
+<p><img src="/images/pprof-1.png" alt="pprof-1"></p>
+<h3 id="不单独设置事务协程"><a href="#不单独设置事务协程" class="headerlink" title="不单独设置事务协程"></a>不单独设置事务协程</h3><p>在不单独设置事务协程时，火焰图如下，大部分的 CPU 时间片也是用于网络 IO 以及 runtime 调度协程。不过注意到，不单独设置事务协程时，runtime 进行协程调度的时间片要略高。</p>
+<p><img src="/images/pprof-2.png" alt="pprof-2"></p>
+<h3 id="使用-gnet"><a href="#使用-gnet" class="headerlink" title="使用 gnet"></a>使用 gnet</h3><p>在使用 gnet 网络库后，根据火焰图可以看到，原本占据约 1/3 CPU 时间片的协程调度部分消失了，这是 gnet 性能比 net 网络库要高的根本原因。</p>
+<p><img src="/images/pprof-3.png" alt="pprof-3"></p>
+<h2 id="三种模式的分析对比"><a href="#三种模式的分析对比" class="headerlink" title="三种模式的分析对比"></a>三种模式的分析对比</h2><p>无论是否单独设置事务协程，基于 net 架构的系统都只能有一个协程来进行数据库的读写，事务的执行效率其实是类似的。</p>
+<p>在单独设置事务协程的情况下，由于事务协程通常是可以连续执行，不会主动进入阻塞状态，能够在一定程度上减少 goroutine 的调度次数，这一点也能够反应在火焰图中。不过单独设置事务协程的情况下，需要使用 channel 在协程之间进行消息传递，这也会在一定程度上造成性能的损耗。在不单独设置事务协程的情况下，协程可能会因为等待数据库锁而进行阻塞状态，当协程数量比较大时可能竞争会比较严重，比较依赖于锁的性能。</p>
+<p>在少核环境下，根据测试，单独设置事务协程可能会更具有优势。</p>
+<p>使用 gnet 网络库更像是在处理传统的 C/C++ 网络编程，因为不需要 goroutine 的调度，性能确实会比 net 的方式要高出一截。但是同样的，使用 gnet 意味着无法使用 go 语言的一些特性。并且，本次测试的程序，其事务流程都非常简单，事务的执行时间非常短，程序的性能更加程度上取决于网络架构。当服务器的事务执行较为复杂，或者是需要等待系统中其他模块的响应时，事务的执行时间会变长。由于 gent 更像是一个原生的 reactor 模式，单次的读事件如果长时间阻塞就会严重影响整个网络部分的性能。这种情况下，使用 gnet 带来的性能提升就没有那么高，并且可能需要对网络部分进行单独的模块封装，这样会增加系统的复杂度。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/go/" rel="tag"><i class="fa fa-tag"></i> go</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/12/27/%E4%BD%BF%E7%94%A8%20goroutine%20%E6%A8%A1%E6%8B%9F%20redis%20IO%20%E6%A8%A1%E5%9E%8B/" rel="prev" title="使用 goroutine 模拟 redis IO 模型">
+      <i class="fa fa-chevron-left"></i> 使用 goroutine 模拟 redis IO 模型
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#gnet-%E4%B8%8E-net-%E7%BD%91%E7%BB%9C%E5%BA%93%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94"><span class="nav-number">1.</span> <span class="nav-text">gnet 与 net 网络库性能对比</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E8%83%8C%E6%99%AF"><span class="nav-number">1.1.</span> <span class="nav-text">测试背景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%81%AB%E7%84%B0%E5%9B%BE%E5%88%86%E6%9E%90"><span class="nav-number">1.2.</span> <span class="nav-text">火焰图分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8D%95%E7%8B%AC%E8%AE%BE%E7%BD%AE%E4%BA%8B%E5%8A%A1%E5%8D%8F%E7%A8%8B"><span class="nav-number">1.2.1.</span> <span class="nav-text">单独设置事务协程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%8D%E5%8D%95%E7%8B%AC%E8%AE%BE%E7%BD%AE%E4%BA%8B%E5%8A%A1%E5%8D%8F%E7%A8%8B"><span class="nav-number">1.2.2.</span> <span class="nav-text">不单独设置事务协程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8-gnet"><span class="nav-number">1.2.3.</span> <span class="nav-text">使用 gnet</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%89%E7%A7%8D%E6%A8%A1%E5%BC%8F%E7%9A%84%E5%88%86%E6%9E%90%E5%AF%B9%E6%AF%94"><span class="nav-number">1.3.</span> <span class="nav-text">三种模式的分析对比</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">19</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">13</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Renchu Tang</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
