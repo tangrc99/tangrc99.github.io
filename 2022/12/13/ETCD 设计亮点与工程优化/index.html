@@ -17,13 +17,13 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta name="description" content="etcd 设计亮点与工程优化raft 协议根据 MIT6.824 的讲解，在原生的 raft 协议中，所有的读写操作都是完全串行的，虽然能够保证读写的线性一致性，但是性能非常差，必须要经过工程上的优化才能够获得比较好的性能。 ReadIndex 解决读操作落盘问题为了避免网络分区问题出现时，旧主仍然在为客户端提供读服务，在最初的 raft 协议中，读操作也同样需要通过 raft log 落盘，以此">
 <meta property="og:type" content="article">
 <meta property="og:title" content="etcd 设计亮点与工程优化">
-<meta property="og:url" content="http://example.com/2022/12/13/ETCD%20%E8%AE%BE%E8%AE%A1%E4%BA%AE%E7%82%B9%E4%B8%8E%E5%B7%A5%E7%A8%8B%E4%BC%98%E5%8C%96/index.html">
+<meta property="og:url" content="https://tangrc99.com/2022/12/13/ETCD%20%E8%AE%BE%E8%AE%A1%E4%BA%AE%E7%82%B9%E4%B8%8E%E5%B7%A5%E7%A8%8B%E4%BC%98%E5%8C%96/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="etcd 设计亮点与工程优化raft 协议根据 MIT6.824 的讲解，在原生的 raft 协议中，所有的读写操作都是完全串行的，虽然能够保证读写的线性一致性，但是性能非常差，必须要经过工程上的优化才能够获得比较好的性能。 ReadIndex 解决读操作落盘问题为了避免网络分区问题出现时，旧主仍然在为客户端提供读服务，在最初的 raft 协议中，读操作也同样需要通过 raft log 落盘，以此">
 <meta property="og:locale" content="zh_CN">
@@ -33,7 +33,7 @@
 <meta property="article:tag" content="etcd">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="http://example.com/2022/12/13/ETCD%20%E8%AE%BE%E8%AE%A1%E4%BA%AE%E7%82%B9%E4%B8%8E%E5%B7%A5%E7%A8%8B%E4%BC%98%E5%8C%96/">
+<link rel="canonical" href="https://tangrc99.com/2022/12/13/ETCD%20%E8%AE%BE%E8%AE%A1%E4%BA%AE%E7%82%B9%E4%B8%8E%E5%B7%A5%E7%A8%8B%E4%BC%98%E5%8C%96/">
 
 
 <script id="page-configurations">
@@ -194,7 +194,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/13/ETCD%20%E8%AE%BE%E8%AE%A1%E4%BA%AE%E7%82%B9%E4%B8%8E%E5%B7%A5%E7%A8%8B%E4%BC%98%E5%8C%96/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/13/ETCD%20%E8%AE%BE%E8%AE%A1%E4%BA%AE%E7%82%B9%E4%B8%8E%E5%B7%A5%E7%A8%8B%E4%BC%98%E5%8C%96/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">

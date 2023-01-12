@@ -17,13 +17,13 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta name="description" content="redis与限流算法由于 Web 应用在部署时，常常使用多网关，微服务的组织形式，因此经常需要在进程间进行数据交换，从而达到更好的限流效果。由于限流算法中的数据具有很强的时效性，并且不需要较高的安全性，使用 redis 组件来实现限流算法是一个很好的选择。 常见的限流算法一共有四种：固定窗口，滑动窗口，桶漏算法，令牌桶。这些算法具有一定的复杂度，需要借助 redis 中的 lua 脚本来实现。 固">
 <meta property="og:type" content="article">
 <meta property="og:title" content="redis与限流算法">
-<meta property="og:url" content="http://example.com/2022/12/25/redis%E4%B8%8E%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95/index.html">
+<meta property="og:url" content="https://tangrc99.com/2022/12/25/redis%E4%B8%8E%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95/index.html">
 <meta property="og:site_name" content="Hexo">
 <meta property="og:description" content="redis与限流算法由于 Web 应用在部署时，常常使用多网关，微服务的组织形式，因此经常需要在进程间进行数据交换，从而达到更好的限流效果。由于限流算法中的数据具有很强的时效性，并且不需要较高的安全性，使用 redis 组件来实现限流算法是一个很好的选择。 常见的限流算法一共有四种：固定窗口，滑动窗口，桶漏算法，令牌桶。这些算法具有一定的复杂度，需要借助 redis 中的 lua 脚本来实现。 固">
 <meta property="og:locale" content="zh_CN">
@@ -33,7 +33,7 @@
 <meta property="article:tag" content="redis">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="http://example.com/2022/12/25/redis%E4%B8%8E%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95/">
+<link rel="canonical" href="https://tangrc99.com/2022/12/25/redis%E4%B8%8E%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95/">
 
 
 <script id="page-configurations">
@@ -194,7 +194,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/25/redis%E4%B8%8E%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/25/redis%E4%B8%8E%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
