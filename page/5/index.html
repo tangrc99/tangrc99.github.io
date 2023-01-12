@@ -188,7 +188,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/09/gnet-%E4%B8%8E-net-%E7%BD%91%E7%BB%9C%E5%BA%93%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/10/channel-%E4%B8%8E-select-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -202,7 +202,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/01/09/gnet-%E4%B8%8E-net-%E7%BD%91%E7%BB%9C%E5%BA%93%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94/" class="post-title-link" itemprop="url">gnet 与 net 网络库性能对比</a>
+            <a href="/2023/01/10/channel-%E4%B8%8E-select-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">channel 与 select 的一些记录</a>
         </h2>
 
         <div class="post-meta">
@@ -213,7 +213,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2023-01-09 22:49:45 / 修改时间：23:57:36" itemprop="dateCreated datePublished" datetime="2023-01-09T22:49:45+08:00">2023-01-09</time>
+              <time title="创建时间：2023-01-10 02:06:00 / 修改时间：08:00:42" itemprop="dateCreated datePublished" datetime="2023-01-10T02:06:00+08:00">2023-01-10</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -240,28 +240,36 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="gnet-与-net-网络库性能对比"><a href="#gnet-与-net-网络库性能对比" class="headerlink" title="gnet 与 net 网络库性能对比"></a>gnet 与 net 网络库性能对比</h1><p>在使用 go 语音进行网络编程时，由于 net.Conn.Read 提供的是阻塞读，通常需要将每一个客户端连接放在一个协程中处理，这种方式虽然比较简单，但是会带来一定的性能损耗。</p>
-<h2 id="测试背景"><a href="#测试背景" class="headerlink" title="测试背景"></a>测试背景</h2><p>在使用 go 语言仿写 redis 服务器时，我尝试使用了三种不同的基础架构：</p>
-<ol>
-<li>每一个客户端开启协程负责协议解析、命令执行、消息写回，数据库采用读写锁；</li>
-<li>每一个客户端开启协程负责协议解析，等待事务协程完成命令执行后，再由客户端协程写入消息，协程使用 channel 通信；</li>
-<li>使用 gnet 网络库，采用传统单线程 reactor 模式。</li>
-</ol>
-<p>经过 redis-benchmark 的性能测试，在双核四线程的 CPU 上，这三者的并发量以及 redis-server 的并发量分别如下：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">redis-server</span> </span><br><span class="line">Summary:</span><br><span class="line">  throughput summary: 76982.29 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.387     0.152     0.351     0.655     0.799     1.511</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">方式 1，单独设置事务协程</span></span><br><span class="line">Summary:</span><br><span class="line">  throughput summary: 46289.86 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.611     0.048     0.551     0.919     1.999     3.711</span><br><span class="line">        </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">方式 2，不单独设置事务协程</span></span><br><span class="line">Summary:     </span><br><span class="line">  throughput summary: 42680.32 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.620     0.048     0.599     0.863     1.279     4.871</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">方式 3，使用 gnet 网络库</span></span><br><span class="line">Summary:</span><br><span class="line">  throughput summary: 67977.26 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.590     0.120     0.543     1.079     1.439     2.335</span><br></pre></td></tr></table></figure>
+          <h1 id="channel-与-select-的一些记录"><a href="#channel-与-select-的一些记录" class="headerlink" title="channel 与 select 的一些记录"></a>channel 与 select 的一些记录</h1><p>本篇文章用于记录本人学习到的与 channel 与 select 有关的一些知识。</p>
+<h2 id="CSP-并发模型"><a href="#CSP-并发模型" class="headerlink" title="CSP 并发模型"></a>CSP 并发模型</h2><p>CSP 并发模型是指“不要通过共享内存来通信，而应该通过通信来共享内存”。go 语言的并发模型是基于 CSP 模型的，这得益于完备的 go、channel、select 体系。这一模型的核心思想是尽量降低程序模块之间的耦合度，尽可能地将每一个模块封装为状态机的形式，在不同的模块之间通过数据或标志位的传递来改变状态机的行为，并尽可能降低不同模块之间的临界竞争。</p>
+<p>在 C++程序中，线程之间的通信大多数场景也是遵循这一思想的。大部分线程之间会选择使用队列、原子标志位、期望值来进行同步，而不是多个线程同时去并发访问同一数据结构。毕竟无锁数据结构的设计非常复杂，并且可以设计为无锁形式的数据结构非常有限；而采取加锁的形式来保证线程安全可能会因为竞争而带来比较严重的性能问题。</p>
+<p>C++的并发编程中，简单的控制同步可以直接使用原子量来完成，数据类型的传递可以使用队列来完成。但是，如果状态机中的某个状态具有多个分支，可能就需要使用多个原子量、或者使用多态类型的队列，在实际编程过程中可能会比较繁琐。而 go 语言中的 select 语句可以很好地实现信号的多路复用，使得一个程序的模块可以更加轻松地使用复杂的状态机。这也是为什么 goroutine 并没有提供外界退出的方式，而是必须从自身的逻辑中退出。go 语言的编程逻辑中，更希望每一个 goroutine 中封装的是一个完成的状态机，每一个 goroutine 都是一个独立的模块，从而实现程序不同模块间的低耦合。</p>
+<p>如果进程内的所有线程/协程之间传递数据都使用FIFO 队列，可能会出现较多的内存拷贝。一种更好的方式是针对大对象，通过指针的方式来转移对象的所属权，使程序的不同模块用流水线的方式工作。</p>
+<p>CSP 并发模型，更多地还是在描述程序不同模块之间如何去进行信息交换。在程序模块的内部，为了高性能可以尝试使用一些更加底层的方法来进行更加复杂的操作，但是最好不要将这种复杂度传递给模块之外，否则程序将会变得难以维护。</p>
+<h2 id="hchan"><a href="#hchan" class="headerlink" title="hchan"></a>hchan</h2><p>go 语言中 channel 底层使用的是 hchan 结构体，它本质上是一个有锁的环形缓冲区，hchan 数据结构如下:</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> hchan <span class="keyword">struct</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 有缓冲时，存储相关信息</span></span><br><span class="line">    qcount   <span class="type">uint</span>           <span class="comment">// 循环数组中的元素数量</span></span><br><span class="line">    dataqsiz <span class="type">uint</span>           <span class="comment">// 循环数组的长度</span></span><br><span class="line">    buf      unsafe.Pointer <span class="comment">// 指向底层循环数组的指针</span></span><br><span class="line">    elemsize <span class="type">uint16</span> <span class="comment">//能够收发元素的大小</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    closed   <span class="type">uint32</span>   <span class="comment">//channel是否关闭的标志</span></span><br><span class="line">    elemtype *_type <span class="comment">//channel中的元素类型</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 读写游标</span></span><br><span class="line">    sendx    <span class="type">uint</span>   <span class="comment">// 下一次发送数据的下标位置</span></span><br><span class="line">    recvx    <span class="type">uint</span>   <span class="comment">// 下一次读取数据的下标位置</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 用于处理读写阻塞</span></span><br><span class="line">    recvq    waitq  <span class="comment">// 读等待队列</span></span><br><span class="line">    sendq    waitq  <span class="comment">// 写等待队列</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    lock mutex <span class="comment">//互斥锁，保证读写channel时不存在并发竞争问题</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>很显然，使用 gnet 网络库的并发量要远远高于使用原生的 go 语言网络库，并发量基本上可以达到 redis-server 的 90%左右，考虑到 go 语言中的 GC 机制，这是一个非常不错的并发量。</p>
-<h2 id="火焰图分析"><a href="#火焰图分析" class="headerlink" title="火焰图分析"></a>火焰图分析</h2><p>使用 pprof 工具分别对这三种方式进行分析。</p>
-<h3 id="单独设置事务协程"><a href="#单独设置事务协程" class="headerlink" title="单独设置事务协程"></a>单独设置事务协程</h3><p>在单独设置事务协程时，火焰图如下。可以看到事务的执行时间只占总时间片的 5%左右，其余的 CPU 时间片主要是用于网络 IO 以及 runtime 调度协程。</p>
-<p><img src="/images/pprof-1.png" alt="pprof-1"></p>
-<h3 id="不单独设置事务协程"><a href="#不单独设置事务协程" class="headerlink" title="不单独设置事务协程"></a>不单独设置事务协程</h3><p>在不单独设置事务协程时，火焰图如下，大部分的 CPU 时间片也是用于网络 IO 以及 runtime 调度协程。不过注意到，不单独设置事务协程时，runtime 进行协程调度的时间片要略高。</p>
-<p><img src="/images/pprof-2.png" alt="pprof-2"></p>
-<h3 id="使用-gnet"><a href="#使用-gnet" class="headerlink" title="使用 gnet"></a>使用 gnet</h3><p>在使用 gnet 网络库后，根据火焰图可以看到，原本占据约 1/3 CPU 时间片的协程调度部分消失了，这是 gnet 性能比 net 网络库要高的根本原因。</p>
-<p><img src="/images/pprof-3.png" alt="pprof-3"></p>
-<h2 id="三种模式的分析对比"><a href="#三种模式的分析对比" class="headerlink" title="三种模式的分析对比"></a>三种模式的分析对比</h2><p>无论是否单独设置事务协程，基于 net 架构的系统都只能有一个协程来进行数据库的读写，事务的执行效率其实是类似的。</p>
-<p>在单独设置事务协程的情况下，由于事务协程通常是可以连续执行，不会主动进入阻塞状态，能够在一定程度上减少 goroutine 的调度次数，这一点也能够反应在火焰图中。不过单独设置事务协程的情况下，需要使用 channel 在协程之间进行消息传递，这也会在一定程度上造成性能的损耗。在不单独设置事务协程的情况下，协程可能会因为等待数据库锁而进行阻塞状态，当协程数量比较大时可能竞争会比较严重，比较依赖于锁的性能。</p>
-<p>在少核环境下，根据测试，单独设置事务协程可能会更具有优势。</p>
-<p>使用 gnet 网络库更像是在处理传统的 C/C++ 网络编程，因为不需要 goroutine 的调度，性能确实会比 net 的方式要高出一截。但是同样的，使用 gnet 意味着无法使用 go 语言的一些特性。并且，本次测试的程序，其事务流程都非常简单，事务的执行时间非常短，程序的性能更加程度上取决于网络架构。当服务器的事务执行较为复杂，或者是需要等待系统中其他模块的响应时，事务的执行时间会变长。由于 gent 更像是一个原生的 reactor 模式，单次的读事件如果长时间阻塞就会严重影响整个网络部分的性能。这种情况下，使用 gnet 带来的性能提升就没有那么高，并且可能需要对网络部分进行单独的模块封装，这样会增加系统的复杂度。</p>
+<p>如果 hchan 中的 ring_buffer 缓冲区有数据，那么读写操作无特殊之处。若 hchan 中缓冲区为空，并且接收到一个读操作，或者 hchan 中缓冲区已满，但是接收到一个写操作；那么就会将该操作注册到 waitq 结构体中，waitq 结构体底层是一个 sudog 链表，存储了阻塞 goroutine 的相关调度信息。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> sudog <span class="keyword">struct</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 原始G结构。相当于g_id</span></span><br><span class="line">    g *g</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 等待链表上的指针</span></span><br><span class="line">    next *sudog</span><br><span class="line">    prev *sudog</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 所属的channel，相当于channel_id</span></span><br><span class="line">    c    *hchan</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>sudog 是注册在一个具体的 hchan 上的，这是因为一个 goroutine 可能会因为不同的 channel 阻塞，因此每一个 hchan 都必须要保留能够查询到阻塞 goroutine 的指针。</p>
+<p>通过上述结构体的分析，goroutine 因为 channel 而陷入阻塞，是会主动让出执行权的。而唤醒操作则由另外一个操作 channel 的 goroutine 负责。</p>
+<h2 id="channel-的并发读写"><a href="#channel-的并发读写" class="headerlink" title="channel 的并发读写"></a>channel 的并发读写</h2><p>一般的互斥量性能都会随着并发量的增长而迅速下降；channel 虽然是一个有锁的数据结构，但是因为底层做了特殊的优化，即使由大量的 goroutine 进行并发操作也不会造成性能的严重下降，只会发生 ns 级别的改变。</p>
+<p>另外，由于涉及到 GC 的问题，所有数据结构在经过 channel 进行传递时都会发生一次复制。因此，可以尽量尝试使用指针来传递比较复杂的数据结构，防止内存复制损耗过多时间。</p>
+<h2 id="select-的阻塞与唤醒"><a href="#select-的阻塞与唤醒" class="headerlink" title="select 的阻塞与唤醒"></a>select 的阻塞与唤醒</h2><p>在早期的版本中，select 语句是由后台 goroutine 轮询来实现的，当分支过多的情况下性能会比较差。在最新版本中，已经针对 select 语句进行了优化，采取了被动调度的方式进行唤醒。</p>
+<p>select 语句的执行逻辑大致可以分为三步：</p>
+<ul>
+<li>判断当前是否有就绪 channel，并随机选择一个分支执行操作</li>
+<li>若无就绪 channel，将 goroutine 信息注册到各个 channel 分支，进入阻塞</li>
+<li>被唤醒时检测就绪 channel，随机选择一个分支操作</li>
+</ul>
+<p>这意味着，一个 for - select 循环在一直满足就绪条件下是可以不断执行的，直到运行被抢占。</p>
+<p>当一个 goroutine 中的 select 语句中并没有可满足的条件时，runtime.selectgo 函数会根据不同分支的 poller 顺序来选择被唤醒时的轮询顺序（每一次完成选择后会重新将该顺序打乱，保证随机选择分支）；还需要根据 channel 的内存指针顺序来依次加锁，以防止死锁。完成上述操作后，goroutine 会进入阻塞状态，等待自身的 G 结构被其他 goroutine 因发送 channel 而状态改变为 _Grunnable，也就是进入 select 阻塞后的 goroutine 只能够被 goroutine 调度器唤醒，而不会主动尝试运行。当 goroutine 被唤醒时，会将所有的 channel 加锁，并且释放所有的 sudog 结构体。</p>
+<p>由于 select 语句在进入阻塞和被唤醒时都需要对所有 channel 加锁，这里会有一定的性能损耗。</p>
+<p>select 语句是一个多分支语句，只能够随机选择一个 channel 运行。但是 go 语言中，sudog 的节点的移出是由解除阻塞的一方负责的，如果不加以控制，就可能会出现多个分支注册的 sudog 同时被多个协程删除的情况，这样就会造成channel 消息的丢失。为了防止这一情况，select 语句注册的 sudog 会做出特殊的标记处理。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// runtime/chan.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(q *waitq)</span></span> dequeue() *sudog &#123;</span><br><span class="line">  <span class="keyword">for</span> &#123;</span><br><span class="line">    <span class="comment">// 这里是链表删除的逻辑，进入函数前已经对 hchan 加锁</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// if a goroutine was put on this queue because of a</span></span><br><span class="line">    <span class="comment">// select, there is a small window between the goroutine</span></span><br><span class="line">    <span class="comment">// being woken up by a different case and it grabbing the</span></span><br><span class="line">    <span class="comment">// channel locks. Once it has the lock</span></span><br><span class="line">    <span class="comment">// it removes itself from the queue, so we won&#x27;t see it after that.</span></span><br><span class="line">    <span class="comment">// We use a flag in the G struct to tell us when someone</span></span><br><span class="line">    <span class="comment">// else has won the race to signal this goroutine but the goroutine</span></span><br><span class="line">    <span class="comment">// hasn&#x27;t removed itself from the queue yet.</span></span><br><span class="line">    <span class="keyword">if</span> sgp.isSelect &amp;&amp; !atomic.Cas(&amp;sgp.g.selectDone, <span class="number">0</span>, <span class="number">1</span>) &#123;</span><br><span class="line">      <span class="keyword">continue</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> sgp</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，如果发现取出的 sudog 结构体是由 select 语句注册的，那么会使用 CAS 语句将 selectDone 标志位设置为 1。虽然在进入 dequeue 函数前已经对 hchan 加锁，但是这里的 selectDone 标志位也被注册到了其他 hchan 结构体中，可能会发生 concurrency unsafe。如果成功修改标志位，代表本次操作是第一个通知 select 的操作，此时才会进行数据拷贝；如果修改失败，那么会将忽略本次操作，并且再一次尝试取出 sudog。</p>
 
       
     </div>
@@ -280,7 +288,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/4/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/22/">22</a><a class="extend next" rel="next" href="/page/6/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/4/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/23/">23</a><a class="extend next" rel="next" href="/page/6/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -348,20 +356,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">22</span>
+          <span class="site-state-item-count">23</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">11</span>
+        <span class="site-state-item-count">12</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">13</span>
+        <span class="site-state-item-count">15</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
