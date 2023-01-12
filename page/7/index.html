@@ -188,7 +188,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/27/BSON%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/12/27/C++-%E6%9A%B4%E9%9C%B2%E9%83%A8%E5%88%86%E7%A7%81%E6%9C%89%E6%8E%A5%E5%8F%A3/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -202,7 +202,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/27/BSON%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">BSON结构分析</a>
+            <a href="/2022/12/27/C++-%E6%9A%B4%E9%9C%B2%E9%83%A8%E5%88%86%E7%A7%81%E6%9C%89%E6%8E%A5%E5%8F%A3/" class="post-title-link" itemprop="url">C++ 暴露部分私有接口</a>
         </h2>
 
         <div class="post-meta">
@@ -211,8 +211,9 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
+              
 
-              <time title="创建时间：2022-12-27 00:08:27" itemprop="dateCreated datePublished" datetime="2022-12-27T00:08:27+08:00">2022-12-27</time>
+              <time title="创建时间：2022-12-27 03:46:30 / 修改时间：03:53:01" itemprop="dateCreated datePublished" datetime="2022-12-27T03:46:30+08:00">2022-12-27</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -220,11 +221,11 @@
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
                 </span>
                   ，
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/C/" itemprop="url" rel="index"><span itemprop="name">C++</span></a>
                 </span>
             </span>
 
@@ -239,22 +240,9 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="BSON-结构分析"><a href="#BSON-结构分析" class="headerlink" title="BSON 结构分析"></a>BSON 结构分析</h1><h2 id="BSON-简介"><a href="#BSON-简介" class="headerlink" title="BSON 简介"></a>BSON 简介</h2><p>BSON 全称是 Binary JSON, 和 JSON 很像，但是采用二进制格式进行存储。相比 JSON 有以下优势：</p>
-<ul>
-<li><strong>访问速度更快。</strong>BSON 会存储 Value 的类型，相比于明文存储，不需要进行字符串类型到其他类型的转换操作。以整型 12345678 为例，JSON 需要将字符串转成整型，而 BSON 中存储了整型类型标志，并用 4 个字节直接存储了整型值；</li>
-<li><strong>存储空间更低。</strong>还是以整型 12345678 为例，JSON 采用明文存储的方式需要 8 个字节，但是 BSON 对于 Int32 的值统一采用 4 字节存储，Long 和 Double 采用 8 字节存储。 当然这里说存储空间更低也分具体情况，比如对于小整型，BSON 消耗的空间反而更高；</li>
-<li><strong>数据类型更丰富。</strong>BSON 相比 JSON，增加了 BinData，TimeStamp，ObjectID，Decimal128 等类型。</li>
-</ul>
-<h2 id="BSON-存储格式"><a href="#BSON-存储格式" class="headerlink" title="BSON 存储格式"></a>BSON 存储格式</h2><p>一条最简单的 BSON 文档，从前向后可以拆解成以下几个部分：</p>
-<ol>
-<li>文档的总长度， 占 4 个字节；</li>
-<li>Value 类型，参考<a target="_blank" rel="noopener" href="https://github.com/mongodb/mongo/blob/r4.2.21/src/mongo/bson/bsontypes.h#L59-L110">代码定义</a>，占 1 个字节；</li>
-<li>Key 的 String 表示形式（Key 只能 String 类型），长度不固定，以 ‘\0’ 结尾，占 len(Key)+1 个字节；</li>
-<li>Value 的二进制存储，比如 Int32 占 4 字节，Long 和 Double 占 8 个字节等；</li>
-<li>文档以 ‘\0’ 结尾，也就是在遍历 BSON 到末尾时，常见的 EOO(End Of Object)，占 1 个字节；</li>
-</ol>
-<h2 id="紧凑格式的缺点"><a href="#紧凑格式的缺点" class="headerlink" title="紧凑格式的缺点"></a>紧凑格式的缺点</h2><p>BSON 的存储格式非常紧凑，不同的键值对之间是无间隔存储。因此，修改 BSON 中的某一字段意味着需要组织处一个新的 BSON 对象。如果增加、删除或者修改了某个字段，要生成新 BSON 文档，而非在原有 BSON 文档上原地修改。</p>
-<p>在使用 MongoDB 时，可以使用 JSON 格式来暂时存储数据以便在不同的程序模块之间传递。当数据需要插入 MongoDB 时，再将数据封存，转换为 BSON 格式。</p>
+          <h1 id="C-暴露部分私有接口"><a href="#C-暴露部分私有接口" class="headerlink" title="C++ 暴露部分私有接口"></a>C++ 暴露部分私有接口</h1><p>C++ 中可以通过桥接类的方式来暴露类的一部分接口。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Exposure</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Hidden</span>&#123;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="keyword">friend</span> <span class="keyword">class</span> <span class="title class_">Exposure</span>;	</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">foo</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">bar</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 需要隐藏的接口</span></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">hidden</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Exposure</span>&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">		</span><br><span class="line">    <span class="comment">// 暴露 foo 接口 和 bar 接口</span></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">foo</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> impl_-&gt;<span class="built_in">foo</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">bar</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> impl_-&gt;<span class="built_in">bar</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    Hidden *impl_;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
 
       
     </div>
@@ -273,7 +261,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/6/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/22/">22</a><a class="extend next" rel="next" href="/page/8/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -341,7 +329,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">20</span>
+          <span class="site-state-item-count">22</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -359,6 +347,10 @@
       </div>
   </nav>
 </div>
+  <div class="sidebar-button motion-element">
+    lol
+  </a>
+  </div>
   <div class="links-of-author motion-element">
       <span class="links-of-author-item">
         <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
