@@ -8,7 +8,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
-  <link rel="mask-icon" href="/images/favicon.ico" color="#222">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
 
 <link rel="stylesheet" href="/css/main.css">
 
@@ -17,14 +17,14 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta name="description" content="TCP 两次挥手？记录一次抓包异常问题简述我们都知道，正常的 TCP 关闭连接时是需要发生四次挥手的。但是在 wireshark 的一次抓包过程中，我却偶然发现了有一个 tcp 连接只发生了两次挥手，即客户端发送了 FIN 报文，并且收到了服务端的 ACK 报文，但是服务端却没有继续发送 FIN 报文，本次异常断开的抓包结果如下，图中的 192.168.10.1 是某经过系统刷机的路由器：  这其">
 <meta property="og:type" content="article">
 <meta property="og:title" content="TCP 两次挥手？记录一次抓包异常">
 <meta property="og:url" content="https://tangrc99.com/2022/12/25/TCP%E4%B8%A4%E6%AC%A1%E6%8C%A5%E6%89%8B%E2%80%94%E2%80%94%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E6%8A%93%E5%8C%85%E5%BC%82%E5%B8%B8/index.html">
-<meta property="og:site_name" content="Hexo">
+<meta property="og:site_name" content="Sepk">
 <meta property="og:description" content="TCP 两次挥手？记录一次抓包异常问题简述我们都知道，正常的 TCP 关闭连接时是需要发生四次挥手的。但是在 wireshark 的一次抓包过程中，我却偶然发现了有一个 tcp 连接只发生了两次挥手，即客户端发送了 FIN 报文，并且收到了服务端的 ACK 报文，但是服务端却没有继续发送 FIN 报文，本次异常断开的抓包结果如下，图中的 192.168.10.1 是某经过系统刷机的路由器：  这其">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://tangrc99.com/images/image-20221225152318823.png">
@@ -49,7 +49,7 @@
   };
 </script>
 
-  <title>TCP 两次挥手？记录一次抓包异常 | Hexo</title>
+  <title>TCP 两次挥手？记录一次抓包异常 | Sepk</title>
   
 
 
@@ -100,9 +100,10 @@
 
     <a href="/" class="brand" rel="start">
       <span class="logo-line-before"><i></i></span>
-      <h1 class="site-title">Hexo</h1>
+      <h1 class="site-title">Sepk</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
+      <p class="site-subtitle" itemprop="description">ww</p>
   </div>
 
   <div class="site-nav-right">
@@ -202,11 +203,11 @@
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
       <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="">
+      <meta itemprop="description" content="技术爱好者">
     </span>
 
     <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Hexo">
+      <meta itemprop="name" content="Sepk">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
@@ -365,7 +366,7 @@
     <img class="site-author-image" itemprop="image" alt="tangrc99"
       src="/images/avatar.png">
   <p class="site-author-name" itemprop="name">tangrc99</p>
-  <div class="site-description" itemprop="description"></div>
+  <div class="site-description" itemprop="description">技术爱好者</div>
 </div>
 <div class="site-state-wrap motion-element">
   <nav class="site-state">
@@ -391,7 +392,7 @@
   </nav>
 </div>
   <div class="sidebar-button motion-element">
-    lol
+    lol welcome!
   </a>
   </div>
   <div class="links-of-author motion-element">
@@ -428,7 +429,7 @@
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
-  <span class="author" itemprop="copyrightHolder">Renchu Tang</span>
+  <span class="author" itemprop="copyrightHolder">Tangrc99</span>
 </div>
 
         

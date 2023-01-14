@@ -8,7 +8,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
-  <link rel="mask-icon" href="/images/favicon.ico" color="#222">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
 
 <link rel="stylesheet" href="/css/main.css">
 
@@ -17,14 +17,14 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta name="description" content="使用 goroutine 模拟 redis IO 模型在 redis 6.0 之后，redis 引入了 IO 线程的概念，但是并没有改变原有的单线程执行事务的模式。这是因为网络 IO 和协议解析在一次请求耗时中的占比是非常大的。使用单线程的模型可以简化应用层数据结构的设计，从而使代码更加便于维护。 而 go 语言中，同样可以利用 goroutine 和 channel 来模拟 redis 的请求处">
 <meta property="og:type" content="article">
 <meta property="og:title" content="使用 goroutine 模拟 redis IO 模型">
 <meta property="og:url" content="https://tangrc99.com/2022/12/27/%E4%BD%BF%E7%94%A8%20goroutine%20%E6%A8%A1%E6%8B%9F%20redis%20IO%20%E6%A8%A1%E5%9E%8B/index.html">
-<meta property="og:site_name" content="Hexo">
+<meta property="og:site_name" content="Sepk">
 <meta property="og:description" content="使用 goroutine 模拟 redis IO 模型在 redis 6.0 之后，redis 引入了 IO 线程的概念，但是并没有改变原有的单线程执行事务的模式。这是因为网络 IO 和协议解析在一次请求耗时中的占比是非常大的。使用单线程的模型可以简化应用层数据结构的设计，从而使代码更加便于维护。 而 go 语言中，同样可以利用 goroutine 和 channel 来模拟 redis 的请求处">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://tangrc99.com/images/image-20230108035814657.png">
@@ -48,7 +48,7 @@
   };
 </script>
 
-  <title>使用 goroutine 模拟 redis IO 模型 | Hexo</title>
+  <title>使用 goroutine 模拟 redis IO 模型 | Sepk</title>
   
 
 
@@ -99,9 +99,10 @@
 
     <a href="/" class="brand" rel="start">
       <span class="logo-line-before"><i></i></span>
-      <h1 class="site-title">Hexo</h1>
+      <h1 class="site-title">Sepk</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
+      <p class="site-subtitle" itemprop="description">ww</p>
   </div>
 
   <div class="site-nav-right">
@@ -201,11 +202,11 @@
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
       <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="">
+      <meta itemprop="description" content="技术爱好者">
     </span>
 
     <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Hexo">
+      <meta itemprop="name" content="Sepk">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
@@ -379,7 +380,7 @@
     <img class="site-author-image" itemprop="image" alt="tangrc99"
       src="/images/avatar.png">
   <p class="site-author-name" itemprop="name">tangrc99</p>
-  <div class="site-description" itemprop="description"></div>
+  <div class="site-description" itemprop="description">技术爱好者</div>
 </div>
 <div class="site-state-wrap motion-element">
   <nav class="site-state">
@@ -405,7 +406,7 @@
   </nav>
 </div>
   <div class="sidebar-button motion-element">
-    lol
+    lol welcome!
   </a>
   </div>
   <div class="links-of-author motion-element">
@@ -442,7 +443,7 @@
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
-  <span class="author" itemprop="copyrightHolder">Renchu Tang</span>
+  <span class="author" itemprop="copyrightHolder">Tangrc99</span>
 </div>
 
         
