@@ -188,7 +188,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/27/C++-%E9%98%B2%E6%AD%A2%E5%A4%B4%E6%96%87%E4%BB%B6%E6%9A%B4%E9%9C%B2%E7%A7%81%E6%9C%89%E5%8F%98%E9%87%8F/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/27/C++-%E6%9A%B4%E9%9C%B2%E9%83%A8%E5%88%86%E7%A7%81%E6%9C%89%E6%8E%A5%E5%8F%A3/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -202,7 +202,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/27/C++-%E9%98%B2%E6%AD%A2%E5%A4%B4%E6%96%87%E4%BB%B6%E6%9A%B4%E9%9C%B2%E7%A7%81%E6%9C%89%E5%8F%98%E9%87%8F/" class="post-title-link" itemprop="url">C++ 防止头文件暴露私有变量</a>
+            <a href="/2022/12/27/C++-%E6%9A%B4%E9%9C%B2%E9%83%A8%E5%88%86%E7%A7%81%E6%9C%89%E6%8E%A5%E5%8F%A3/" class="post-title-link" itemprop="url">C++ 暴露部分私有接口</a>
         </h2>
 
         <div class="post-meta">
@@ -213,7 +213,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2022-12-27 03:41:44 / 修改时间：03:45:18" itemprop="dateCreated datePublished" datetime="2022-12-27T03:41:44+08:00">2022-12-27</time>
+              <time title="创建时间：2022-12-27 03:46:30 / 修改时间：03:53:01" itemprop="dateCreated datePublished" datetime="2022-12-27T03:46:30+08:00">2022-12-27</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -240,10 +240,8 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="C-防止头文件暴露私有变量"><a href="#C-防止头文件暴露私有变量" class="headerlink" title="C++ 防止头文件暴露私有变量"></a>C++ 防止头文件暴露私有变量</h1><p>C++ 中可以通过嵌套类的形式防止成员私有变量暴露在头文件里。</p>
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 头文件</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Exposure</span> &#123;</span><br><span class="line">  </span><br><span class="line">  <span class="built_in">Exposure</span>();</span><br><span class="line">  <span class="function"><span class="type">int</span> <span class="title">interface</span><span class="params">(<span class="type">int</span> foo)</span></span>;</span><br><span class="line">  </span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">		<span class="keyword">class</span> <span class="title class_">Impl</span>;</span><br><span class="line">  	std::unique_ptr&lt;Impl&gt; impl_;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 源文件</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Exposure</span>::Impl &#123;</span><br><span class="line">  <span class="comment">// 具体实现</span></span><br><span class="line">  <span class="function"><span class="type">int</span> <span class="title">interfaceImpl</span><span class="params">(<span class="type">int</span> foo)</span></span>&#123;</span><br><span class="line">    	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">Exposure::<span class="built_in">Exposure</span>() : <span class="built_in">impl_</span>(std::<span class="built_in">make_unique</span>&lt;Impl&gt;())&#123;&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">Exposure::interface</span><span class="params">(<span class="type">int</span> foo)</span></span>&#123;</span><br><span class="line">  	<span class="keyword">return</span> <span class="keyword">this</span>-&gt;impl_-&gt;<span class="built_in">interfaceImpl</span>(foo);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+          <h1 id="C-暴露部分私有接口"><a href="#C-暴露部分私有接口" class="headerlink" title="C++ 暴露部分私有接口"></a>C++ 暴露部分私有接口</h1><p>C++ 中可以通过桥接类的方式来暴露类的一部分接口。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">Exposure</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Hidden</span>&#123;</span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    <span class="keyword">friend</span> <span class="keyword">class</span> <span class="title class_">Exposure</span>;	</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">foo</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">bar</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 需要隐藏的接口</span></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">hidden</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Exposure</span>&#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">		</span><br><span class="line">    <span class="comment">// 暴露 foo 接口 和 bar 接口</span></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">foo</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> impl_-&gt;<span class="built_in">foo</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="type">int</span> <span class="title">bar</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> impl_-&gt;<span class="built_in">bar</span>();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">    Hidden *impl_;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 
       
@@ -263,7 +261,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/8/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/8/">8</a><span class="page-number current">9</span><a class="page-number" href="/page/10/">10</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="extend next" rel="next" href="/page/10/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/8/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/8/">8</a><span class="page-number current">9</span><a class="page-number" href="/page/10/">10</a><span class="space">&hellip;</span><a class="page-number" href="/page/27/">27</a><a class="extend next" rel="next" href="/page/10/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -331,7 +329,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">26</span>
+          <span class="site-state-item-count">27</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
