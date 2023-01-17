@@ -320,7 +320,35 @@
   </url>
   
   <url>
+    <loc>https://tangrc99.com/tags/docker/</loc>
+    <lastmod>2023-01-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://tangrc99.com/tags/ipvs/</loc>
+    <lastmod>2023-01-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://tangrc99.com/tags/iptables/</loc>
+    <lastmod>2023-01-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
     <loc>https://tangrc99.com/tags/etcd/</loc>
+    <lastmod>2023-01-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
+    <loc>https://tangrc99.com/tags/MySQL/</loc>
     <lastmod>2023-01-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -334,7 +362,7 @@
   </url>
   
   <url>
-    <loc>https://tangrc99.com/tags/MySQL/</loc>
+    <loc>https://tangrc99.com/tags/redis/</loc>
     <lastmod>2023-01-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -355,28 +383,7 @@
   </url>
   
   <url>
-    <loc>https://tangrc99.com/tags/redis/</loc>
-    <lastmod>2023-01-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://tangrc99.com/tags/iptables/</loc>
-    <lastmod>2023-01-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
     <loc>https://tangrc99.com/tags/k8s/</loc>
-    <lastmod>2023-01-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://tangrc99.com/tags/ipvs/</loc>
     <lastmod>2023-01-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -398,13 +405,6 @@
   
   <url>
     <loc>https://tangrc99.com/tags/protobuf/</loc>
-    <lastmod>2023-01-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
-    <loc>https://tangrc99.com/tags/docker/</loc>
     <lastmod>2023-01-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>
@@ -448,6 +448,13 @@
   </url>
   
   <url>
+    <loc>https://tangrc99.com/categories/%E4%BA%91%E6%8A%80%E6%9C%AF/</loc>
+    <lastmod>2023-01-17</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  
+  <url>
     <loc>https://tangrc99.com/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/etcd/</loc>
     <lastmod>2023-01-17</lastmod>
     <changefreq>weekly</changefreq>
@@ -462,13 +469,6 @@
   </url>
   
   <url>
-    <loc>https://tangrc99.com/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/</loc>
-    <lastmod>2023-01-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.2</priority>
-  </url>
-  
-  <url>
     <loc>https://tangrc99.com/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/redis/</loc>
     <lastmod>2023-01-17</lastmod>
     <changefreq>weekly</changefreq>
@@ -476,7 +476,7 @@
   </url>
   
   <url>
-    <loc>https://tangrc99.com/categories/%E4%BA%91%E6%8A%80%E6%9C%AF/</loc>
+    <loc>https://tangrc99.com/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/</loc>
     <lastmod>2023-01-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.2</priority>

@@ -390,11 +390,11 @@
       
         <tags>
             
+            <tag> ipvs </tag>
+            
             <tag> iptables </tag>
             
             <tag> k8s </tag>
-            
-            <tag> ipvs </tag>
             
         </tags>
       
@@ -419,11 +419,11 @@
       
         <tags>
             
-            <tag> iptables </tag>
+            <tag> docker </tag>
             
             <tag> ipvs </tag>
             
-            <tag> docker </tag>
+            <tag> iptables </tag>
             
         </tags>
       
