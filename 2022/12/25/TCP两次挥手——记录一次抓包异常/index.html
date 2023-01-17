@@ -14,6 +14,8 @@
 
 
 <link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
@@ -29,10 +31,10 @@
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://tangrc99.com/images/image-20221225152318823.png">
 <meta property="article:published_time" content="2022-12-25T07:16:45.412Z">
-<meta property="article:modified_time" content="2022-12-25T12:36:30.157Z">
+<meta property="article:modified_time" content="2023-01-17T11:27:10.680Z">
 <meta property="article:author" content="tangrc99">
 <meta property="article:tag" content="tcp">
-<meta property="article:tag" content="网络">
+<meta property="article:tag" content="计算机网络">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://tangrc99.com/images/image-20221225152318823.png">
 
@@ -80,7 +82,7 @@
   </style>
 </noscript>
 
-</head>
+<style>.darkmode--activated{--body-bg-color:#282828;--content-bg-color:#333;--card-bg-color:#555;--text-color:#ccc;--blockquote-color:#bbb;--link-color:#ccc;--link-hover-color:#eee;--brand-color:#ddd;--brand-hover-color:#ddd;--table-row-odd-bg-color:#282828;--table-row-hover-bg-color:#363636;--menu-item-bg-color:#555;--btn-default-bg:#222;--btn-default-color:#ccc;--btn-default-border-color:#555;--btn-default-hover-bg:#666;--btn-default-hover-color:#ccc;--btn-default-hover-border-color:#666;--highlight-background:#282b2e;--highlight-foreground:#a9b7c6;--highlight-gutter-background:#34393d;--highlight-gutter-foreground:#9ca9b6}.darkmode--activated img{opacity:.75}.darkmode--activated img:hover{opacity:.9}.darkmode--activated code{color:#69dbdc;background:0 0}button.darkmode-toggle{z-index:9999}.darkmode-ignore,img{display:flex!important}.beian img{display:inline-block!important}</style></head>
 
 <body itemscope itemtype="http://schema.org/WebPage">
   <div class="container use-motion">
@@ -220,21 +222,27 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
-              
 
-              <time title="创建时间：2022-12-25 15:16:45 / 修改时间：20:36:30" itemprop="dateCreated datePublished" datetime="2022-12-25T15:16:45+08:00">2022-12-25</time>
+              <time title="创建时间：2022-12-25 15:16:45" itemprop="dateCreated datePublished" datetime="2022-12-25T15:16:45+08:00">2022-12-25</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-01-17 19:27:10" itemprop="dateModified" datetime="2023-01-17T19:27:10+08:00">2023-01-17</time>
+              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">网络</span></a>
+                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">计算机网络</span></a>
                 </span>
                   ，
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BD%91%E7%BB%9C/tcp/" itemprop="url" rel="index"><span itemprop="name">tcp</span></a>
+                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/tcp/" itemprop="url" rel="index"><span itemprop="name">tcp</span></a>
                 </span>
             </span>
 
@@ -297,7 +305,7 @@
           
           <div class="post-tags">
               <a href="/tags/tcp/" rel="tag"><i class="fa fa-tag"></i> tcp</a>
-              <a href="/tags/%E7%BD%91%E7%BB%9C/" rel="tag"><i class="fa fa-tag"></i> 网络</a>
+              <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" rel="tag"><i class="fa fa-tag"></i> 计算机网络</a>
           </div>
 
         
@@ -400,7 +408,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-count">16</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -444,16 +452,6 @@
     <i class="fa fa-heart"></i>
   </span>
   <span class="author" itemprop="copyrightHolder">Tangrc99</span>
-    <span class="post-meta-divider">|</span>
-    <span class="post-meta-item-icon">
-      <i class="fa fa-chart-area"></i>
-    </span>
-    <span title="站点总字数">88k</span>
-    <span class="post-meta-divider">|</span>
-    <span class="post-meta-item-icon">
-      <i class="fa fa-coffee"></i>
-    </span>
-    <span title="站点阅读时长">1:20</span>
 </div>
 
         
@@ -510,6 +508,26 @@
   
 
   
+<script src="https://unpkg.com/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+
+<script>
+var options = {
+  bottom: '64px',
+  right: '32px',
+  left: 'unset',
+  time: '0.5s',
+  mixColor: 'transparent',
+  backgroundColor: 'transparent',
+  buttonColorDark: '#100f2c',
+  buttonColorLight: '#fff',
+  saveInCookies: true,
+  label: '🌓',
+  autoMatchOsTheme: true
+}
+const darkmode = new Darkmode(options);
+window.darkmode = darkmode;
+darkmode.showWidget();
+</script>
 
 </body>
 </html>

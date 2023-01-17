@@ -20,9 +20,9 @@
       
         <tags>
             
-            <tag> linux </tag>
-            
             <tag> 计算机网络 </tag>
+            
+            <tag> linux </tag>
             
         </tags>
       
@@ -390,11 +390,11 @@
       
         <tags>
             
-            <tag> ipvs </tag>
-            
             <tag> iptables </tag>
             
             <tag> k8s </tag>
+            
+            <tag> ipvs </tag>
             
         </tags>
       
@@ -419,11 +419,11 @@
       
         <tags>
             
-            <tag> docker </tag>
+            <tag> iptables </tag>
             
             <tag> ipvs </tag>
             
-            <tag> iptables </tag>
+            <tag> docker </tag>
             
         </tags>
       
@@ -468,7 +468,7 @@
       
       <categories>
           
-          <category> 网络 </category>
+          <category> 计算机网络 </category>
           
           <category> tcp </category>
           
@@ -479,7 +479,7 @@
             
             <tag> tcp </tag>
             
-            <tag> 网络 </tag>
+            <tag> 计算机网络 </tag>
             
         </tags>
       

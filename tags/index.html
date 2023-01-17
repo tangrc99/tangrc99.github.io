@@ -14,6 +14,8 @@
 
 
 <link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
@@ -77,7 +79,7 @@
   </style>
 </noscript>
 
-</head>
+<style>.darkmode--activated{--body-bg-color:#282828;--content-bg-color:#333;--card-bg-color:#555;--text-color:#ccc;--blockquote-color:#bbb;--link-color:#ccc;--link-hover-color:#eee;--brand-color:#ddd;--brand-hover-color:#ddd;--table-row-odd-bg-color:#282828;--table-row-hover-bg-color:#363636;--menu-item-bg-color:#555;--btn-default-bg:#222;--btn-default-color:#ccc;--btn-default-border-color:#555;--btn-default-hover-bg:#666;--btn-default-hover-color:#ccc;--btn-default-hover-border-color:#666;--highlight-background:#282b2e;--highlight-foreground:#a9b7c6;--highlight-gutter-background:#34393d;--highlight-gutter-foreground:#9ca9b6}.darkmode--activated img{opacity:.75}.darkmode--activated img:hover{opacity:.9}.darkmode--activated code{color:#69dbdc;background:0 0}button.darkmode-toggle{z-index:9999}.darkmode-ignore,img{display:flex!important}.beian img{display:inline-block!important}</style></head>
 
 <body itemscope itemtype="http://schema.org/WebPage">
   <div class="container use-motion">
@@ -215,10 +217,10 @@
       <div class="post-body">
           <div class="tag-cloud">
             <div class="tag-cloud-title">
-              目前共计 17 个标签
+              目前共计 16 个标签
             </div>
             <div class="tag-cloud-tags">
-              <a href="/tags/C/" style="font-size: 27.5px; color: #404040">C++</a> <a href="/tags/MongoDB/" style="font-size: 30px; color: #111">MongoDB</a> <a href="/tags/MySQL/" style="font-size: 20px; color: #ccc">MySQL</a> <a href="/tags/docker/" style="font-size: 20px; color: #ccc">docker</a> <a href="/tags/etcd/" style="font-size: 20px; color: #ccc">etcd</a> <a href="/tags/go/" style="font-size: 30px; color: #111">go</a> <a href="/tags/iptables/" style="font-size: 25px; color: #6f6f6f">iptables</a> <a href="/tags/ipvs/" style="font-size: 22.5px; color: #9d9d9d">ipvs</a> <a href="/tags/k8s/" style="font-size: 20px; color: #ccc">k8s</a> <a href="/tags/leveldb/" style="font-size: 20px; color: #ccc">leveldb</a> <a href="/tags/linux/" style="font-size: 22.5px; color: #9d9d9d">linux</a> <a href="/tags/protobuf/" style="font-size: 20px; color: #ccc">protobuf</a> <a href="/tags/redis/" style="font-size: 22.5px; color: #9d9d9d">redis</a> <a href="/tags/tcp/" style="font-size: 20px; color: #ccc">tcp</a> <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" style="font-size: 20px; color: #ccc">数据结构</a> <a href="/tags/%E7%BD%91%E7%BB%9C/" style="font-size: 20px; color: #ccc">网络</a> <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" style="font-size: 20px; color: #ccc">计算机网络</a>
+              <a href="/tags/C/" style="font-size: 27.5px; color: #404040">C++</a> <a href="/tags/MongoDB/" style="font-size: 30px; color: #111">MongoDB</a> <a href="/tags/MySQL/" style="font-size: 20px; color: #ccc">MySQL</a> <a href="/tags/docker/" style="font-size: 20px; color: #ccc">docker</a> <a href="/tags/etcd/" style="font-size: 20px; color: #ccc">etcd</a> <a href="/tags/go/" style="font-size: 30px; color: #111">go</a> <a href="/tags/iptables/" style="font-size: 25px; color: #6f6f6f">iptables</a> <a href="/tags/ipvs/" style="font-size: 22.5px; color: #9d9d9d">ipvs</a> <a href="/tags/k8s/" style="font-size: 20px; color: #ccc">k8s</a> <a href="/tags/leveldb/" style="font-size: 20px; color: #ccc">leveldb</a> <a href="/tags/linux/" style="font-size: 22.5px; color: #9d9d9d">linux</a> <a href="/tags/protobuf/" style="font-size: 20px; color: #ccc">protobuf</a> <a href="/tags/redis/" style="font-size: 22.5px; color: #9d9d9d">redis</a> <a href="/tags/tcp/" style="font-size: 20px; color: #ccc">tcp</a> <a href="/tags/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" style="font-size: 20px; color: #ccc">数据结构</a> <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" style="font-size: 22.5px; color: #9d9d9d">计算机网络</a>
             </div>
           </div>
         
@@ -310,7 +312,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-count">16</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -354,16 +356,6 @@
     <i class="fa fa-heart"></i>
   </span>
   <span class="author" itemprop="copyrightHolder">Tangrc99</span>
-    <span class="post-meta-divider">|</span>
-    <span class="post-meta-item-icon">
-      <i class="fa fa-chart-area"></i>
-    </span>
-    <span title="站点总字数">88k</span>
-    <span class="post-meta-divider">|</span>
-    <span class="post-meta-item-icon">
-      <i class="fa fa-coffee"></i>
-    </span>
-    <span title="站点阅读时长">1:20</span>
 </div>
 
         
@@ -420,6 +412,26 @@
   
 
   
+<script src="https://unpkg.com/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+
+<script>
+var options = {
+  bottom: '64px',
+  right: '32px',
+  left: 'unset',
+  time: '0.5s',
+  mixColor: 'transparent',
+  backgroundColor: 'transparent',
+  buttonColorDark: '#100f2c',
+  buttonColorLight: '#fff',
+  saveInCookies: true,
+  label: '🌓',
+  autoMatchOsTheme: true
+}
+const darkmode = new Darkmode(options);
+window.darkmode = darkmode;
+darkmode.showWidget();
+</script>
 
 </body>
 </html>
