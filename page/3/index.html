@@ -191,7 +191,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/13/kfifo-%E4%BC%98%E9%9B%85%E7%9A%84%E6%97%A0%E9%94%81%E9%98%9F%E5%88%97%E5%AE%9E%E7%8E%B0/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/14/go-%E7%BC%96%E8%AF%91%E7%9B%B8%E5%85%B3%E5%86%85%E5%AE%B9%E7%9A%84%E8%AE%B0%E5%BD%95/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -205,7 +205,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/01/13/kfifo-%E4%BC%98%E9%9B%85%E7%9A%84%E6%97%A0%E9%94%81%E9%98%9F%E5%88%97%E5%AE%9E%E7%8E%B0/" class="post-title-link" itemprop="url">kfifo 优雅的无锁队列实现</a>
+            <a href="/2023/01/14/go-%E7%BC%96%E8%AF%91%E7%9B%B8%E5%85%B3%E5%86%85%E5%AE%B9%E7%9A%84%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">go 编译相关内容的记录</a>
         </h2>
 
         <div class="post-meta">
@@ -214,17 +214,27 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
-              
 
-              <time title="创建时间：2023-01-13 04:00:09 / 修改时间：06:47:11" itemprop="dateCreated datePublished" datetime="2023-01-13T04:00:09+08:00">2023-01-13</time>
+              <time title="创建时间：2023-01-14 20:57:29" itemprop="dateCreated datePublished" datetime="2023-01-14T20:57:29+08:00">2023-01-14</time>
             </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-01-15 01:53:43" itemprop="dateModified" datetime="2023-01-15T01:53:43+08:00">2023-01-15</time>
+              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
                 </span>
             </span>
 
@@ -239,49 +249,72 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>kfifo 是 linux kernel 中一个简介优雅的无锁 ring_buffer 实现，能够保证在单线程写入和读线程读取场景下的线程安全。kfifo 的实现中使用了许多比较特殊的操作，值得进行学习。</p>
-<h2 id="kfifo-数据结构"><a href="#kfifo-数据结构" class="headerlink" title="kfifo 数据结构"></a>kfifo 数据结构</h2><p>kfifo 的数据结构非常简单，只有缓冲区指针及大小、读取写入偏移量，如下所示：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">kfifo</span> &#123;</span></span><br><span class="line">  <span class="comment">// 写入 offeset</span></span><br><span class="line">  <span class="type">unsigned</span> <span class="type">int</span>	in;</span><br><span class="line">  <span class="comment">// 读取 offset</span></span><br><span class="line">  <span class="type">unsigned</span> <span class="type">int</span>	out;</span><br><span class="line">  <span class="comment">// 缓冲区大小</span></span><br><span class="line">  <span class="type">unsigned</span> <span class="type">int</span>	size;</span><br><span class="line">  <span class="comment">// 缓冲区指针</span></span><br><span class="line">  <span class="type">void</span>		*buffer;</span><br><span class="line">  <span class="comment">// 自旋锁，新版本已经移出</span></span><br><span class="line">  <span class="type">spinlock_t</span> *lock;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
-
-<p>kfifo 实现巧妙之处主要有三点：</p>
+          <p>本文记录学习到的一些与 go 语言编译相关的内容。</p>
+<h2 id="编译速度"><a href="#编译速度" class="headerlink" title="编译速度"></a>编译速度</h2><p>go 是编译速度比较快的语言之一，主要有以下几个原因，<a target="_blank" rel="noopener" href="https://qastack.cn/programming/2976630/how-does-go-compile-so-quickly">参考链接</a>：</p>
 <ul>
-<li>通过位运算判断 2 的幂以及向上取整为 2 的幂；</li>
-<li>不进行模运算，而是利用溢出来实现读写偏移量计算；</li>
-<li>使用内存屏障来保障单消费者、单生产者的无锁并发访问。</li>
+<li>语法较为简单，不允许重载，不需要复杂的语义分析</li>
+<li>使用包管理，而非头文件形式，避免了解析头文件</li>
+<li>不使用虚拟机，编译时不需要加载 VM</li>
+<li>大部分包都使用静态链接的方式</li>
+<li>优化器更为简单，编译期优化较少，同时导致性能一定程度上下降，<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/550270332">参考链接</a></li>
 </ul>
-<h2 id="位运算部分"><a href="#位运算部分" class="headerlink" title="位运算部分"></a>位运算部分</h2><p>kfifo struct 中，要求缓冲区大小必须为 2 的幂，这是为了更加高效地判断计算出当前偏移量对应的内存位置。在 kfifo 初始化阶段，通过两个巧妙的位运算解决了判断 2 的幂以及向上取整为 2 的幂两个问题。</p>
-<h3 id="判断一个数是否为-2-的幂"><a href="#判断一个数是否为-2-的幂" class="headerlink" title="判断一个数是否为 2 的幂"></a>判断一个数是否为 2 的幂</h3><p>在二进制存储中，如果一个数 n 是 2 的幂，那么这个数可以表示为 100···，除最高位外全部为 0。同样地，n-1 就可以表示为 0111…，除最高位外全部为 1。可以观察到 n 和 n-1 在二进制中，每一位都是相反的，因此 <code>n &amp; (n - 1) == 1</code>。可以根据这种操作来利用位运算更快地判断一个数是否为 2 的幂。linux kernel 中的实现如下：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="keyword">inline</span> <span class="type">bool</span> <span class="title function_">is_power_of_2</span><span class="params">(<span class="type">uint32_t</span> n)</span>&#123;</span><br><span class="line">	<span class="keyword">return</span> (n != <span class="number">0</span> &amp;&amp; ((n &amp; (n - <span class="number">1</span>)) == <span class="number">0</span>));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="编译缓存"><a href="#编译缓存" class="headerlink" title="编译缓存"></a>编译缓存</h2><p>在 C/C++ 中，大型项目的构建往往需要依赖 make 和 CMake 工具来提供编译缓存，以实现增量编译的功能。在 golang 中，从 1.10  版本后编译器支持了编译缓存的功能，可以进行增量构建。编译过程中的缓存文件将会被存放在环境路径 GOCACHE 下。此外，go test 也支持在特定条件下缓存 test 结果，从而加快执行测试的速度。</p>
+<h3 id="增量编译"><a href="#增量编译" class="headerlink" title="增量编译"></a>增量编译</h3><p><strong>go 语言的增量编译是以 package 为单位的</strong>，一个 package 内任意一个文件的变更都会导致整个 package 以及依赖该 package 的所有 package重新编译 。但是，golang 的文件修改判别依据相比 C/C++ 体系更加合理。在 qt5 中，使用 qmake 进行增量编译时，依赖于文件的修改时间戳，如果只是对文件进行了格式调整，也会导致项目重新编译。而在 golang 中，文件修改的判别依据是文件内容是否改变，<strong>只修改文件的行数、增加注释、删除后恢复内容都不会导致package 重新编译</strong>。</p>
+<p>在 GOCACHE 路径下，执行 tree 命令，可以得到如下输出（截取部分）：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">go-build % tree</span><br><span class="line"></span><br><span class="line">.</span><br><span class="line">├── 00</span><br><span class="line">│   ├── 000d954e953e73d70b0fa00ceaf3c68f3adbb5164e5381754493a4e592ad714f-a</span><br><span class="line">│   └── 0068e9620015a00b938707781ad8b56fdd86fe4a09eeb7802d874bd041f5ad79-a</span><br><span class="line">├── 01</span><br><span class="line">│   ├── 0107518e42b66ffb35a353ffd437cb2a6f448b07ad8fceba401e7bc1692c17e3-d</span><br><span class="line">│   ├── 01126d3106b1aee39e975dcd10a2ac64f170d28ca14b37c8c5e7cec7817e60fd-a</span><br><span class="line">...</span><br><span class="line">└── trim.txt</span><br></pre></td></tr></table></figure>
 
-<h3 id="将一个数取整为-2-的幂"><a href="#将一个数取整为-2-的幂" class="headerlink" title="将一个数取整为 2 的幂"></a>将一个数取整为 2 的幂</h3><p>linux kernel 中的实现如下：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 求大于一个数的 2 的幂次数</span></span><br><span class="line"><span class="type">static</span> __inline__ <span class="type">int</span> <span class="title function_">generic_fls</span><span class="params">(<span class="type">int</span> x)</span>&#123;</span><br><span class="line">  <span class="type">int</span> r = <span class="number">32</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 判断 x 是否为 0</span></span><br><span class="line">  <span class="keyword">if</span> (!x)</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">  <span class="comment">// 判断最高八位是否有 1</span></span><br><span class="line">  <span class="keyword">if</span> (!(x &amp; <span class="number">0xffff0000</span>u)) &#123; </span><br><span class="line">    <span class="comment">// 如果没有 1，则左移</span></span><br><span class="line">    x &lt;&lt;= <span class="number">16</span>;</span><br><span class="line">    r -= <span class="number">16</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// 若上一次有 1，由于没有左移，因此是判断最高四位是否有 1</span></span><br><span class="line">  <span class="comment">// 若上一次没有 1，判断的则是后八位中的前四位</span></span><br><span class="line">  <span class="keyword">if</span> (!(x &amp; <span class="number">0xff000000</span>u)) &#123;</span><br><span class="line">    x &lt;&lt;= <span class="number">8</span>;</span><br><span class="line">    r -= <span class="number">8</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> (!(x &amp; <span class="number">0xf0000000</span>u)) &#123;</span><br><span class="line">    x &lt;&lt;= <span class="number">4</span>;</span><br><span class="line">    r -= <span class="number">4</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> (!(x &amp; <span class="number">0xc0000000</span>u)) &#123;</span><br><span class="line">    x &lt;&lt;= <span class="number">2</span>;</span><br><span class="line">    r -= <span class="number">2</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> (!(x &amp; <span class="number">0x80000000</span>u)) &#123;</span><br><span class="line">    x &lt;&lt;= <span class="number">1</span>;</span><br><span class="line">    r -= <span class="number">1</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> r;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 求大于一个数的 2 的幂</span></span><br><span class="line"><span class="type">static</span> <span class="keyword">inline</span> <span class="type">unsigned</span> <span class="type">long</span> __attribute_const__ <span class="title function_">roundup_pow_of_two</span><span class="params">(<span class="type">unsigned</span> <span class="type">long</span> x)</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">return</span> (<span class="number">1UL</span> &lt;&lt; generic_fls(x - <span class="number">1</span>));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这本质上是利用二分查找的原理，使用状态机的一种实现。主要的巧妙之处是利用了左移操作将每一次二分查找的分支进行了合并，使得代码变得更为简洁。</p>
-<h2 id="利用溢出实现读写偏移量计算"><a href="#利用溢出实现读写偏移量计算" class="headerlink" title="利用溢出实现读写偏移量计算"></a>利用溢出实现读写偏移量计算</h2><p>对一个数取模，从而使其保持在一定范围内，是常见的操作数组、缓冲区等长度固定数据结构的操作。但相对来说，取模的运算速度会相对较慢。kfifo 为了实现更快的偏移量计算，并没有使用取模操作，而是使用位运算使长度溢出来实现的。</p>
-<p>以写入为例，该部分的核心代码可以简化为（将部分进行了聚合处理）：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">unsigned</span> <span class="type">int</span> __kfifo_get(<span class="keyword">struct</span> kfifo *fifo,</span><br><span class="line">                         <span class="type">unsigned</span> <span class="type">char</span> *buffer, <span class="type">unsigned</span> <span class="type">int</span> len)</span><br><span class="line">&#123;</span><br><span class="line">  <span class="type">unsigned</span> <span class="type">int</span> l;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 可以写入的最大长度，由于 fifo-&gt;in 只会增长，即使有线程写入</span></span><br><span class="line">  <span class="comment">// 也只会导致可读区域变大，因此 len 是安全的</span></span><br><span class="line">  len = min(len, fifo-&gt;in - fifo-&gt;out);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 内存屏障</span></span><br><span class="line">  smp_mb();</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 读当前位置到缓冲区末尾的数据</span></span><br><span class="line">  l = min(len, fifo-&gt;size - (fifo-&gt;out &amp; (fifo-&gt;size - <span class="number">1</span>)));</span><br><span class="line">  <span class="built_in">memcpy</span>(buffer, fifo-&gt;buffer + (fifo-&gt;out &amp; (fifo-&gt;size - <span class="number">1</span>)), l);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 从缓冲区头读取剩余数据</span></span><br><span class="line">  <span class="built_in">memcpy</span>(buffer + l, fifo-&gt;buffer, len - l);</span><br><span class="line"></span><br><span class="line">  fifo-&gt;out += len;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> len;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>先忽略内存屏障，这里用到了几个小技巧。由于写入和读取的偏移量 <code>kfifo-&gt;in</code> 和 <code>kfifio-&gt;out</code> 都是无符号整形，即使 <code>kfifo-&gt;in</code>因为过大而发生了溢出，也能够保持<code>kfifo-&gt;in - kfifio-&gt;out &lt;= kfifo-&gt;size</code>。 因为 unsigned long类型的加减是回环的。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// m 是 unsigned long 最大值</span></span><br><span class="line">m := <span class="type">uint64</span>(<span class="number">1</span>&lt;&lt;<span class="number">64</span> - <span class="number">1</span>)</span><br><span class="line"><span class="built_in">println</span>(m + <span class="number">5</span> - m)	<span class="comment">// 输出为 5</span></span><br></pre></td></tr></table></figure>
-
-<p>另外一个比较巧妙的地方是，没有使用取模来计算偏移量，而是修改为了位运算的方式，这依赖于 kfifo 的缓冲区大小限定为 2 的幂。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 传统取模方式</span></span><br><span class="line"><span class="type">int</span> offset = kfifo-&gt;in % kfifo-&gt;size</span><br><span class="line"> </span><br><span class="line"><span class="comment">// kfifo 取模方式</span></span><br><span class="line"><span class="type">int</span> offset = kfifo-&gt;in &amp; (kfifo-&gt;size - <span class="number">1</span>)</span><br></pre></td></tr></table></figure>
-
-<p>在二进制中，kfifo-&gt;size 可以表示为 1000···，那么 kfifo-&gt;size - 1 就可以表示为 0111···；同样地，kfifo-&gt;in 也可以分解为 offset + n2，其中 n2 是 kfifo-&gt;size的倍数，offset 是 kfifo-&gt;in % kfifo-&gt;size。由于 n2 是 kfifo-&gt;size 倍数，所以其数据只分布在大于 kfifo-&gt;size 位数的部分，因此只需要截取 kfifo-&gt;in 小于 kfifo-&gt;size 位数的部分，就可以得到 offset。观察到，kfifo-&gt;size - 1在每一个小于 kfifo-&gt;size 的位上的值均为 1，那么只要进行运算 kfifo-&gt;in % kfifo-&gt;size ，超出 kfifo-&gt;size 位数的部分会被截去，而小于 kfifo-&gt;size 位数的部分会被保留，即得到 offset。</p>
-<p>还有一个比较巧妙的点是没有使用 if 进行判断，直接使用了两个memcpy。这里是直接利用 memcpy 的第三个参数进行了控制，当第一次 memcpy 完全拷贝时，第二次 memcpy 将不进行任何操作。</p>
-<h2 id="内存屏障"><a href="#内存屏障" class="headerlink" title="内存屏障"></a>内存屏障</h2><p>在计算机操作系统中，一个读线程和一个写线程同时操作一个变量时不需要进行加锁的。在 kfifo 中，读操作与写操作分别只会更新 kfifo-&gt;out 和 kfifo-&gt;in，因此不会出现并发问题。</p>
-<p>但是，参考《C++并发编程实践》第 123 页：“无论对象是怎么样的类型，对象都会存储在一个或多个内存位置上。每个内存位置不是标量类型的对象，就是标量类 型的子对象，比如，unsigned short、my_class*或序列中的相邻位域。当使用位域时就需要注意：虽然相邻位域 中是不同的对象，但仍视其为相同的内存位置。如图5.1所示，将一个struct分解为多个对象，并且展示了每个对象 的内存位置。”如下图，bf1 和 bf2 被保存在相同的位置。</p>
-<p><img src="/images/image-20230113062116997.png" alt="image-20230113062116997"></p>
-<p>这种情况下，bf1 和 bf2 可能会有多个副本分别存储在不同 CPU 的 Cache 中，如果线程 th1 写入 bf1 的同时线程 th2 读取bf2，那么 th2 可能会读取到在 CPU Cache 中的过期数据。由于 kfifo 中的成员都是基本类型，它们很有可能会被存储在相同的内存位置，因此需要引入内存屏障来保证以下写入顺序：</p>
+<p>可以看到，golang 中使用了内容摘要算法来组织存储，每一个目录下存储的文件名前两位字符都对应着文件夹名称。在编译过程中，go 编译器会将编译后 package 的 .a 文件求取 64 位摘要值，并将其名称命名为”摘要值-a” 的形式，并存储在摘要值前两位对应的文件夹下。</p>
+<h3 id="go-test-缓存"><a href="#go-test-缓存" class="headerlink" title="go test 缓存"></a>go test 缓存</h3><p>在go 1.10中，go test 同样可以被缓存介入，不过需要满足一定的条件，go release note 中给出了缓存介入条件：</p>
 <ul>
-<li>kfifo-&gt;data 写入数据；</li>
-<li>更新 kfifo-&gt;in 值。</li>
+<li>本次测试的执行程序以及命令行（及参数）与之前的一次test运行匹配；</li>
+<li>上次测试执行时的文件和环境变量在本次没有发生变化；</li>
+<li>测试结果是成功的；</li>
+<li>以package list mode运行测试；</li>
+<li>go test的命令行参数使用”-cpu, -list, -parallel, -run, -short和 -v”的一个子集时。</li>
 </ul>
-<p>这也就是读取和写入操作中<code>  smp_mb()</code>的作用，用于强制保证内存的更新是全局的。</p>
-<h2 id="源码链接"><a href="#源码链接" class="headerlink" title="源码链接"></a>源码链接</h2><ul>
-<li>头文件：<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/master/include/linux/kfence.h">https://github.com/torvalds/linux/blob/master/include/linux/kfence.h</a></li>
-<li>源文件：<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/master/lib/kfifo.c">https://github.com/torvalds/linux/blob/master/lib/kfifo.c</a></li>
+<p>其中 package list mode 是指运行某个 package 的测试程序，而不是以当前目录为参数。</p>
+<h2 id="交叉编译"><a href="#交叉编译" class="headerlink" title="交叉编译"></a>交叉编译</h2><p>go build 工具链是支持交叉编译的，在不直接调用 C 代码的情况下，可以直接使用 go build 命令来完成交叉编译。在使用交叉编译时，需要通过变更 GO ENV 来控制编译输出。常用的环境变量如下：</p>
+<ul>
+<li>CGO_ENABLE：关闭 CGO 选项，需要关闭，因为交叉编译不支持 CGO；</li>
+<li>GOOS：编译的目标操作系统，如 linux、darwin、windows；</li>
+<li>GOARCH：编译的架构，如 386、amd64、arm。</li>
 </ul>
+<p>交叉编译示例：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">x86_64 linux</span></span><br><span class="line">CGO_ENABLED=0 </span><br><span class="line">GOOS=linux </span><br><span class="line">GOARCH=amd64 </span><br><span class="line">go build main.go</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">x86_64 Windows</span></span><br><span class="line">CGO_ENABLED=0</span><br><span class="line">GOOS=windows </span><br><span class="line">GOARCH=amd64 </span><br><span class="line">go build main.go</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">arm Macos</span></span><br><span class="line">CGO_ENABLED=0 </span><br><span class="line">GOOS=darwin </span><br><span class="line">GOARCH=arm </span><br><span class="line">go build main.go</span><br></pre></td></tr></table></figure>
+
+<p>如果在项目中依赖了 C 代码，则不能够使用 go build 工具来实现交叉编译，需要要借助第三方工具 xgo。</p>
+<h2 id="编译期赋值"><a href="#编译期赋值" class="headerlink" title="编译期赋值"></a>编译期赋值</h2><p>go 语言可以实现在编译时对变量赋值，以完成在代码中增加版本等信息。该功能需要借助 -ldflags 选项。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span>(</span><br><span class="line">  <span class="keyword">var</span> version = <span class="string">&quot;v0.0.0&quot;</span></span><br><span class="line">  buildTime <span class="type">string</span></span><br><span class="line">  buildVersion <span class="type">string</span></span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+
+<p>直接使用 -ldflags 选项即可，不需要再借助 flag parse。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">go build -ldflags \ </span><br><span class="line">&quot;-X main.version=v0.0.1 -X main.dateTime=`date +%Y-%m-%d,%H:%M:%S` -X main.gitTag=`git tag`&quot;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">输出值</span></span><br><span class="line">version is: v0.0.1</span><br><span class="line">dateTime is: 2023-01-14,22:18:54</span><br><span class="line">gitTag is: v0.0.0-beta</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>这是通过将值写入符号表来完成的，符号表用来存储程序中的标识符（即常量和变量的类型、值等相关数据）。go 语言编译期过程可以简化理解为：在编译期将部分的变量的值修改，相当于改变了变量的默认值。</p>
+<h2 id="条件编译"><a href="#条件编译" class="headerlink" title="条件编译"></a>条件编译</h2><p>go 语言中不支持 define，但是可以依赖<code>build tags</code>或文件后缀的方式来实现不同平台的条件编译。</p>
+<h3 id="build-tags"><a href="#build-tags" class="headerlink" title="build tags"></a>build tags</h3><p>build tags 是一种特殊的注释，它必须位于 package 声明的上方，并且后跟一个空行。当一个包被编译时，编译器会根据构建标签的内容来判断该包是否需要编译。</p>
+<p>build tags 可以指定以下内容：</p>
+<ul>
+<li>操作系统，环境变量中<code>GOOS</code>的值；</li>
+<li>操作系统的架构，环境变量中<code>GOARCH</code>的值；</li>
+<li>使用的编译器，<code>gc</code>或者<code>gccgo</code>；</li>
+<li>是否开启CGO，<code>cgo</code>；</li>
+<li>golang版本号， 如<code>go1.1</code>；</li>
+<li>其它自定义标签，通过<code>go build -tags</code>指定的值。</li>
+</ul>
+<p>以下为 build tags 的一个例子。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// +build linux darwin</span></span><br><span class="line"><span class="comment">// +build x86</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">package</span> os</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>build tags 需要遵循以下原则：</p>
+<ul>
+<li>每一行注释以<code>+build</code>开始；</li>
+<li>每个选项由数字和字母组成，如果开头为<code>!</code>代表反义；</li>
+<li>选项之间相隔<code>&#39; &#39;</code>代表或关系，选项之间相隔<code>,</code>代表与关系；</li>
+<li>不同行注释代表与关系</li>
+</ul>
+<p>上面示例中代表在 linux 或 darwin 平台且架构为 x86 的情况下才会编译。</p>
+<h3 id="文件名后缀"><a href="#文件名后缀" class="headerlink" title="文件名后缀"></a>文件名后缀</h3><p>类似测试文件的 <code>_test</code>后缀，go 语言中也可以通过添加后缀的方式来实现条件编译。文件名后缀的命名方式为：<code>filename(_$GOOS)(_$GOARCH).go</code>。其中 GOOS 如果出现，必须排列在 GOARCH 前面。</p>
+<p>文件名后缀只能够实现在特定条件下进行编译，而不能实现在特定条件下取消编译。</p>
+<h2 id="Go-Plugin"><a href="#Go-Plugin" class="headerlink" title="Go Plugin"></a>Go Plugin</h2><p>参考<a target="_blank" rel="noopener" href="https://www.easemob.com/news/6987">链接</a></p>
 
       
     </div>
@@ -300,7 +333,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/2/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/27/">27</a><a class="extend next" rel="next" href="/page/4/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/2/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/28/">28</a><a class="extend next" rel="next" href="/page/4/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -368,7 +401,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">27</span>
+          <span class="site-state-item-count">28</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

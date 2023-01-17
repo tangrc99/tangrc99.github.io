@@ -191,7 +191,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/25/k8s-proxy-%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/26/iptables%20%E8%BD%AC%E5%8F%91%E8%A7%84%E5%88%99/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -205,7 +205,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/25/k8s-proxy-%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">k8s proxy 网络模型</a>
+            <a href="/2022/12/26/iptables%20%E8%BD%AC%E5%8F%91%E8%A7%84%E5%88%99/" class="post-title-link" itemprop="url">iptables 转发规则</a>
         </h2>
 
         <div class="post-meta">
@@ -214,24 +214,9 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
+              
 
-              <time title="创建时间：2022-12-25 16:53:15" itemprop="dateCreated datePublished" datetime="2022-12-25T16:53:15+08:00">2022-12-25</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-12-26 15:16:27" itemprop="dateModified" datetime="2022-12-26T15:16:27+08:00">2022-12-26</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E4%BA%91%E6%8A%80%E6%9C%AF/" itemprop="url" rel="index"><span itemprop="name">云技术</span></a>
-                </span>
+              <time title="创建时间：2022-12-26 14:14:28 / 修改时间：15:04:41" itemprop="dateCreated datePublished" datetime="2022-12-26T14:14:28+08:00">2022-12-26</time>
             </span>
 
           
@@ -245,27 +230,27 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="k8s-proxy-网络模型"><a href="#k8s-proxy-网络模型" class="headerlink" title="k8s proxy 网络模型"></a>k8s proxy 网络模型</h1><h3 id="iptables-模式"><a href="#iptables-模式" class="headerlink" title="iptables 模式"></a>iptables 模式</h3><p><img src="/images/DF43002E-5DBE-415E-94FB-6505B66D850A.jpg" alt="image">￼</p>
-<p>注意，所有的k8s 标记只分为两种，一种是需要转发的标记0x400，一种是需要丢弃的标记0x800。前者会最终在 POST 中被转发。</p>
-<p>下面解释一下为什么会有需要丢弃的数据包。由于规则链的建立并不是原子性的，所以可能会出现一种情况，规则链建立一半时，已经有相关的数据包到达了——这是一个非常危险的情况，可能会导致一些未定义的行为。因此，在规则正在建立的过程中，需要将相关数据包标记为 0x800，并最终丢弃掉。也就是 0x800 是用于标识规则链是否完全建立的。</p>
-<p>另外一种情况是按照用户的需求，对一些虚拟容器进行隔离操作。</p>
-<h3 id="iptables-clusterIP访问模式"><a href="#iptables-clusterIP访问模式" class="headerlink" title="iptables - clusterIP访问模式"></a>iptables - clusterIP访问模式</h3><p>这种访问模式一般是用于访问启动了多个实例的服务，并且需要进行负载均衡。客户端访问的链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICE -&gt; KUBE-SVC-SERV -&gt; KUBE-SEP-POD</p>
-<p>​    所有外部流量都会被 KUBE-SERVICE 链截获，并检查是否有流量是流向某一clusterIP的，并将流量传递给对应的 KUBE-SVC-SERV。KUBE-SVC-SERV 根据设置的负载均衡算法，将流量转发给对应的 KUBE-SEP-POD 链，并最终在该链中进行 DNAT 处理。</p>
-<h3 id="iptables-NodePort-访问模式"><a href="#iptables-NodePort-访问模式" class="headerlink" title="iptables - NodePort 访问模式"></a>iptables - NodePort 访问模式</h3><p>这种方式通常用来访问单独启动的服务实例。客户端的访问链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICE -&gt; KUBE-NODEPORTS -&gt; KUBE-SVC-XXX -&gt; KUBE-SEP-XXX</p>
-<p>单独启动的服务实例会单独注册在 KUBE-SERVICE链中，当clusterIP匹配完成后，才会进行 NodePort 规则匹配。<strong>使用 nodePort 方式来访问一个容器，其转发链路要更长，因此性能要稍差。</strong></p>
-<h3 id="ipvs-模式"><a href="#ipvs-模式" class="headerlink" title="ipvs 模式"></a>ipvs 模式</h3><p><img src="/images/71E894A0-C367-4B4F-A7DE-FF0275149CD4.jpg" alt="image">￼<br>ipvs 因为继承了 lvs 模块，所以其实是更加简单的。只需要在流量入口处进行流量区分和标记就可以。客户端进行访问的链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICES -&gt; KUBE-CLUSTER-IP -&gt; INPUT -&gt; KUBE-FIREWALL -&gt; POSTROUTING</p>
-<p>或者为：</p>
-<p>PREROUTING –&gt; KUBE-SERVICES –&gt; KUBE-NODE-PORT –&gt; INPUT –&gt; KUBE-FIREWALL –&gt; POSTROUTING</p>
+          <h1 id="Iptables-转发规则"><a href="#Iptables-转发规则" class="headerlink" title="Iptables 转发规则"></a>Iptables 转发规则</h1><p>iptables 是 linux 中的防火墙模块，用于网络包的过滤与转发，一共可以分为五链四表。</p>
+<p><img src="/images/BD5561C0-D097-4A4F-BF4F-146FA15C46D7.jpg" alt="image">￼</p>
+<h3 id="iptbles-的匹配规则"><a href="#iptbles-的匹配规则" class="headerlink" title="iptbles 的匹配规则"></a>iptbles 的匹配规则</h3><p>一台主机中，可能会具有多个网卡，这些网卡会有不同的网络地址，但是所有网卡会共用同一个 iptables 匹配规则，也会共用宿主机的路由转发规则。</p>
+<p><strong>在路由选择中，只有最终判断为本地地址，如 127.0.0.1，本机的网卡地址的网络包才会被转发到 INPUT</strong>，而 docker 虚拟网卡上挂载的地址，则会被转发到虚拟网卡上，而不是直接进入INPUT 链中。注意，虚拟网卡上的转发是不经过 iptables 的，一个网络包到达 docker0 网卡后只会经过网卡的转发规则，直接被转发到对应的进程中。在进入 docker 进程后，使用的 iptables 规则和宿主机 iptables 规则是不相同的。</p>
+<p>外部的流量在PREROUTING 链进行 DNAT 后，会根据目的网络地址来判断是否能够匹配本地路由地址，否则将会被转发到 FORWARD 链中。</p>
+<p>内部的流量流出时，会直接根据目的地址判断是否为本地流量，如果是本地流量则不经过 OUTPUT 链，直接被转发到 INPUT 链中。<strong>这意味着 localhost 与 127.0.0.1 这两个地址是不会经过任何的DNAT 的。</strong>如果目的地址不是本机地址，那么会经过 OUTPUT 和 POSTROUTING链进行 DNAT 和 SNAT，这时候会再次通过路由表判断流量的地址转发到具体的网卡上。</p>
+<h3 id="不容易理解的地方"><a href="#不容易理解的地方" class="headerlink" title="不容易理解的地方"></a>不容易理解的地方</h3><p>如果一个主机挂载了一个 docker0 网卡，那么 iptables 的转发规则就会稍微有些难以理解。</p>
 <ul>
-<li>KUBE-SERVICES 链负责劫持所有的流量，进行粗删选，根据主机所设置的网段号来初步判断流量目标是否是k8s 服务。</li>
-<li>KUBE-CLUSTER-IP 负责第二次筛选，将网段正确的流量匹配ipset集合，如果通过集合，则标记为0x2000，如果失败则标记为0x4000。</li>
-<li>如果 KUBE-SERVICES 链没有通过筛选，则进入 KUBE-NODE-PORT 链中，判断是否是单独开启的服务实例。</li>
-<li>INPUT 与 KUBE-FIREWALL：判断是否有标记为 0x4000 的流量，如果有，直接丢弃。</li>
-<li>IPVS 与 POSTROUTING：将通过匹配的流量通过 nat 的方式转发到负载均衡算法计算后的地址。使用 nat 是因为可以很好地进行端口映射，这样会使得调度机制更加灵活，</li>
+<li>172.0.0.x 网段不是本机的 ip 地址，因此在路由选择中不会转发给 INPUT，而是会转发给 FORWARD，然后经过 POSTROUTING，然后转发给 docker0 网卡，docker0 网卡会根据目的 ip 地址将网络包转发给虚拟机，注意此时的虚拟机收到网络包后已经不与宿主机使用同一个 iptables。</li>
+<li>localhost 和 127.0.0.1 会经过路由选择后直接转发给 INPUT，不能够经过任何的 DNAT 修改，因此针对 localhost 的转发都是无效的。</li>
+<li>DNAT 和 SNAT 是具有记忆性的。如果一次 tcp 中，宿主机给出流量做了 DNAT，那么收到这个 tcp 的回包时，将会自动进行反操作，因此 docker 中的虚拟容器只需要一次 DNAT 就可以访问外界流量了。</li>
 </ul>
+<h3 id="如何做-NAT-转换"><a href="#如何做-NAT-转换" class="headerlink" title="如何做 NAT 转换"></a>如何做 NAT 转换</h3><p>1、首先需要开启端口转发<br>2、<code> sudo iptables -t nat -A PREROUTING -d x.x.x.x -p tcp -dport x -j DNAT --to-destinaton x.x.x.x:x</code></p>
+<p>3、<code> sudo iptables -t nat -A POSTROUTING -d x.x.x.x -p tcp -dport x -j SNAT --to-source x.x.x.x</code></p>
+<p>4、需要在 FORWARD 链中放行流量，例如</p>
+<p><code>sudo iptables -A FORWARD  -i eth0 -o eth0 -j ACCEPT</code></p>
+<p>5、如果只需要在本主机进行端口转换，则应该使用重定向来代替</p>
+<p><code>sudo iptables -t nat -A PREROUTING -d 127.0.0.1 -dport x -j REDIRECT to-ports x</code></p>
+<h3 id="利用-string模块完成应用层过滤"><a href="#利用-string模块完成应用层过滤" class="headerlink" title="利用 string模块完成应用层过滤"></a>利用 string模块完成应用层过滤</h3><p>iptables 的 string 模块可以将网络包中的关键词进行匹配，从而实现禁止访问某些 url，禁止访问某些内容，或者禁止回复某些内容的效果。具体代码如下：</p>
+<p><code>sudo iptables -t filter INPUT -m string --algo bm --string &#39;sf&#39; -j DROP</code></p>
+<p>但是，iptables 不能够确定字符串出现的位置，因此可能会出现误伤的情况。</p>
 
       
     </div>
@@ -284,7 +269,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/14/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/14/">14</a><span class="page-number current">15</span><a class="page-number" href="/page/16/">16</a><span class="space">&hellip;</span><a class="page-number" href="/page/27/">27</a><a class="extend next" rel="next" href="/page/16/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/14/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/14/">14</a><span class="page-number current">15</span><a class="page-number" href="/page/16/">16</a><span class="space">&hellip;</span><a class="page-number" href="/page/28/">28</a><a class="extend next" rel="next" href="/page/16/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -352,7 +337,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">27</span>
+          <span class="site-state-item-count">28</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
