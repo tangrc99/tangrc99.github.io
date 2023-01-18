@@ -19,7 +19,7 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"Mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
   <meta name="description" content="TCP 两次挥手？记录一次抓包异常问题简述我们都知道，正常的 TCP 关闭连接时是需要发生四次挥手的。但是在 wireshark 的一次抓包过程中，我却偶然发现了有一个 tcp 连接只发生了两次挥手，即客户端发送了 FIN 报文，并且收到了服务端的 ACK 报文，但是服务端却没有继续发送 FIN 报文，本次异常断开的抓包结果如下，图中的 192.168.10.1 是某经过系统刷机的路由器：  这其">
@@ -314,8 +314,8 @@
         
     <div class="post-nav">
       <div class="post-nav-item">
-    <a href="/2022/12/25/%E9%A6%96%E9%A1%B5/" rel="prev" title="首页">
-      <i class="fa fa-chevron-left"></i> 首页
+    <a href="/2022/12/25/%E5%B7%A5%E7%A8%8B%E6%96%87%E6%A1%A3%E6%B1%87%E6%80%BB/" rel="prev" title="工程文档汇总">
+      <i class="fa fa-chevron-left"></i> 工程文档汇总
     </a></div>
       <div class="post-nav-item">
     <a href="/2022/12/25/redis%E4%B8%8E%E9%99%90%E6%B5%81%E7%AE%97%E6%B3%95/" rel="next" title="redis与限流算法">

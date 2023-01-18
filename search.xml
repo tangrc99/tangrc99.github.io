@@ -488,11 +488,11 @@
     
     
     <entry>
-      <title>首页</title>
-      <link href="/2022/12/25/%E9%A6%96%E9%A1%B5/"/>
-      <url>/2022/12/25/%E9%A6%96%E9%A1%B5/</url>
+      <title>工程文档汇总</title>
+      <link href="/2022/12/25/%E5%B7%A5%E7%A8%8B%E6%96%87%E6%A1%A3%E6%B1%87%E6%80%BB/"/>
+      <url>/2022/12/25/%E5%B7%A5%E7%A8%8B%E6%96%87%E6%A1%A3%E6%B1%87%E6%80%BB/</url>
       
-        <content type="html"><![CDATA[<p>欢迎访问我的个人博客，博客主要记录本人日常学习内容，并且提供本人所写工程的文档。</p><h2 id="工程文档链接"><a href="#工程文档链接" class="headerlink" title="工程文档链接"></a>工程文档链接</h2><ul><li><p>MVCC：一个基于跳跃表的进程内并发读写数据结构。 <a href="https://github.com/tangrc99/MVCC">github仓库</a> <a href="https://tangrc99.github.io/MVCC">项目文档链接</a></p></li><li><p>Gossip：一个基于 gossip 协议的分布式信息交互组件。<a href="https://github.com/tangrc99/Gossip">github仓库</a> <a href="https://tangrc99.github.io/Gossip">项目文档链接</a></p></li><li><p>MLog：一个仿照 WiredTiger 日志系统的玩具项目。<a href="https://github.com/tangrc99/MLog">github仓库</a> <a href="https://tangrc99.github.io/MLog">项目文档链接</a></p></li><li><p>TinySwarm：一个轻量级的分布式调度系统。 <a href="https://github.com/tangrc99/TinySwarm">github仓库</a> <a href="https://tangrc99.github.io/TinySwarm">项目文档链接</a></p></li><li><p>MemTable：使用 go 语言仿写的 redis 服务器。  <a href="https://github.com/tangrc99/MemTable">github仓库</a></p></li></ul>]]></content>
+        <content type="html"><![CDATA[<p>这里汇总了我因学习需要或一时兴起写的小项目。</p><h2 id="工程文档链接"><a href="#工程文档链接" class="headerlink" title="工程文档链接"></a>工程文档链接</h2><ul><li><p>MVCC：一个基于跳跃表的进程内并发读写数据结构。 <a href="https://github.com/tangrc99/MVCC">github仓库</a> <a href="https://tangrc99.github.io/MVCC">项目文档链接</a></p></li><li><p>Gossip：一个基于 gossip 协议的分布式信息交互组件。<a href="https://github.com/tangrc99/Gossip">github仓库</a> <a href="https://tangrc99.github.io/Gossip">项目文档链接</a></p></li><li><p>MLog：一个仿照 WiredTiger 日志系统的玩具项目。<a href="https://github.com/tangrc99/MLog">github仓库</a> <a href="https://tangrc99.github.io/MLog">项目文档链接</a></p></li><li><p>TinySwarm：一个轻量级的分布式调度系统。 <a href="https://github.com/tangrc99/TinySwarm">github仓库</a> <a href="https://tangrc99.github.io/TinySwarm">项目文档链接</a></p></li><li><p>MemTable：使用 go 语言仿写的 redis 服务器。  <a href="https://github.com/tangrc99/MemTable">github仓库</a></p></li></ul>]]></content>
       
       
       
