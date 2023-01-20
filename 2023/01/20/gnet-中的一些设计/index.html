@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-mac-osx.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="gnet 是一个基于 Reactor 模式的高性能 go 网络库，工作原理类似 netty 和 libuv，直接使用 epoll 或 kqueue 系统调用来构建网络应用，这使其有着非常好的性能表现。本文章着重讲在阅读 gnet v2.2.3源码中注意到的一些问题。 主从 Reactor 通信方式主从 Reactor 模式中，主 Reactor 与从 Reactor 模式之间需要通信机制来实现任务">
+<meta property="og:type" content="article">
+<meta property="og:title" content="gnet 中的一些设计">
+<meta property="og:url" content="https://tangrc99.com/2023/01/20/gnet-%E4%B8%AD%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%BE%E8%AE%A1/index.html">
+<meta property="og:site_name" content="Sepk">
+<meta property="og:description" content="gnet 是一个基于 Reactor 模式的高性能 go 网络库，工作原理类似 netty 和 libuv，直接使用 epoll 或 kqueue 系统调用来构建网络应用，这使其有着非常好的性能表现。本文章着重讲在阅读 gnet v2.2.3源码中注意到的一些问题。 主从 Reactor 通信方式主从 Reactor 模式中，主 Reactor 与从 Reactor 模式之间需要通信机制来实现任务">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-01-20T15:55:49.259Z">
+<meta property="article:modified_time" content="2023-01-20T15:58:46.845Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="go">
+<meta property="article:tag" content="计算机网络">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://tangrc99.com/2023/01/20/gnet-%E4%B8%AD%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%BE%E8%AE%A1/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>gnet 中的一些设计 | Sepk</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<style>.darkmode--activated{--body-bg-color:#282828;--content-bg-color:#333;--card-bg-color:#555;--text-color:#ccc;--blockquote-color:#bbb;--link-color:#ccc;--link-hover-color:#eee;--brand-color:#ddd;--brand-hover-color:#ddd;--table-row-odd-bg-color:#282828;--table-row-hover-bg-color:#363636;--menu-item-bg-color:#555;--btn-default-bg:#222;--btn-default-color:#ccc;--btn-default-border-color:#555;--btn-default-hover-bg:#666;--btn-default-hover-color:#ccc;--btn-default-hover-border-color:#666;--highlight-background:#282b2e;--highlight-foreground:#a9b7c6;--highlight-gutter-background:#34393d;--highlight-gutter-foreground:#9ca9b6}.darkmode--activated img{opacity:.75}.darkmode--activated img:hover{opacity:.9}.darkmode--activated code{color:#69dbdc;background:0 0}button.darkmode-toggle{z-index:9999}.darkmode-ignore,img{display:flex!important}.beian img{display:inline-block!important}</style></head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Sepk</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">ww</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/20/gnet-%E4%B8%AD%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%BE%E8%AE%A1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          gnet 中的一些设计
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-01-20 23:55:49 / 修改时间：23:58:46" itemprop="dateCreated datePublished" datetime="2023-01-20T23:55:49+08:00">2023-01-20</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">计算机网络</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2.4k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>2 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>gnet 是一个基于 Reactor 模式的高性能 go 网络库，工作原理类似 netty 和 libuv，直接使用 epoll 或 kqueue 系统调用来构建网络应用，这使其有着非常好的性能表现。本文章着重讲在阅读 gnet v2.2.3源码中注意到的一些问题。</p>
+<h2 id="主从-Reactor-通信方式"><a href="#主从-Reactor-通信方式" class="headerlink" title="主从 Reactor 通信方式"></a>主从 Reactor 通信方式</h2><p>主从 Reactor 模式中，主 Reactor 与从 Reactor 模式之间需要通信机制来实现任务的调度。由于主从 Reactor 运行在不同的 goroutine 上，所以很轻松地可以想到使用 channel 进行通信。但是考虑到主 Reactor 与从 Reactor 直接的通信是一读一写的模式，gnet 中使用的是无锁队列的通信机制。这种一读一写的方式是比较经典的无锁队列使用场景了。gnet 中的无锁队列是一个非常经典的实现。</p>
+<p>在学习 gnet 框架的时候，恰好我所写的一个玩具项目中也有类似的场景；因为我尝试模仿 gnet 的做法，将 channel 替换为无锁队列。但是在做出这样的修改后，我发现软件的性能竟然比修改之前要下降了。这让我比较疑惑，于是我测试了 gnet 中无锁队列的性能以及 channel 的性能。测试环境为 Macos Ventura, 双核四线程 CPU，8GB 内存，go 1.19 版本；测试的方法一共有两种，一种是测试写入侧完成写入的耗时，第二种是测试读取侧完成读取的耗时。测试结果如下，其中 channel 的缓冲区选取 1000：</p>
+<table>
+<thead>
+<tr>
+<th align="center">测试编号</th>
+<th align="center">数据量10W</th>
+<th align="center">数据量100W</th>
+<th align="center">数据量500W</th>
+<th align="center">数据量1000W</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">queue 完成写入</td>
+<td align="center">8 ms</td>
+<td align="center">89 ms</td>
+<td align="center">647 ms</td>
+<td align="center">1228 ms</td>
+</tr>
+<tr>
+<td align="center">channel 完成写入</td>
+<td align="center">6 ms</td>
+<td align="center">64 ms</td>
+<td align="center">528 ms</td>
+<td align="center">961ms</td>
+</tr>
+<tr>
+<td align="center">queue 完成读取</td>
+<td align="center">14 ms</td>
+<td align="center">159 ms</td>
+<td align="center">703 ms</td>
+<td align="center">1854 ms</td>
+</tr>
+<tr>
+<td align="center">channel 完成读取</td>
+<td align="center">11 ms</td>
+<td align="center">142 ms</td>
+<td align="center">558 ms</td>
+<td align="center">1414 ms</td>
+</tr>
+</tbody></table>
+<p>根据测试结果，无锁队列的性能确实会比 channel 的性能要低，相同数据量下，使用无锁队列的耗时是使用 channel 耗时的约<strong>1.2倍</strong>左右。</p>
+<p>在得到测试结果后，我以为是我的测试用例有问题，于是花费了很多时间去搜寻资料无果。后来，我尝试替换其他的无锁队列进行测试，于是我选择了<code>github.com/yireyun/go-queue</code>项目进行测试，但测试结果与 gent 中的无锁队列相似，仍然是比 channel 要慢的。于是我开始疑惑，为什么 gnet 中要选择无锁队列来作为消息传递的方式。</p>
+<p>在思考无果后，我又开始查询资料，最终找到了可能的答案。这是 go-queue 项目中的一个 <a target="_blank" rel="noopener" href="https://github.com/yireyun/go-queue/issues/13">issue</a>，它指出 go-queue 会比官方的 channel 速度要慢约10%左右，在其中的一个回复中有如下内容：</p>
+<blockquote>
+<h3 id="yireyun-commented-on-Jul-25-2022"><a href="#yireyun-commented-on-Jul-25-2022" class="headerlink" title="yireyun commented on Jul 25, 2022"></a><strong><a target="_blank" rel="noopener" href="https://github.com/yireyun">yireyun</a></strong> commented <a target="_blank" rel="noopener" href="https://github.com/yireyun/go-queue/issues/13#issuecomment-1193690662">on Jul 25, 2022</a></h3><p>已经在 MacPro M1 基于go1.17.12 上确认了”<strong>Chan 比 Queue 快</strong>”；并没有用之前机器和go版本回归测试，初步结论是 chan 比以前快多了； go1.8.3 的 chan 在高并发情况下，性能会急速下降，但在 go1.17.14 上发现高并发，chan性能下降缓慢。</p>
+</blockquote>
+<p>go-queue 确实是一个四年前的项目，其测试环境为 go1.8.3，这让我回想起在知乎曾经看到的一篇文章，“<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/21514693">Golang号称高并发，但高并发时性能不高</a>”，里面有这样一段内容：</p>
+<blockquote>
+<p>管道chan吞吐极限10,000,000，单次Put,Get耗时大约100ns/op，无论是采用单Go程，还是多Go程并发(并发数:100, 10000, 100000)，耗时均没有变化，Go内核这对chan进行优化。</p>
+</blockquote>
+<p>而 gnet v2 是基于 go 1.11 开发的，因此我<strong>猜测</strong> gnet 这里的设计可能是因为 channel 在低版本 go 中性能表现较差。而在高版本 go 中，数据量 10W 左右的级别无锁队列与 channel 并没有表现出较大的性能差异，因此这里并没有对其进行修改。毕竟主从 Reactor 之间更多地只会传递 *conn 指针，很难会出现 10W 以上这种级别的新连接同时到达的情况。</p>
+<h2 id="连接管理优化"><a href="#连接管理优化" class="headerlink" title="连接管理优化"></a>连接管理优化</h2><p>这个问题在 gnet 的 <a target="_blank" rel="noopener" href="https://github.com/panjf2000/gnet/issues/334">issue</a> 中有提到，目前解决方案还没有加入到正式版本中。gnet 中，每一个从 Reactor 都需要管理分配到的所有连接，为了区分这些连接，gent 目前采用的是哈希表的方式，将每一个连接的 [file descriptor,*conn] 注册到哈希表中。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> eventloop <span class="keyword">struct</span> &#123;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    connCount    <span class="type">int32</span>           <span class="comment">// number of active connections in event-loop</span></span><br><span class="line">    udpSockets   <span class="keyword">map</span>[<span class="type">int</span>]*conn   <span class="comment">// client-side UDP socket map: fd -&gt; conn</span></span><br><span class="line">    connections  <span class="keyword">map</span>[<span class="type">int</span>]*conn   <span class="comment">// TCP connection map: fd -&gt; conn</span></span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这种设计在非 GC 语言中可能没有问题，但是在 GC 语言中可能会带来性能问题。GC 扫描对于连续的数据结构是非常快的，但是对于哈希表这种非连续存储的数据结构就会相对较慢。如果使用值存储的形式，哈希表会为键值对分配出一块的连续的内存，而使用指针存储时，值会逃逸到堆上，这样在扫描时就无法采取连续扫描的方式。如果在此基础上，再使用指针来存储比较大的对象，可能会导致扫描哈希表的耗时大大增加。</p>
+<p>由于 gnet 主要面对的是类似 redis 和 HaProxy 的场景，这种场景下应用层的处理时间很短，网络库的性能对软件的整体性能影响非常大。而恰好这种情景都是作为后端的基础架构来使用的，客户端数量可能会非常多。当服务端需要处理的连接数较大时，直接使用哈希表来存储指针可能会造成 GC 耗时增加，从而造成比较严重的性能劣化。</p>
+<p>gnet 后期可能会依据 bigcache 的模式做出优化，将哈希表更改为二级索引的数据结构，从而实现 GC 的线性扫描。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 原方案</span></span><br><span class="line"><span class="keyword">map</span>[<span class="type">int</span>]*conn</span><br><span class="line"></span><br><span class="line"><span class="comment">// 优化思路，fd 作为索引在哈希表中存储slice下标</span></span><br><span class="line"><span class="keyword">map</span>[<span class="type">int</span>]<span class="type">int</span></span><br><span class="line"><span class="comment">// 在 slice 中存储 *conn 指针</span></span><br><span class="line">slice[]*conn</span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/go/" rel="tag"><i class="fa fa-tag"></i> go</a>
+              <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" rel="tag"><i class="fa fa-tag"></i> 计算机网络</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/01/19/%E6%B5%85%E6%9E%90-CloudWeGOnetpoll/" rel="prev" title="浅析 CloudWeGo-Netpoll">
+      <i class="fa fa-chevron-left"></i> 浅析 CloudWeGo-Netpoll
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%BB%E4%BB%8E-Reactor-%E9%80%9A%E4%BF%A1%E6%96%B9%E5%BC%8F"><span class="nav-number">1.</span> <span class="nav-text">主从 Reactor 通信方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#yireyun-commented-on-Jul-25-2022"><span class="nav-number">1.1.</span> <span class="nav-text">yireyun commented on Jul 25, 2022</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%9E%E6%8E%A5%E7%AE%A1%E7%90%86%E4%BC%98%E5%8C%96"><span class="nav-number">2.</span> <span class="nav-text">连接管理优化</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description">技术爱好者</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">30</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="sidebar-button motion-element">
+    lol welcome!
+  </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Tangrc99</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+<script src="https://unpkg.com/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+
+<script>
+var options = {
+  bottom: '64px',
+  right: '32px',
+  left: 'unset',
+  time: '0.5s',
+  mixColor: 'transparent',
+  backgroundColor: 'transparent',
+  buttonColorDark: '#100f2c',
+  buttonColorLight: '#fff',
+  saveInCookies: true,
+  label: '🌓',
+  autoMatchOsTheme: true
+}
+const darkmode = new Darkmode(options);
+window.darkmode = darkmode;
+darkmode.showWidget();
+</script>
+
+</body>
+</html>

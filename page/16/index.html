@@ -193,7 +193,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/25/k8s-proxy-%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/26/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -207,7 +207,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/25/k8s-proxy-%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">k8s proxy 网络模型</a>
+            <a href="/2022/12/26/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/" class="post-title-link" itemprop="url">MongoDB 无锁 Write FLow</a>
         </h2>
 
         <div class="post-meta">
@@ -216,23 +216,21 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
+              
 
-              <time title="创建时间：2022-12-25 16:53:15" itemprop="dateCreated datePublished" datetime="2022-12-25T16:53:15+08:00">2022-12-25</time>
+              <time title="创建时间：2022-12-26 16:00:28 / 修改时间：16:57:26" itemprop="dateCreated datePublished" datetime="2022-12-26T16:00:28+08:00">2022-12-26</time>
             </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-12-26 15:16:27" itemprop="dateModified" datetime="2022-12-26T15:16:27+08:00">2022-12-26</time>
-              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E4%BA%91%E6%8A%80%E6%9C%AF/" itemprop="url" rel="index"><span itemprop="name">云技术</span></a>
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
                 </span>
             </span>
 
@@ -261,27 +259,21 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="k8s-proxy-网络模型"><a href="#k8s-proxy-网络模型" class="headerlink" title="k8s proxy 网络模型"></a>k8s proxy 网络模型</h1><h3 id="iptables-模式"><a href="#iptables-模式" class="headerlink" title="iptables 模式"></a>iptables 模式</h3><p><img src="/images/DF43002E-5DBE-415E-94FB-6505B66D850A.jpg" alt="image">￼</p>
-<p>注意，所有的k8s 标记只分为两种，一种是需要转发的标记0x400，一种是需要丢弃的标记0x800。前者会最终在 POST 中被转发。</p>
-<p>下面解释一下为什么会有需要丢弃的数据包。由于规则链的建立并不是原子性的，所以可能会出现一种情况，规则链建立一半时，已经有相关的数据包到达了——这是一个非常危险的情况，可能会导致一些未定义的行为。因此，在规则正在建立的过程中，需要将相关数据包标记为 0x800，并最终丢弃掉。也就是 0x800 是用于标识规则链是否完全建立的。</p>
-<p>另外一种情况是按照用户的需求，对一些虚拟容器进行隔离操作。</p>
-<h3 id="iptables-clusterIP访问模式"><a href="#iptables-clusterIP访问模式" class="headerlink" title="iptables - clusterIP访问模式"></a>iptables - clusterIP访问模式</h3><p>这种访问模式一般是用于访问启动了多个实例的服务，并且需要进行负载均衡。客户端访问的链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICE -&gt; KUBE-SVC-SERV -&gt; KUBE-SEP-POD</p>
-<p>​    所有外部流量都会被 KUBE-SERVICE 链截获，并检查是否有流量是流向某一clusterIP的，并将流量传递给对应的 KUBE-SVC-SERV。KUBE-SVC-SERV 根据设置的负载均衡算法，将流量转发给对应的 KUBE-SEP-POD 链，并最终在该链中进行 DNAT 处理。</p>
-<h3 id="iptables-NodePort-访问模式"><a href="#iptables-NodePort-访问模式" class="headerlink" title="iptables - NodePort 访问模式"></a>iptables - NodePort 访问模式</h3><p>这种方式通常用来访问单独启动的服务实例。客户端的访问链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICE -&gt; KUBE-NODEPORTS -&gt; KUBE-SVC-XXX -&gt; KUBE-SEP-XXX</p>
-<p>单独启动的服务实例会单独注册在 KUBE-SERVICE链中，当clusterIP匹配完成后，才会进行 NodePort 规则匹配。<strong>使用 nodePort 方式来访问一个容器，其转发链路要更长，因此性能要稍差。</strong></p>
-<h3 id="ipvs-模式"><a href="#ipvs-模式" class="headerlink" title="ipvs 模式"></a>ipvs 模式</h3><p><img src="/images/71E894A0-C367-4B4F-A7DE-FF0275149CD4.jpg" alt="image">￼<br>ipvs 因为继承了 lvs 模块，所以其实是更加简单的。只需要在流量入口处进行流量区分和标记就可以。客户端进行访问的链路可以表示为：</p>
-<p>PREROUTING -&gt; KUBE-SERVICES -&gt; KUBE-CLUSTER-IP -&gt; INPUT -&gt; KUBE-FIREWALL -&gt; POSTROUTING</p>
-<p>或者为：</p>
-<p>PREROUTING –&gt; KUBE-SERVICES –&gt; KUBE-NODE-PORT –&gt; INPUT –&gt; KUBE-FIREWALL –&gt; POSTROUTING</p>
+          <h1 id="MongoDB-无锁-Write-FLow"><a href="#MongoDB-无锁-Write-FLow" class="headerlink" title="MongoDB 无锁 Write FLow"></a>MongoDB 无锁 Write FLow</h1><h2 id="同一-key-的无锁读写"><a href="#同一-key-的无锁读写" class="headerlink" title="同一 key 的无锁读写"></a>同一 key 的无锁读写</h2><p>MongoDB 的一个 B+树索引中具有三个数据结构来存储键值对数据：</p>
 <ul>
-<li>KUBE-SERVICES 链负责劫持所有的流量，进行粗删选，根据主机所设置的网段号来初步判断流量目标是否是k8s 服务。</li>
-<li>KUBE-CLUSTER-IP 负责第二次筛选，将网段正确的流量匹配ipset集合，如果通过集合，则标记为0x2000，如果失败则标记为0x4000。</li>
-<li>如果 KUBE-SERVICES 链没有通过筛选，则进入 KUBE-NODE-PORT 链中，判断是否是单独开启的服务实例。</li>
-<li>INPUT 与 KUBE-FIREWALL：判断是否有标记为 0x4000 的流量，如果有，直接丢弃。</li>
-<li>IPVS 与 POSTROUTING：将通过匹配的流量通过 nat 的方式转发到负载均衡算法计算后的地址。使用 nat 是因为可以很好地进行端口映射，这样会使得调度机制更加灵活，</li>
+<li>WT_ROW 数组，存储原本 Check Point 时刻的值。</li>
+<li>WT_UPDATE 跳跃表数组，存储已有键值对的更新值。</li>
+<li>WT_INSERT_HEAD 跳跃表数组，存储新插入键值对的更新值。</li>
 </ul>
+<p>MongoDB 中所有的写操作并不会直接修改原有的内存位置，而是将新数据写入到B+树索引节点中的跳跃表中。结合惰性删除机制，跳跃表是可以做到无锁读写的。</p>
+<p>但是这种设计会使得读取的流程较长，因为要查询数据需要依次搜索WT_UPDATE，WT_ROW和WT_INSERT_HEAD 这三个数据结构，当插入数据过多时，跳跃表的搜索性能是要比 WT_ROW 的有序数组结构差的。</p>
+<h2 id="Check-Point-技术"><a href="#Check-Point-技术" class="headerlink" title="Check Point 技术"></a>Check Point 技术</h2><p>MongoDB 中会定期对 B+ 树进行整理，防止插入数据过多，影响读取性能，Check Point 技术会定期整理内存和硬盘中的 B+树结构。</p>
+<p>当一次 Check Point 发生后，MongoDB 将会新建一个 B+树，所有的写入操作会被转移到新的 B+树中。而所有的刷盘以及分裂操作只会影响到旧的 B+ 树。具体过程比较复杂，可以参考《MongoDB 核心原理与实践》。</p>
+<h2 id="变长-Page-减少-B-树节点分裂"><a href="#变长-Page-减少-B-树节点分裂" class="headerlink" title="变长 Page 减少 B+ 树节点分裂"></a>变长 Page 减少 B+ 树节点分裂</h2><p>MongoDB 中的索引部分使用的是 B+ 树这种数据结构，一般来说 B+ 树在节点分裂的过程中是无法做到无锁的，但是 WiredTiger 基于变长 Page 的技术来避免 B+ 树分裂时加锁。</p>
+<p>在数据库系统中，B+树在硬盘中的页面大小通常是硬盘扇区的大小，这主要是考虑到硬盘读写的原子性，防止破坏 B+树节点的内部结构。因为这种考虑，B+树的硬盘节点通常都比较小。而比较小的 B+树节点可能就意味着需要经常进行分裂操作来保持 B+树的平衡性。</p>
+<p>MongoDB 的 B+ 树在内存中和在硬盘中的 page 大小是不相同的，内存中的 page 大小要远远大于硬盘中的 page 大小。当内存中的 B+树 page 需要刷盘时，会将内存 page 分裂为多个硬盘 page 写入到硬盘中，这就是变长 Page 技术。变长 Page 技术能够减少 B+ 树的持久化次数，还能够尽量避免 B+ 树因为插入而导致的分裂。引入了变长 Page 技术后，MongoDB 中索引 B+ 树的节点分裂会被转移到 reconcile 和 eviction 过程中，从而避免了在 Write Flow 中出现索引变更的情况。</p>
+<h2 id="插入过多时小粒度分裂"><a href="#插入过多时小粒度分裂" class="headerlink" title="插入过多时小粒度分裂"></a>插入过多时小粒度分裂</h2><p>仅仅依靠变长 Page 还不能够解决所有的问题，如果在某一时刻发生大量的写入操作，导致一个B+树节点在短时间内就达到了内存 page 的上限，这种情况下依旧需要发生 B+树节点的分裂。</p>
+<p>由于 MongoDB 中所有新插入的节点都是存在于 WT_INSERT_HEAD 跳跃表数组中的，当B+树节点因为插入数量过多需要分裂时，会将WT_INSERT_HEAD 中的最后一个跳跃表复制到新的节点中（MongoDB 中的主键值基本上是自增的，最后一个跳跃表中的节点在大部分情况下是最多的）。这种小粒度的分裂能够避免对B+树进行大面积修改。</p>
 
       
     </div>
@@ -300,7 +292,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/15/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><span class="page-number current">16</span><a class="page-number" href="/page/17/">17</a><span class="space">&hellip;</span><a class="page-number" href="/page/28/">28</a><a class="extend next" rel="next" href="/page/17/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/15/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><span class="page-number current">16</span><a class="page-number" href="/page/17/">17</a><span class="space">&hellip;</span><a class="page-number" href="/page/30/">30</a><a class="extend next" rel="next" href="/page/17/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -368,7 +360,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">28</span>
+          <span class="site-state-item-count">30</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

@@ -193,7 +193,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/04/12/%E8%AE%B0%E5%BD%95-MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E8%B8%A9%E5%9D%91/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/05/30/LevelDB%20%E5%AD%A6%E4%B9%A0%E5%A4%87%E5%BF%98/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -207,7 +207,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/04/12/%E8%AE%B0%E5%BD%95-MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E8%B8%A9%E5%9D%91/" class="post-title-link" itemprop="url">记录 MongoDB 复制集踩坑</a>
+            <a href="/2022/05/30/LevelDB%20%E5%AD%A6%E4%B9%A0%E5%A4%87%E5%BF%98/" class="post-title-link" itemprop="url">LevelDB 学习备忘</a>
         </h2>
 
         <div class="post-meta">
@@ -217,14 +217,14 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2022-04-12 00:00:00" itemprop="dateCreated datePublished" datetime="2022-04-12T00:00:00+08:00">2022-04-12</time>
+              <time title="创建时间：2022-05-30 15:42:59" itemprop="dateCreated datePublished" datetime="2022-05-30T15:42:59+08:00">2022-05-30</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-01-13 15:19:10" itemprop="dateModified" datetime="2023-01-13T15:19:10+08:00">2023-01-13</time>
+                <time title="修改时间：2022-12-25 20:34:53" itemprop="dateModified" datetime="2022-12-25T20:34:53+08:00">2022-12-25</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -236,7 +236,7 @@
                 </span>
                   ，
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/leveldb/" itemprop="url" rel="index"><span itemprop="name">leveldb</span></a>
                 </span>
             </span>
 
@@ -246,14 +246,14 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span></span>
+              <span>4.3k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
                 <i class="far fa-clock"></i>
               </span>
                 <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>NaN:aN</span>
+              <span>4 分钟</span>
             </span>
 
         </div>
@@ -265,24 +265,49 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>本文记录在部署 MongoDB 复制集时遇到的一些小坑和解决方法。</p>
-<h2 id="docker-环境下-ip-设置错误导致无法访问"><a href="#docker-环境下-ip-设置错误导致无法访问" class="headerlink" title="docker 环境下 ip 设置错误导致无法访问"></a>docker 环境下 ip 设置错误导致无法访问</h2><p>在第一次部署 MongoDB 时，为了方便而选择了使用 docker 容器进行部署。部署过程中完全依照<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/tutorial/deploy-replica-set/">官方的教程</a>，但是最终部署的集群却无法在 docker 网络外以副本集模式访问。在调试过程中发现在 docker 网络内部可以进行访问，因此猜测可能是 DNS 或者监听的问题。</p>
-<p>最终定位到问题在于初始化时选择的 host 错误。官方教程在初始化时，使用的命令如下：</p>
-<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 使用 container name 初始化</span></span><br><span class="line"><span class="comment">// 只能够在 docker 网络内部访问</span></span><br><span class="line">rs.<span class="title function_">initiate</span>( &#123;</span><br><span class="line">   _id : <span class="string">&quot;rs0&quot;</span>,</span><br><span class="line">   <span class="attr">members</span>: [</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">0</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb0.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">1</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb1.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">2</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb2.example.net:27017&quot;</span> &#125;</span><br><span class="line">   ]</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-
-<p>官方的教程在部署过程中直接使用了 container name 作为 MongoDB 实例的 HostName，由于所有的副本集是部署在同一个 docker 网络中，所以可以通过 docker DNS 功能来实现服务发现。而在 docker 网络外部，无法使用 docker DNS 服务，因此不能够正确地访问集群。</p>
-<p>经过修改后，将集群初始化命令修改为以下形式，可以正常访问：</p>
-<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 容器使用 publish 端口</span></span><br><span class="line"><span class="comment">// 集群使用宿主机 ip 初始化</span></span><br><span class="line"><span class="comment">// 使其可以接受容器外部访问</span></span><br><span class="line">rs.<span class="title function_">initiate</span>( &#123;</span><br><span class="line">   _id : <span class="string">&quot;rs0&quot;</span>,</span><br><span class="line">   <span class="attr">members</span>: [</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">0</span>, <span class="attr">host</span>: <span class="string">&quot;宿主机ip:port&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">1</span>, <span class="attr">host</span>: <span class="string">&quot;宿主机ip:port&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">2</span>, <span class="attr">host</span>: <span class="string">&quot;宿主机ip:port&quot;</span> &#125;</span><br><span class="line">   ]</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-
-<h2 id="宿主机-ip-变更，集群失效"><a href="#宿主机-ip-变更，集群失效" class="headerlink" title="宿主机 ip 变更，集群失效"></a>宿主机 ip 变更，集群失效</h2><p>上述部署方式，虽然解决了容器外部访问的问题，但是在一次网关配置的修改后，集群所在的宿主机 ip 发生了变化，导致之前部署的 ip 无法访问，需要修改集群的配置。</p>
-<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 部分容器 ip 改变，集群中仍有 master</span></span><br><span class="line">rs.<span class="title function_">reconfig</span>( &#123;</span><br><span class="line">   _id : <span class="string">&quot;rs0&quot;</span>,</span><br><span class="line">   <span class="attr">members</span>: [</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">0</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb0.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">1</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb1.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">2</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb2.example.net:27017&quot;</span> &#125;</span><br><span class="line">   ]</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 全部容器 ip 改变</span></span><br><span class="line"><span class="comment">// 部分容器 ip 改变，集群中仍有 master</span></span><br><span class="line">rs.<span class="title function_">reconfig</span>( &#123;</span><br><span class="line">   _id : <span class="string">&quot;rs0&quot;</span>,</span><br><span class="line">   <span class="attr">members</span>: [</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">0</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb0.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">1</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb1.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">2</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb2.example.net:27017&quot;</span> &#125;</span><br><span class="line">   ]</span><br><span class="line">&#125;，&#123;<span class="attr">force</span>:<span class="literal">true</span>&#125;)</span><br></pre></td></tr></table></figure>
-
-<p>最好的部署方式还是在网关处部署一个 DNS 服务，用于集群的域名管理。</p>
-<h2 id="网络吞吐量过大，查询不稳定"><a href="#网络吞吐量过大，查询不稳定" class="headerlink" title="网络吞吐量过大，查询不稳定"></a>网络吞吐量过大，查询不稳定</h2><p>由于在部署中利用了 MongoDB Gridfs 功能作为基础架构作为深度学习的标记、训练、测试的数据集来源，在我们的使用场景中，经常会需要从 MongoDB 集群中批量访问 500 张以上 15M 左右的图像。在最初的本地测试中，我测试了批量从 MongoDB 中读取 1000 张图像，所以运行速度一直非常稳定，保持在一张图像 150ms 左右的速度，这对我们来说是比较满意的性能。</p>
-<p>但是将 MongoDB 集群投入到使用中，我们发现对图像的获取速度非常不稳定，有时获取一张图像只需要 200ms 左右，有时获取一张图像却需要 3~4 s。大部分情况下获取一张图像需要 1s 左右，而且 MongoDB 性能的波动非常严重，不符合我们最初的测试效果。</p>
-<p>最初猜测是由于 MongoDB 中数据存储不合理，导致数据集查询较慢。但查询 MongoDB 的慢查询日志后，发现所有的查询操作均不是慢查询操作。通过 top 命令查询 MongoDB 部署的主机进行监控，发现在查询过程中，CPU 的占用率一直在 20%左右。正在一筹莫展时，突然发现主机的网卡占用率非常高，猜测是网络的问题。</p>
-<p>利用 wireshark 抓包后，发现在查询过程中有大量 TCP 重传，可能是由于网络阻塞比较严重。经过排查后，发现是实验室的网关性能过差。</p>
-<p>最终，更换了实验室网关，并且将需要批量查询图像的主机通过网线直接与 MongoDB 部署主机相连，最终批量查询的时间稳定在 200ms 左右。</p>
+          <h1 id="LevelDB-学习备忘"><a href="#LevelDB-学习备忘" class="headerlink" title="LevelDB 学习备忘"></a>LevelDB 学习备忘</h1><h2 id="LevelDB-设计出发点"><a href="#LevelDB-设计出发点" class="headerlink" title="LevelDB 设计出发点"></a>LevelDB 设计出发点</h2><p>​        LevelDB 是一个<strong>轻量级，写优先，批量读，硬盘存储</strong>的K-V嵌入式数据库，这是其许多设计和优化的出发点。为了保证读性能中查找操作的可用性，一段数据必须要被有序地放入到数据库中，并且最优的算法复杂度是固定的——O(nlogn)，这意味着数据被放入预定位置延迟是具有最小值的，即写操作必定会具有固定的延迟。LevelDB 的设计就是如果合理地利用结构来优化这个延迟，来获得最小的写入延迟，核心技巧就是将数据写入数据库的操作分解，并且尽可能地将操作放入后台线程中运行，以此来获得最小的用户输入延迟，从而获得优异的批量写入性能，并且同时保证一定的读性能。</p>
+<p>​        LevelDB 的典型应用之一是作为临时存储——在本地临时存储用户的工作数据，当工作确认提交后再整体发送给其他数据库。</p>
+<h2 id="LevelDB-的写入延迟优化"><a href="#LevelDB-的写入延迟优化" class="headerlink" title="LevelDB 的写入延迟优化"></a>LevelDB 的写入延迟优化</h2><p>​        不同于其他的单机数据库形式，LevelDB 的设计更多地用于嵌入式数据库，因此必须要保证数据库的系统资源占用较小。LevelDB 的写入延迟优化的核心思想是进行数据写入操作的分解，牺牲一定的总操作时间，来换取每一步操作的低延迟，从而实现较低的用户操作延迟以及较低的系统资源占用。</p>
+<p>​        总体来看，LevelDB 中数据的写入流程可以被分解为：</p>
+<ul>
+<li>WAL 日志：目的为获得低用户写入延迟</li>
+<li>批写入缓冲：目的为获得较少的线程同步次数</li>
+<li>内存缓冲表：目的为优化用户修改近期数据的需要</li>
+<li>SSTFile 以及合并：目的为减少系统占用，优化读性能</li>
+</ul>
+<h3 id="WAL-日志"><a href="#WAL-日志" class="headerlink" title="WAL 日志"></a>WAL 日志</h3><p>​        虽然将数据有序地写入数据库中的延迟最小是 O(nlogn)，但是只是将数据持久化到硬盘中的延迟只有 O(1)。利用 WAL 操作，用户调用 <code>Put()</code>操作时，操作被追加到 WAL 文件中即可对用户操作返回成功。实际设计中，LevelDB 将操作记录到内存缓冲区后，再写入到 WAL 文件中，后台线程会根据内存缓冲区完成后续的数据写入操作。由于 WAL 文件流时追加形式，并且是持续打开的，不需要寻址，因此该速度非常快。</p>
+<h3 id="批写入缓冲"><a href="#批写入缓冲" class="headerlink" title="批写入缓冲"></a>批写入缓冲</h3><p>​        在 LevelDB 中，具有一个缓冲区用于存储用户的写入操作。只有当该缓冲区满时，或者经过一段时间后，后端线程才会将该缓冲区中的数据真正写入到内存中的跳跃表中。这一设计主要的优点如下：</p>
+<ul>
+<li>优化跳跃表写入时间：跳跃表写入操作需要进行查找，查找操作是插入延时的主要原因。利用批写入缓冲，可以将用户的 N 个操作根据键值进行排序，在进行跳跃表写入时，最坏情况下只需要从头遍历一次跳跃表，大大节约了查找的时间。</li>
+<li>符合用户操作习惯：用户在执行插入操作时，可能会在短期内多次更新同一个值，这样可以将多次插入操作合并为一次。</li>
+<li>优化线程同步：跳跃表是需要由多个后台线程共享的（插入线程，持久化线程，读取线程），执行写入操作时是需要进行加锁的。执行批写入时，写入时间更短，获取锁的时间更短，同时唤醒其他线程的时机也更少，对线程同步是有益的。</li>
+</ul>
+<p>​        批量写入也有一定的弊端，主要是数据库宕机时会增加恢复时间，但总体来说对数据库性能的影响很小。</p>
+<h3 id="MMAP-跳跃表"><a href="#MMAP-跳跃表" class="headerlink" title="MMAP (跳跃表)"></a>MMAP (跳跃表)</h3><p>​        mmap 主要是实现了缓冲区的功能，将多次写入硬盘的操作合并为一次写入。由于操作系统的调度机制，频繁进行 IO 的线程优先级是比较低的，线程频繁进行 IO 操作会浪费很多时间在调度上。同时，使用内存缓冲区时，可以将整个表进行数据压缩操作，节约硬盘的存储空间。</p>
+<p>​        跳跃表是一个综合来看比较优异的数据结构。对比跳跃表、哈希表、红黑树三种典型的数据结构，哈希表并不是一种顺序容器，在迭代操作的时候可能会遇到问题（迭代器失效），红黑树的插入操作因为涉及到旋转，时间常数会比较高，插入性能略差。而跳跃表可以提供顺序迭代访问，并且插入数据时比较简单，很容易实现无锁结构，易于并发访问，因此 LevelDB、Redis 等一些内存数据库经常会使用跳跃表进行缓存操作。</p>
+<p>​        MMAP 的惰性删除机制：在引入惰性删除机制前，对跳跃表的操作需要分为四类：读、写、删除、修改。其中，写、删除操作因为涉及链表的重构，是需要写并发控制才能够运行的；而另外两种操作，并不涉及到链表内部节点的修改，只需要将值设置为原子量就可以进行并发访问了。在引入惰性删除机制后，通过修改节点的标志量来标记删除，当 MMAP 持久化时再删除节点，这样就将删除操作变更为了修改操作，能够大大提升对内存表的并发访问量。</p>
+<h3 id="SSTFile"><a href="#SSTFile" class="headerlink" title="SSTFile"></a>SSTFile</h3><p>​        为了保证读性能的可用性，必须将键值对放入预期的位置。如果数据库简单地将所有数据在硬盘中有序排列，那么每次将 MMAP 中的数据插入到硬盘的操作时间复杂度就是 O(nlogn)，但是这样会导致一次插入操作的系统占用过高。LevelDB 设计了一套分层存储机制来代替传统的存储机制。</p>
+<p>​        SSTFile 是数据在硬盘中的组织形式，不同的 SSTFile 分为不同的层级（ 0 - n ），文件内部的键值对是有序排列的，Level 0 之外的文件在层级之间也是有序排列的。每次 MMAP 中的数据需要持久化时，会生成一个 Level 0 的 SSTFile，如果一个 Level 对应的文件数量过多会触发合并操作。这样设计，高层级的数据是有序的旧数据，低层级因为单个文件数据量很小，因此无序存储也不会过多地影响系统的读性能。每次进行读取操作时，从低层次往高层次进行查找，直到找到数据。</p>
+<p>​        很显然，这种设计会造成写扩大：同样的数据被写入硬盘多次才保证了全局一致性；但是这种写扩大是被分摊到多个不同的时间节点的，虽然总的写入时间加大了，但是却能够确保每个时间点的系统占用很小。因为 SSTFile 的合并是被动的，数据库只会惰性地检查每个层级是否满足合并条件，并且确保一次只存在一个合并操作；此外，如果一次合并操作花费过多的时间，那么数据库还会中断本次操作并选择延迟执行，以防止MMAP 不能及时持久化到硬盘中。</p>
+<h3 id="修改和删除数据"><a href="#修改和删除数据" class="headerlink" title="修改和删除数据"></a>修改和删除数据</h3><p>​        由于数据库采用层级的查找机制，当用户需要进行旧数据的修改时（MMAP 中数据并不存在）；LevelDB 其实并不会对文件中的数据进行查找，而是直接将新的数据写入到 MMAP 中，并不需要删除掉旧数据。因此，在 LevelDB 中，修改操作其实已经退化为了写入操作。同样地，删除操作也只会在 MMAP 中查找数据，若未查询到数据，则会在 MMAP 中插入一条删除记录。</p>
+<p>​        这种优化是因为 LevelDB 面向的应用场景中，用户更加倾向于频繁修改最近的数据，而旧数据的修改可能只会零散的发生，因此额外的硬盘占用量是很小的。</p>
+<h2 id="LevelDB-的读取优化"><a href="#LevelDB-的读取优化" class="headerlink" title="LevelDB 的读取优化"></a>LevelDB 的读取优化</h2><p>​        LevelDB 是一个批处理的数据库系统，这种应用场景下，读取操作是具有显著特征的。</p>
+<ul>
+<li>用户可能会多次修改最近的数据，如不小心输入错误的数据。</li>
+<li>对于旧的数据，用户可能会批量读取并进行操作。</li>
+</ul>
+<p>​        由于 LevelDB 本身存在两个缓冲区，因此已经满足了修改最近数据的需求，基本上只有对旧数据的读取需要进行大规模优化。</p>
+<h3 id="文件索引与布隆过滤器"><a href="#文件索引与布隆过滤器" class="headerlink" title="文件索引与布隆过滤器"></a>文件索引与布隆过滤器</h3><p>​        文件索引是一个经典的文件读取优化模式。在 LevelDB 中，每个 SSTFile 都会在内存中保留一个索引，索引包含了数据日期，最大键值、最小键值、最近操作时间、最近读取次数等一系列信息。如果 MMAP 中没有查询到用户需要的数据，那么就会触发对 SSTFile 的查找，在每个高层级中键值是有序的，因此可以在层级中对键值对执行二分查找；对于无序的Level 0 数据，因为文件数量很小，执行顺序查找也不会有较高的性能损失。</p>
+<p>​        通过键值范围确定可能的 SSTFile 文件后，LevelDB 还需要通过布隆过滤器来保证该数据存在的可能性；只有成功通过布隆过滤器，数据库才会将文件读取到内存中。同样，文件的内部也是有序的，同样可以执行二分查找，降低查找的时间复杂度。被读取到内存中的文件会缓存一段时间，以此来应对用户多次读取同一段数据的需要。</p>
+<h3 id="版本控制-MVCC"><a href="#版本控制-MVCC" class="headerlink" title="版本控制 MVCC"></a>版本控制 MVCC</h3><p>​        LevelDB 中写入操作是直接写入到最上层级的，并不会被读操作读到，因此唯一可能出现的冲突是 SSTFile 合并操作与读操作的冲突，使用简单的 MVCC 并发控制就可以避免冲突。</p>
+<p>​        执行读操作时，LevelDB 会将对应文件的引用量加一；当执行迭代器操作时，会将当前全部文件标注引用。当合并操作被触发，原有的文件需要删除时，根据文件的引用量来判断是否真正执行删除操作；若引用不为 0，则进行惰性删除机制，当引用为 0 时再自动触发删除操作。</p>
+<h3 id="迭代器遍历操作"><a href="#迭代器遍历操作" class="headerlink" title="迭代器遍历操作"></a>迭代器遍历操作</h3><p>​        LevelDB 的读场景存在大量的批量读取，使用迭代器进行数据库的遍历有助于用户简化代码。但由于 LevelDB 中修改和删除操作并不会真正地删除掉旧数据，因此在遍历数据库时必须采取一定措施来防止用户读取过期数据。</p>
+<p>​        LevelDB 中只提供全局有序的迭代器操作，并且能够保证数据的有效性。具体做法为：在每个 Level 上都创建一个内部迭代器，当调用迭代器 <code>MoveNext()</code>操作时，使用类似归并的思想进行操作，这样就能够消除过期数据带来的影响。同时，在创建一个迭代器时，会自动创建一个快照，快照只记录需要访问的文件并声明引用，并不会直接复制数据。</p>
+<h3 id="防止读扩大"><a href="#防止读扩大" class="headerlink" title="防止读扩大"></a>防止读扩大</h3><p>​        LevelDB 的层级读取机制并不能很好地处理一种情景：用户短时间内需要频繁读取一段老数据。该情况下，每次都需要从头开始查找，会消耗过多的查询时间，同时还会造成读取的文件过大，这是需要进行优化的。具体的优化措施为：开辟一片最近读内存缓冲区，将最近读取过的数据存入缓冲区中。缓冲区采用一定的置换策略，并且保证在缓冲区内被多次读取的数据会被持久化到 Level 0 中。</p>
+<h2 id="LevelDB-的系统占用优化"><a href="#LevelDB-的系统占用优化" class="headerlink" title="LevelDB 的系统占用优化"></a>LevelDB 的系统占用优化</h2><p>​        当 LevelDB 作为嵌入式数据库使用时，必须要保证较低的内存和 CPU 占用来维持整体软件的性能。类似于写入操作，LevelDB 完成相应功能的总时间也是具有优化上限的，只有采用分割任务的方法，才能保持长时间的低系统占用。</p>
+<h3 id="内存池与-Slice"><a href="#内存池与-Slice" class="headerlink" title="内存池与 Slice"></a>内存池与 Slice</h3><p>​        LevelDB 内部的内存分配是使用内存池进行分配的，内存池具有效率高、能够避免系统级内存碎片的优点。数据库进程如果只是使用系统调用来简单分配内存，不仅会出现内存频繁申请和销毁的情况，长时间运行还会造成系统级内存碎片，导致系统可用内存下降。</p>
+<p>​        使用内存池会引入较为繁琐的内存管理，因此 LevelDB 引入 <code>Slice</code> 数据结构来简化内存分配。 <code>Slice</code> 是字符串指针和字符串长度的集合，LevelDB 中的所有数据段底层都被存储为 <code>Slice</code> 格式，所有内存申请都是建立在内存池的基础上的，并且会尽量保证持有的内存区域尽可能小。</p>
+<h3 id="SSTFile-合并"><a href="#SSTFile-合并" class="headerlink" title="SSTFile 合并"></a>SSTFile 合并</h3><p>​        SSTFile 合并操作会评估当前数据库的系统占用情况，并且会保证一次合并操作并不会持续过长时间。如果一次合并操作耗时过长，该合并操作会被中断，并且选择合适的时机再次执行。                </p>
 
       
     </div>
@@ -301,7 +326,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/25/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/25/">25</a><span class="page-number current">26</span><a class="page-number" href="/page/27/">27</a><a class="page-number" href="/page/28/">28</a><a class="extend next" rel="next" href="/page/27/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/25/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/25/">25</a><span class="page-number current">26</span><a class="page-number" href="/page/27/">27</a><span class="space">&hellip;</span><a class="page-number" href="/page/30/">30</a><a class="extend next" rel="next" href="/page/27/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -369,7 +394,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">28</span>
+          <span class="site-state-item-count">30</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
