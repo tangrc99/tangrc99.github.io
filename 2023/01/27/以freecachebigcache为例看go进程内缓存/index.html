@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-mac-osx.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="应用缓存具有两种形式：缓存服务和进程内缓存。在大部分情景下，缓存服务已经可以解决应用缓存问题；但由于缓存服务需要经过网络通信，其性能一般是不如进程内缓存的。当性能要求较高时，就需要考虑采取进程内缓存的方案。并且，进程内缓存可以直接寻址，因此不仅可以缓存字符串，还可以缓存更加复杂的数据结构。不过同样地，进程内缓存也具有其缺点，诸如维护较为困难、缓存难以共享、影响进程内其他模块性能等。 一般而言，设计">
+<meta property="og:type" content="article">
+<meta property="og:title" content="以freecache和bigcache为例看go进程内缓存">
+<meta property="og:url" content="https://tangrc99.com/2023/01/27/%E4%BB%A5freecachebigcache%E4%B8%BA%E4%BE%8B%E7%9C%8Bgo%E8%BF%9B%E7%A8%8B%E5%86%85%E7%BC%93%E5%AD%98/index.html">
+<meta property="og:site_name" content="Sepk">
+<meta property="og:description" content="应用缓存具有两种形式：缓存服务和进程内缓存。在大部分情景下，缓存服务已经可以解决应用缓存问题；但由于缓存服务需要经过网络通信，其性能一般是不如进程内缓存的。当性能要求较高时，就需要考虑采取进程内缓存的方案。并且，进程内缓存可以直接寻址，因此不仅可以缓存字符串，还可以缓存更加复杂的数据结构。不过同样地，进程内缓存也具有其缺点，诸如维护较为困难、缓存难以共享、影响进程内其他模块性能等。 一般而言，设计">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://tangrc99.com/images/map-slice.png">
+<meta property="og:image" content="https://tangrc99.com/images/QQ20230127-195003.png">
+<meta property="article:published_time" content="2023-01-27T07:28:50.206Z">
+<meta property="article:modified_time" content="2023-01-27T15:00:49.947Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="go">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://tangrc99.com/images/map-slice.png">
+
+<link rel="canonical" href="https://tangrc99.com/2023/01/27/%E4%BB%A5freecachebigcache%E4%B8%BA%E4%BE%8B%E7%9C%8Bgo%E8%BF%9B%E7%A8%8B%E5%86%85%E7%BC%93%E5%AD%98/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>以freecache和bigcache为例看go进程内缓存 | Sepk</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<style>.darkmode--activated{--body-bg-color:#282828;--content-bg-color:#333;--card-bg-color:#555;--text-color:#ccc;--blockquote-color:#bbb;--link-color:#ccc;--link-hover-color:#eee;--brand-color:#ddd;--brand-hover-color:#ddd;--table-row-odd-bg-color:#282828;--table-row-hover-bg-color:#363636;--menu-item-bg-color:#555;--btn-default-bg:#222;--btn-default-color:#ccc;--btn-default-border-color:#555;--btn-default-hover-bg:#666;--btn-default-hover-color:#ccc;--btn-default-hover-border-color:#666;--highlight-background:#282b2e;--highlight-foreground:#a9b7c6;--highlight-gutter-background:#34393d;--highlight-gutter-foreground:#9ca9b6}.darkmode--activated img{opacity:.75}.darkmode--activated img:hover{opacity:.9}.darkmode--activated code{color:#69dbdc;background:0 0}button.darkmode-toggle{z-index:9999}.darkmode-ignore,img{display:flex!important}.beian img{display:inline-block!important}</style></head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Sepk</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">个人博客</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/27/%E4%BB%A5freecachebigcache%E4%B8%BA%E4%BE%8B%E7%9C%8Bgo%E8%BF%9B%E7%A8%8B%E5%86%85%E7%BC%93%E5%AD%98/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          以freecache和bigcache为例看go进程内缓存
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-01-27 15:28:50 / 修改时间：23:00:49" itemprop="dateCreated datePublished" datetime="2023-01-27T15:28:50+08:00">2023-01-27</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.6k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>应用缓存具有两种形式：缓存服务和进程内缓存。在大部分情景下，缓存服务已经可以解决应用缓存问题；但由于缓存服务需要经过网络通信，其性能一般是不如进程内缓存的。当性能要求较高时，就需要考虑采取进程内缓存的方案。并且，进程内缓存可以直接寻址，因此不仅可以缓存字符串，还可以缓存更加复杂的数据结构。不过同样地，进程内缓存也具有其缺点，诸如维护较为困难、缓存难以共享、影响进程内其他模块性能等。</p>
+<p>一般而言，设计进程内缓存主要需要考虑以下几个方面的问题：</p>
+<ol>
+<li>应用于高并发、高性能场景，需要较高的并发性能；</li>
+<li>内存管理策略，如缓存淘汰机制，防止占用过多资源；</li>
+<li>CPU 占用低，不影响进程内其他模块的性能；</li>
+<li>存储灵活多变的数据结构，如会话 token 等。</li>
+</ol>
+<p>freecache 和 bigcache 是两个比较出色的使用 go 语言的进程内缓存的开源项目；另外 bigcache 还有一个衍生类项目 fastcache。下文将从进程内缓存需要考虑的几个问题出发，对比着几个项目的异同点。</p>
+<h2 id="实现高并发"><a href="#实现高并发" class="headerlink" title="实现高并发"></a>实现高并发</h2><p>freecache 和 bigcache 中实现高并发的策略是相同的：哈希表分片来减小锁的粒度。</p>
+<p><img src="/images/map-slice.png" alt="map-slice.png"></p>
+<p>由于哈希表的时间复杂为 O(1)，因此进程内缓存应当首选哈希表为数据结构；但由于哈希表并不是一个线程安全的数据结构，必须加锁来保护，并发的线程数量较多时，直接对哈希表进行加锁性能会非常差。哈希表分片是通过哈希值的方式将大哈希表拆分为多个小哈希表，这样只需要对每一个小哈希表进行加锁保护即可，这种方式降低了锁粒度，可以大幅度提升并发性能。这种处理比较常见。</p>
+<h2 id="CPU-占用-GC"><a href="#CPU-占用-GC" class="headerlink" title="CPU 占用(GC)"></a>CPU 占用(GC)</h2><p>由于 go 是一种 GC 语言，进程内缓存就不得不考虑垃圾回收对性能的影响。在 go 中，使用指针、哈希表等非内存连续的结构会导致 GC 的时间大幅度增加，freecache 和 bigcache 中的设计都考虑到了这两点。虽然工程实现上有所区别，但是两者的核心思想都是相同的：使用线性数据结构来存储键值对，利用哈希表来存储地址偏移量，从而避免 GC 耗时。使用简单的代码就可以描述其原理：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">origin := <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="type">string</span>][]<span class="type">byte</span>)</span><br><span class="line"><span class="comment">// 写入方式</span></span><br><span class="line">value := origin[<span class="string">&quot;key&quot;</span>]</span><br><span class="line"></span><br><span class="line">better := <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="type">int</span>]<span class="type">int</span>)</span><br><span class="line">slice := <span class="built_in">make</span>([][]<span class="type">byte</span>,<span class="number">100</span>)</span><br><span class="line"><span class="comment">// 写入方式</span></span><br><span class="line">value := slice[better[hash(<span class="string">&quot;key&quot;</span>)]]</span><br></pre></td></tr></table></figure>
+
+<p>freecache 中并没有使用 go 自建的哈希表作为索引，而是使用哈希函数加 slice 的形式自行搭建了一个哈希表；bigcache 中则是直接使用了 go 自建的哈希表作为索引。不考虑哈希函数优劣的前提下，freecache 这里的设计更好，因为只需要计算一次哈希值即可，而 bigcache 中则需要计算两次哈希值。</p>
+<p>在线性存储结构方面的区别主要在于，bigcache 是支持自动扩容的（使用拷贝的方法）。</p>
+<h2 id="数据结构的支持"><a href="#数据结构的支持" class="headerlink" title="数据结构的支持"></a>数据结构的支持</h2><p>C++ 实现的进程内缓存通常都支持存储多种数据结构，不仅可以存储字符串、还可以存储更为复杂的数据结构；在网络服务器中，就可以使用本地缓存来存储 tcp 连接的描述符。而 go 实现的进程内缓存一般只支持存储字符串，复杂的数据结构只能够经过序列化后存储在缓冲中，这一方面是因为 go 在 1.18 版本前并不支持泛型，另一方面是因为 go GC 机制的存在。</p>
+<p>理论上，不使用泛型，只使用<code>interface&#123;&#125;</code>也是可以实现存储不同的数据类型的，并且不会给 GC 带来额外的压力；但是问题在于，如果存储的数据结构比较复杂的话（比如数据结构中存在指针），也会大幅度影响 GC 的性能。使用以下实验分别测试在 1000W 数据量情况下，go GC 的时间；以下几组测试分别在不同的进程中完成，不存在相互的影响：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 简单数据类型，不含指针</span></span><br><span class="line"><span class="keyword">type</span> simple <span class="keyword">struct</span>&#123;</span><br><span class="line">	a <span class="type">int</span></span><br><span class="line">	b <span class="type">int</span> </span><br><span class="line">	c <span class="type">int</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 复杂数据类型，含有指针</span></span><br><span class="line"><span class="keyword">type</span> <span class="built_in">complex</span> <span class="keyword">struct</span>&#123;</span><br><span class="line">	s1 *simple</span><br><span class="line">	s2 *simple</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 1000W int 数据类型</span></span><br><span class="line">s1 := <span class="built_in">make</span>([]<span class="type">int</span>,<span class="number">10000000</span>);</span><br><span class="line"><span class="comment">// 1000W 简单数据结构，接口存储</span></span><br><span class="line">s2 := <span class="built_in">make</span>([]any,<span class="number">10000000</span>);</span><br><span class="line"><span class="comment">// 1000W 简单数据结构，指针存储</span></span><br><span class="line">s3 := <span class="built_in">make</span>([]*simple,<span class="number">10000000</span>);</span><br><span class="line"><span class="comment">// 1000W 复杂数据结构，接口存储</span></span><br><span class="line">s4 := <span class="built_in">make</span>([]any,<span class="number">10000000</span>);</span><br></pre></td></tr></table></figure>
+
+<p>四组的 GC 时间在 go 1.19 版本经过测试后，分别如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">s1 GC time: 328 us</span><br><span class="line">s2 GC time: 336 us</span><br><span class="line">s3 GC time: 5228 us</span><br><span class="line">s4 GC time: 19552 us</span><br></pre></td></tr></table></figure>
+
+<p>对比 s2 和 s4 可以看到，当数据量比较大时，内部含有指针的数据结构所需要耗费的 GC 时间甚至达到了约 20ms，相比于简单数据结构增长了 58 倍左右；这是一个比较可观的延迟。另外，对比 s1、s2 和 s3 三组实验，在切片中使用指针同样会导致全量的 GC 扫描，否则会导致 GC 时间大幅度增加。</p>
+<p>由以上的实验，我们可以得出两个结论，go 实现的进程内缓存，如果要存储复杂数据结构，就必须使用非指针形式存储，并且要求数据结构内部尽量不存在过多指针，否则会导致性能大幅度降低。但这会带来一个问题：复杂的数据结构本身占用的内存可能会较大，每次写入和读出缓存时都会涉及到一次全量复制，这是非常耗时的一个过程。</p>
+<p>针对这一点，我觉得可以结合<code>sync.Pool</code>的思路来实现零拷贝写入：在进程内缓存内部设置一个 hook 函数，用户可以通过设置 hook 来控制缓存所存储的数据类型，当用户需要时，直接将对象构造在缓存的内部，然后返回用户指针，这样就可以节约写入时的拷贝。并且，缓存内部失效的数据结构也可以被复用，可以节约对象构造的时间。</p>
+<h2 id="性能对比"><a href="#性能对比" class="headerlink" title="性能对比"></a>性能对比</h2><p>根据 bigcache README 中的 <a target="_blank" rel="noopener" href="https://github.com/allegro/bigcache">benchmark</a> 测试结果，freecache 在性能上会比 bigcache 略低，这里贴出 v3.1.0 版本，bigcache 主页的测试结果：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">go version</span><br><span class="line">go version go1.13 linux/amd64</span><br><span class="line"></span><br><span class="line">go test -bench=. -benchmem -benchtime=4s ./... -timeout 30m</span><br><span class="line">goos: linux</span><br><span class="line">goarch: amd64</span><br><span class="line">pkg: github.com/allegro/bigcache/v3/caches_bench</span><br><span class="line">BenchmarkMapSet-8                     	12999889	       376 ns/op	     199 B/op	       3 allocs/op</span><br><span class="line">BenchmarkConcurrentMapSet-8           	 4355726	      1275 ns/op	     337 B/op	       8 allocs/op</span><br><span class="line">BenchmarkFreeCacheSet-8               	11068976	       703 ns/op	     328 B/op	       2 allocs/op</span><br><span class="line">BenchmarkBigCacheSet-8                	10183717	       478 ns/op	     304 B/op	       2 allocs/op</span><br><span class="line">BenchmarkMapGet-8                     	16536015	       324 ns/op	      23 B/op	       1 allocs/op</span><br><span class="line">BenchmarkConcurrentMapGet-8           	13165708	       401 ns/op	      24 B/op	       2 allocs/op</span><br><span class="line">BenchmarkFreeCacheGet-8               	10137682	       690 ns/op	     136 B/op	       2 allocs/op</span><br><span class="line">BenchmarkBigCacheGet-8                	11423854	       450 ns/op	     152 B/op	       4 allocs/op</span><br><span class="line">BenchmarkBigCacheSetParallel-8        	34233472	       148 ns/op	     317 B/op	       3 allocs/op</span><br><span class="line">BenchmarkFreeCacheSetParallel-8       	34222654	       268 ns/op	     350 B/op	       3 allocs/op</span><br><span class="line">BenchmarkConcurrentMapSetParallel-8   	19635688	       240 ns/op	     200 B/op	       6 allocs/op</span><br><span class="line">BenchmarkBigCacheGetParallel-8        	60547064	        86.1 ns/op	     152 B/op	       4 allocs/op</span><br><span class="line">BenchmarkFreeCacheGetParallel-8       	50701280	       147 ns/op	     136 B/op	       3 allocs/op</span><br><span class="line">BenchmarkConcurrentMapGetParallel-8   	27353288	       175 ns/op	      24 B/op	       2 allocs/op</span><br><span class="line">PASS</span><br><span class="line">ok  	github.com/allegro/bigcache/v3/caches_bench	256.257s</span><br></pre></td></tr></table></figure>
+
+<p>两者的代码结构其实比较类似，差别之处主要在于过期键的清理、哈希表的实现方面；肉眼是无法观察出两者的优劣的，使用 pprof 工具来分析 benchmark 时 freecache 的 CPUProfile，得到以下的结果。</p>
+<p><img src="/images/QQ20230127-195003.png" alt="QQ20230127-195003.png"></p>
+<p>根据火焰图，可以看出 freecache 的写入流程中，函数<code>segment.lookup()</code>和<code>Timer.Now()</code>两个函数的耗时时间是比较长的。其中<code>segment.loopup()</code>函数的主要功能是处理哈希冲突，火焰图中大规模出现该函数证明了 freecache 中的哈希函数是略微欠缺打磨的，并且解决哈希冲突时，freecache 需要比较 slice 值，这也是一个性能比较差的地方，即火焰图中的 函数<code>freecache.(*RingBuf).EqualAt</code>。</p>
+<p>另一点，则是<code>Timer.Now()</code>函数的耗时，我们看一下 freecache 中的 Timer 实现：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Helper function that returns Unix time in seconds</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">getUnixTime</span><span class="params">()</span></span> <span class="type">uint32</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="type">uint32</span>(time.Now().Unix())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Default timer reads Unix time always when requested</span></span><br><span class="line"><span class="keyword">type</span> defaultTimer <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(timer defaultTimer)</span></span> Now() <span class="type">uint32</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> getUnixTime()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>由于每一次 Write 都会使用一次时间戳，所以使用<code>defaultTimer</code>会带来非常严重的性能问题；经过查看源码，作者这里提供了另外一个 <code>cachedTimer</code>，它会缓存一个时间戳，并使用一个 goroutine 维护，每秒钟更新一次；但是并没有将该定时器作为 benchmark 代码中的默认定时器。将定时器修改后，该部分耗时可以忽略不计，这里不再放测试结果。</p>
+<h2 id="用户接口"><a href="#用户接口" class="headerlink" title="用户接口"></a>用户接口</h2><p>freecache 提供了几个较高性能的用户接口：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 查询后将值作为输入调用函数 fn</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(cache *Cache)</span></span> GetFn(key []<span class="type">byte</span>, fn <span class="function"><span class="keyword">func</span><span class="params">([]<span class="type">byte</span>)</span></span> <span class="type">error</span>) (err <span class="type">error</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 不进行拷贝，返回切片在 cache 中的地址</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(cache *Cache)</span></span> GetWithBuf(key, buf []<span class="type">byte</span>) (value []<span class="type">byte</span>, err <span class="type">error</span>) </span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/go/" rel="tag"><i class="fa fa-tag"></i> go</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/01/20/gnet-%E4%B8%AD%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%BE%E8%AE%A1/" rel="prev" title="gnet 中的一些设计">
+      <i class="fa fa-chevron-left"></i> gnet 中的一些设计
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/01/29/boltdb%E6%BA%90%E7%A0%81%E9%80%9A%E8%AF%BB/" rel="next" title="boltdb源码通读笔记">
+      boltdb源码通读笔记 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E9%AB%98%E5%B9%B6%E5%8F%91"><span class="nav-number">1.</span> <span class="nav-text">实现高并发</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CPU-%E5%8D%A0%E7%94%A8-GC"><span class="nav-number">2.</span> <span class="nav-text">CPU 占用(GC)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E7%9A%84%E6%94%AF%E6%8C%81"><span class="nav-number">3.</span> <span class="nav-text">数据结构的支持</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94"><span class="nav-number">4.</span> <span class="nav-text">性能对比</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%A8%E6%88%B7%E6%8E%A5%E5%8F%A3"><span class="nav-number">5.</span> <span class="nav-text">用户接口</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description">技术爱好者</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">34</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="sidebar-button motion-element">
+    lol welcome!
+  </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Tangrc99</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+<script src="https://unpkg.com/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+
+<script>
+var options = {
+  bottom: '64px',
+  right: '32px',
+  left: 'unset',
+  time: '0.5s',
+  mixColor: 'transparent',
+  backgroundColor: 'transparent',
+  buttonColorDark: '#100f2c',
+  buttonColorLight: '#fff',
+  saveInCookies: true,
+  label: '🌓',
+  autoMatchOsTheme: true
+}
+const darkmode = new Darkmode(options);
+window.darkmode = darkmode;
+darkmode.showWidget();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-mac-osx.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Bolt 是一个完全由 go 写成的基于硬盘的 K&#x2F;V 存储引擎，为了表示区分一般被称为 boltdb。对于一款存储引擎而言，boltdb 的源码非常短小精悍，包含测试代码仅有 17000 行左右。正是因为其体量比较小，boltdb 并不具备较为复杂的功能；在实现上，boltdb 主要借鉴了其他语言中的做法并将其改进，使之更加符合 go 语言的基础架构。 通读 boltdb 的代码，主要是为了学习">
+<meta property="og:type" content="article">
+<meta property="og:title" content="boltdb源码通读笔记">
+<meta property="og:url" content="https://tangrc99.com/2023/01/29/boltdb%E6%BA%90%E7%A0%81%E9%80%9A%E8%AF%BB/index.html">
+<meta property="og:site_name" content="Sepk">
+<meta property="og:description" content="Bolt 是一个完全由 go 写成的基于硬盘的 K&#x2F;V 存储引擎，为了表示区分一般被称为 boltdb。对于一款存储引擎而言，boltdb 的源码非常短小精悍，包含测试代码仅有 17000 行左右。正是因为其体量比较小，boltdb 并不具备较为复杂的功能；在实现上，boltdb 主要借鉴了其他语言中的做法并将其改进，使之更加符合 go 语言的基础架构。 通读 boltdb 的代码，主要是为了学习">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-01-29T09:27:40.844Z">
+<meta property="article:modified_time" content="2023-01-29T10:07:26.900Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="go">
+<meta property="article:tag" content="数据库">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://tangrc99.com/2023/01/29/boltdb%E6%BA%90%E7%A0%81%E9%80%9A%E8%AF%BB/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>boltdb源码通读笔记 | Sepk</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<style>.darkmode--activated{--body-bg-color:#282828;--content-bg-color:#333;--card-bg-color:#555;--text-color:#ccc;--blockquote-color:#bbb;--link-color:#ccc;--link-hover-color:#eee;--brand-color:#ddd;--brand-hover-color:#ddd;--table-row-odd-bg-color:#282828;--table-row-hover-bg-color:#363636;--menu-item-bg-color:#555;--btn-default-bg:#222;--btn-default-color:#ccc;--btn-default-border-color:#555;--btn-default-hover-bg:#666;--btn-default-hover-color:#ccc;--btn-default-hover-border-color:#666;--highlight-background:#282b2e;--highlight-foreground:#a9b7c6;--highlight-gutter-background:#34393d;--highlight-gutter-foreground:#9ca9b6}.darkmode--activated img{opacity:.75}.darkmode--activated img:hover{opacity:.9}.darkmode--activated code{color:#69dbdc;background:0 0}button.darkmode-toggle{z-index:9999}.darkmode-ignore,img{display:flex!important}.beian img{display:inline-block!important}</style></head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Sepk</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">个人博客</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/29/boltdb%E6%BA%90%E7%A0%81%E9%80%9A%E8%AF%BB/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          boltdb源码通读笔记
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-01-29 17:27:40 / 修改时间：18:07:26" itemprop="dateCreated datePublished" datetime="2023-01-29T17:27:40+08:00">2023-01-29</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/boltdb/" itemprop="url" rel="index"><span itemprop="name">boltdb</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.7k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Bolt 是一个完全由 go 写成的基于硬盘的 K/V 存储引擎，为了表示区分一般被称为 boltdb。对于一款存储引擎而言，boltdb 的源码非常短小精悍，包含测试代码仅有 17000 行左右。正是因为其体量比较小，boltdb 并不具备较为复杂的功能；在实现上，boltdb 主要借鉴了其他语言中的做法并将其改进，使之更加符合 go 语言的基础架构。</p>
+<p>通读 boltdb 的代码，主要是为了学习作者是如何利用 go 语言的特性来实现数据库的，这是本文的重点内容。而 boltdb 的用法以及其中的基本概念，可以参考<a target="_blank" rel="noopener" href="https://www.bookstack.cn/books/jaydenwen123-boltdb_book">《自底向上分析 BoltDB 源码》</a>。</p>
+<h2 id="各模块实现方式"><a href="#各模块实现方式" class="headerlink" title="各模块实现方式"></a>各模块实现方式</h2><p>首先介绍一下 boltdb 中各个模块的实现方式：</p>
+<ul>
+<li>数据库文件落盘：使用 mmap 读取数据库文件，使用 write 接口写回脏页；</li>
+<li>空闲页面管理：使用链表/哈希表进行管理，按需取出，不够时重新 mmap 映射；</li>
+<li>数据库文件 compact：使用写缓冲，重写数据库文件；</li>
+<li>内存硬盘之间页面大小保持一致，直接映射；</li>
+<li>无日志，事务提交时直接落盘，使用读写锁控制并发。</li>
+</ul>
+<p>可以看到 boltdb 中的各个模块实现都是比较简单的，这也在一定程度上保障了其稳定性。boltdb 无日志的设计使得写写之间是禁止并发的，因此 boltdb 可以很轻松地实现可串行级别的事务隔离。同时这也导致 boltdb 的写入性能非常差，只适合多读少写的场景。另外，boltdb 直接使用了 mmap 来映射数据库文件，这在一方面避免了 go 中的 GC 保证了数据库的性能，但另一方面当数据库大小超过内存时，可能会导致内存页面频繁被置换从而影响性能。但在 go 语言中大量使用指针可能会导致 GC 问题，使用 mmap 映射相当于避免了内存 B+ 树页面的 GC 扫描，这在 go 语言限制下应该是一种比较好的设计。</p>
+<h2 id="mmap-映射"><a href="#mmap-映射" class="headerlink" title="mmap 映射"></a>mmap 映射</h2><p>boltdb 使用 mmap 系统调用的源码片段如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">mmap</span><span class="params">(db *DB, sz <span class="type">int</span>)</span></span> <span class="type">error</span> &#123;</span><br><span class="line">	<span class="comment">// Map the data file to memory.</span></span><br><span class="line">	b, err := unix.Mmap(<span class="type">int</span>(db.file.Fd()), <span class="number">0</span>, sz, syscall.PROT_READ, syscall.MAP_SHARED|db.MmapFlags)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Advise the kernel that the mmap is accessed randomly.</span></span><br><span class="line">	err = unix.Madvise(b, syscall.MADV_RANDOM)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &amp;&amp; err != syscall.ENOSYS &#123;</span><br><span class="line">		<span class="comment">// Ignore not implemented error in kernel because it still works.</span></span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;madvise: %s&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Save the original byte slice and convert to a byte array pointer.</span></span><br><span class="line">	db.dataref = b</span><br><span class="line">	db.data = (*[maxMapSize]<span class="type">byte</span>)(unsafe.Pointer(&amp;b[<span class="number">0</span>]))</span><br><span class="line">	db.datasz = sz</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这部分内容很简单，将 mmap 映射获得的内存设置为只读，并且允许进程间共享；调用 madvise 将内存片段设置为随机读取模式，防止操作系统按照顺序读的方式来置换出内存页面。</p>
+<p>当数据库文件很小时，boltdb 并不会按照文件大小来获得映射内存，boltdb 请求的内存片段大小是大于数据库文件的。这是为了防止数据库文件扩充时多次向操作系统请求重新映射内存片段。 最终，boltdb 将 mmap 获得的内存片段转换为了一个长度为<code>maxMapSize</code>的切片指针，这一个步骤主要是为了方便进行<code>page</code>、<code>meta</code>等数据结构的映射。</p>
+<p>如果成功获得内存映射片段，boltdb 还会调用<code>mlock</code>尝试禁止页面置换，从而提升数据库读性能。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> mmap(minsz <span class="type">int</span>) <span class="type">error</span> &#123;</span><br><span class="line">	...</span><br><span class="line">    <span class="keyword">if</span> db.Mlock &#123;</span><br><span class="line">        <span class="comment">// Don&#x27;t allow swapping of data file</span></span><br><span class="line">        <span class="keyword">if</span> err := db.mlock(fileSize); err != <span class="literal">nil</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> err</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>虽然<code>mlock</code>调用会抛出 error，但是并不会影响数据库的正常处理流程。</p>
+<p> boltdb 并没有使用 mmap 接口直接进行文件写入的操作，因为 mmap 的写入时机较为特殊，它不会立刻进行刷盘，而是等待内存页面被置换出时再进行刷盘，或者进程主动使用 madvise + msnyc 进行刷盘。这是因为操作系统并不确定进程是否会在未来的一段时间内再次对内存片段进行更新，因此采取惰性处理策略会更好。boltdb 中选择使用了<code>writeAt</code>接口进行文件写入。当一个写事务被提交时，它会将当前数据库文件中的所有脏页写回到硬盘中。</p>
+<h2 id="struct-零成本重建"><a href="#struct-零成本重建" class="headerlink" title="struct 零成本重建"></a>struct 零成本重建</h2><p>boltdb 使用了直接映射的方式来完成一些数据结构的写入和重建，该方式并不会拷贝内存而是重新解释 unsafe pointer 来完成对象的重建，这些操作使用了 unsafe.go 中的接口：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeAdd</span><span class="params">(base unsafe.Pointer, offset <span class="type">uintptr</span>)</span></span> unsafe.Pointer &#123;</span><br><span class="line">    <span class="keyword">return</span> unsafe.Pointer(<span class="type">uintptr</span>(base) + offset)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeIndex</span><span class="params">(base unsafe.Pointer, offset <span class="type">uintptr</span>, elemsz <span class="type">uintptr</span>, n <span class="type">int</span>)</span></span> unsafe.Pointer &#123;</span><br><span class="line">    <span class="keyword">return</span> unsafe.Pointer(<span class="type">uintptr</span>(base) + offset + <span class="type">uintptr</span>(n)*elemsz)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeByteSlice</span><span class="params">(base unsafe.Pointer, offset <span class="type">uintptr</span>, i, j <span class="type">int</span>)</span></span> []<span class="type">byte</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> (*[maxAllocSize]<span class="type">byte</span>)(unsafeAdd(base, offset))[i:j:j]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// unsafeSlice modifies the data, len, and cap of a slice variable pointed to by</span></span><br><span class="line"><span class="comment">// the slice parameter.  This helper should be used over other direct</span></span><br><span class="line"><span class="comment">// manipulation of reflect.SliceHeader to prevent misuse, namely, converting</span></span><br><span class="line"><span class="comment">// from reflect.SliceHeader to a Go slice type.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeSlice</span><span class="params">(slice, data unsafe.Pointer, <span class="built_in">len</span> <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">    s := (*reflect.SliceHeader)(slice)</span><br><span class="line">    s.Data = <span class="type">uintptr</span>(data)</span><br><span class="line">    s.Cap = <span class="built_in">len</span></span><br><span class="line">    s.Len = <span class="built_in">len</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该方法可以用来进行简单对象的转换，相当于进行了一次对象的引用，重建后的对象地址会发生改变，但对象内容中的各个子对象地址都不会发生改变；下面使用一个 demo 来演示该方法是如何工作的：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Foo <span class="keyword">struct</span> &#123;</span><br><span class="line">	content1 <span class="type">int32</span></span><br><span class="line">	content2 <span class="type">int32</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(d *Foo)</span></span> unsafeByteSlice() []<span class="type">byte</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> (*[unsafe.Sizeof(*d)]<span class="type">byte</span>)(unsafe.Pointer(d))[<span class="number">0</span>:unsafe.Sizeof(*d)]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">parseFromByteSlice</span><span class="params">(serialized []<span class="type">byte</span>)</span></span> *Foo &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> (*Foo)(unsafe.Pointer(&amp;serialized[<span class="number">0</span>]))</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">ObjectSerializedTest</span><span class="params">()</span></span> &#123;</span><br><span class="line">	d := Foo&#123;<span class="number">1</span>, <span class="number">2</span>&#125;</span><br><span class="line"></span><br><span class="line">	now := time.Now()</span><br><span class="line"></span><br><span class="line">	slice := d.unsafeByteSlice()</span><br><span class="line">	d.content2 = <span class="number">3</span></span><br><span class="line"></span><br><span class="line">	dd := parseFromByteSlice(slice)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;time cost:&quot;</span>, time.Since(now).Nanoseconds(), <span class="string">&quot;ns&quot;</span>)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd.content1:&quot;</span>, dd.content1)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd.content2:&quot;</span>, dd.content2)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;d address:&quot;</span>, &amp;d)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd address:&quot;</span>, &amp;dd)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;d content1 address:&quot;</span>, &amp;d.content1)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd content2 address:&quot;</span>, &amp;dd.content1)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>demo 先获取对象 d 的内存片段，然后修改对象 dd 的值，再使用该内存片段重建对象，程序输出结果为：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">time cost: <span class="number">162</span> ns</span><br><span class="line">dd.content1: <span class="number">1</span></span><br><span class="line">dd.content2: <span class="number">3</span></span><br><span class="line">d address: <span class="number">0xc000062f38</span></span><br><span class="line">dd address: <span class="number">0xc000062f50</span></span><br><span class="line">d content1 address: <span class="number">0xc000062f38</span></span><br><span class="line">dd content2 address: <span class="number">0xc000062f38</span></span><br></pre></td></tr></table></figure>
+
+<p>可以看到，dd 与 d 两个对象的地址是不同的，但是 dd.content1 与 d.content1 地址是相同的；因此即使在进行映射后更改 d 中的值，也会造成 dd 的改变。运用此方法进行 struct -&gt; slice -&gt; struct 耗时仅为 162ns，主要耗时集中在类型转换上。</p>
+<h2 id="接口设计"><a href="#接口设计" class="headerlink" title="接口设计"></a>接口设计</h2><p>由于 boltdb 内部使用了读写锁，为了对读写事务加以区分，并给予用户较高的自由度，boltdb 设计了如下接口：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 只读事务</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> View(fn <span class="function"><span class="keyword">func</span><span class="params">(*Tx)</span></span> <span class="type">error</span>) <span class="type">error</span></span><br><span class="line"><span class="comment">// 写事务</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> Update(fn <span class="function"><span class="keyword">func</span><span class="params">(*Tx)</span></span> <span class="type">error</span>) <span class="type">error</span></span><br><span class="line"><span class="comment">// 批处理事务</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> Batch(fn <span class="function"><span class="keyword">func</span><span class="params">(*Tx)</span></span> <span class="type">error</span>) <span class="type">error</span></span><br><span class="line"><span class="comment">// 原始事务接口</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> Begin(writable <span class="type">bool</span>) (*Tx, <span class="type">error</span>)</span><br></pre></td></tr></table></figure>
+
+<p>在事务的开启阶段，就可以简单地对事务进行区分，更好地处理读写并行关系。</p>
+<h2 id="写入性能"><a href="#写入性能" class="headerlink" title="写入性能"></a>写入性能</h2><p>归根结底，一个基于硬盘的数据库系统的性能瓶颈是硬盘的 IO 速度，在其他的数据库设计中，面对写入，都是先使用低成本的操作记录写入日志，然后再将写入内容搬运到具体的位置上，才能够获得较高的写入性能。而 boltdb 的设计中，并没有对写入操作进行任何的缓冲机制，而是直接将写入内容放入到硬盘中，这是其写入性能较低的根本原因。但是这种设计能够很简单地实现事务的串行，任何设计都有取舍，写入性能就是 boltdb 舍弃掉的东西。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/go/" rel="tag"><i class="fa fa-tag"></i> go</a>
+              <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/01/27/%E4%BB%A5freecachebigcache%E4%B8%BA%E4%BE%8B%E7%9C%8Bgo%E8%BF%9B%E7%A8%8B%E5%86%85%E7%BC%93%E5%AD%98/" rel="prev" title="以freecache和bigcache为例看go进程内缓存">
+      <i class="fa fa-chevron-left"></i> 以freecache和bigcache为例看go进程内缓存
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%90%84%E6%A8%A1%E5%9D%97%E5%AE%9E%E7%8E%B0%E6%96%B9%E5%BC%8F"><span class="nav-number">1.</span> <span class="nav-text">各模块实现方式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#mmap-%E6%98%A0%E5%B0%84"><span class="nav-number">2.</span> <span class="nav-text">mmap 映射</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#struct-%E9%9B%B6%E6%88%90%E6%9C%AC%E9%87%8D%E5%BB%BA"><span class="nav-number">3.</span> <span class="nav-text">struct 零成本重建</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8E%A5%E5%8F%A3%E8%AE%BE%E8%AE%A1"><span class="nav-number">4.</span> <span class="nav-text">接口设计</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%99%E5%85%A5%E6%80%A7%E8%83%BD"><span class="nav-number">5.</span> <span class="nav-text">写入性能</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description">技术爱好者</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">34</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="sidebar-button motion-element">
+    lol welcome!
+  </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Tangrc99</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+<script src="https://unpkg.com/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+
+<script>
+var options = {
+  bottom: '64px',
+  right: '32px',
+  left: 'unset',
+  time: '0.5s',
+  mixColor: 'transparent',
+  backgroundColor: 'transparent',
+  buttonColorDark: '#100f2c',
+  buttonColorLight: '#fff',
+  saveInCookies: true,
+  label: '🌓',
+  autoMatchOsTheme: true
+}
+const darkmode = new Darkmode(options);
+window.darkmode = darkmode;
+darkmode.showWidget();
+</script>
+
+</body>
+</html>

@@ -34,9 +34,10 @@
 <meta property="og:image" content="https://tangrc99.com/images/697113-20160228211438679-329472687.jpg">
 <meta property="og:image" content="https://tangrc99.com/images/697113-20160228211142163-1933891846.jpg">
 <meta property="og:image" content="https://tangrc99.com/images/dev_queue.png">
+<meta property="og:image" content="https://tangrc99.com/images/linux_nat.png">
 <meta property="og:image" content="https://tangrc99.com/images/lvs_pos.png">
 <meta property="article:published_time" content="2023-01-16T06:06:39.581Z">
-<meta property="article:modified_time" content="2023-01-18T03:32:45.144Z">
+<meta property="article:modified_time" content="2023-01-24T10:32:20.232Z">
 <meta property="article:author" content="tangrc99">
 <meta property="article:tag" content="计算机网络">
 <meta property="article:tag" content="linux">
@@ -110,7 +111,7 @@
       <h1 class="site-title">Sepk</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
-      <p class="site-subtitle" itemprop="description">ww</p>
+      <p class="site-subtitle" itemprop="description">个人博客</p>
   </div>
 
   <div class="site-nav-right">
@@ -235,13 +236,17 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-01-18 11:32:45" itemprop="dateModified" datetime="2023-01-18T11:32:45+08:00">2023-01-18</time>
+                <time title="修改时间：2023-01-24 18:32:20" itemprop="dateModified" datetime="2023-01-24T18:32:20+08:00">2023-01-24</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
               </span>
               <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">计算机网络</span></a>
+                </span>
+                  ，
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
                   <a href="/categories/linux/" itemprop="url" rel="index"><span itemprop="name">linux</span></a>
                 </span>
@@ -253,14 +258,14 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>9.2k</span>
+              <span>9.6k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
                 <i class="far fa-clock"></i>
               </span>
                 <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>8 分钟</span>
+              <span>9 分钟</span>
             </span>
 
         </div>
@@ -332,8 +337,7 @@
 <h4 id="ip-协议"><a href="#ip-协议" class="headerlink" title="ip 协议"></a>ip 协议</h4><p>ip 网络层的入口为<code>ip_rcv</code>，在这一函数中会对包进行检查，如果该 ip 包经过了分割，会首先将多个分片组装。在完成这些预处理工作后，ip 包会经过路由和 netfilter 的处理流程。可见，netfilter 这种内核防火墙并不会对数据包产生复制，利用其来做网络转发性能会远高于 nginx 等应用层代理。具体的处理流程如下图所示：</p>
 <p><img src="/images/697113-20160228211438679-329472687.jpg" alt="img"></p>
 <p>不难看到，ip 协议的处理流程和 iptables 的四链处理流程是一致的。</p>
-<p>在 linux 的netfilter实现中，使用了<code>ip_conntrack</code>结构体来记录每一个连接的状态，该状态是一个协议无关的状态，主要记录连接src 和 dst 的 ip 以及端口号、连接创建时间、发送字节等信息。ip 层协议栈维护了一个 ip_conntrack 的哈希表，用于记录当前活跃的所有连接。</p>
-<p>当一个 ip 包到达协议栈 ip 层时，linux 会在哈希表中查询 src 信息，如果无匹配，代表这是一个新建立的连接；ip 层协议栈将会按照上图进行一次完整处理流程，并将处理结果记录在结构体中。当该连接的后续包进入协议栈时，将不会再运行完整的流程，而是根据第一次的匹配结果来处理。正是这种处理导致了 iptables 配置修改只会对修改时刻之后建立的连接有效。</p>
+<p>在 linux 的netfilter实现中，使用了<code>ip_conntrack</code>结构体来记录每一个连接的状态，该状态是一个协议无关的状态，主要记录连接src 和 dst 的 ip 以及端口号、连接创建时间、发送字节等信息。ip 层协议栈维护了一个 ip_conntrack 的哈希表，用于记录当前活跃的所有<strong>被追踪</strong>连接。</p>
 <h4 id="其他协议"><a href="#其他协议" class="headerlink" title="其他协议"></a>其他协议</h4><p>除了 IP 协议，网络层处理还有 ARP 协议、ICMP 协议等，如果这些协议到达网络层后没有更高层次的协议，那么处理就会结束。以 ICMP 协议为例，数据包在到达网络层后会直接在内核态中被处理，不会再进行传递。linux 内核中处理 ICMP 应答的函数是 <code>icmp_rcv()</code>，<a target="_blank" rel="noopener" href="https://elixir.bootlin.com/linux/v4.4/source/net/ipv4/icmp.c#L975">源码</a>有 100 行左右，但核心功能比较简单，其主要步骤用文字表述后如下：</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">icmp_rcv</span><span class="params">(<span class="keyword">struct</span> sk_buff *skb)</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="comment">// 检验 ICMP 包有效性</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 获取 ICMP 报文类型</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 处理 ICMP 报文消息</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 根据 ICMP 报文类型，选择处理函数，应答处理均在内核态运行</span></span><br><span class="line">  success = icmp_pointers[icmph-&gt;type].handler(skb);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 结束本次网络包读取</span></span><br><span class="line">  <span class="keyword">if</span> (success)  &#123;</span><br><span class="line">    consume_skb(skb);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
@@ -372,6 +376,10 @@
 <p>使用方法可以参考<a target="_blank" rel="noopener" href="https://blog.csdn.net/dog250/article/details/40680765">博客</a>。</p>
 <h3 id="TUN-TAP"><a href="#TUN-TAP" class="headerlink" title="TUN/TAP"></a>TUN/TAP</h3><p>TAP/TUN是Linux内核实现的一对虚拟网络设备，TAP工作在二层，TUN工作在三层，Linux内核通过TAP/TUN设备向绑定该设备的用户空间程序发送数据，反之，用户空间程序也可以像操作硬件网络设备那样，通过TAP/TUN设备发送数据。</p>
 <h3 id="VETH"><a href="#VETH" class="headerlink" title="VETH"></a>VETH</h3><p>VETH 网卡是成对出现的，一对 VETH 网卡可以使用两套不同的协议栈，通常用于网络协议栈的隔离。VETH 网卡可以与物理网卡或其他虚拟网卡进行桥接，通过路由规则就可以实现网路的隔离。</p>
+<h2 id="NAT"><a href="#NAT" class="headerlink" title="NAT"></a>NAT</h2><p>NAT 可以分为 DNAT 和 SNAT 两种，由于进行 NAT 操作的主机必须记录转换前与转换后的对应关系，必须要建表来对 NAT 状态进行记录和追踪。但由于 linux 中已经具有链路追踪的功能，为了减少内存占用，linux 中的 nat 实现是依赖于 ip_conntrack 的。在前面的介绍中，提到过位于传输层协议栈，具有一个 ip_conntrack 哈希表，该哈希表就是 linux 中 nat 的实现基础。</p>
+<p>考虑如下的一次 SNAT，源地址为 ip1:port1，目的地址为 ip2:port2，需要转换的地址为 ip3:port3。首先在正向连接中，会创建 origin tuple 和 reply tuple，插入到连接对应的 ip_contrack 结构中，随后修改 reply tuple 中的信息；将修改完成后的两个 tuple 计算哈希值，插入到连接追踪表中。</p>
+<p><img src="/images/linux_nat.png" alt="linux_nat"></p>
+<p>这样，在反向连接中，就可以通过查询连接追踪表来判断是否需要进行 de-SNAT 操作。如本次连接中，可以通过 hash_value2 来查询到对应的 tuple 信息，发现该 tuple 在所属的 ip_conntrack 为 reply tuple，然后根据 origin tuple 中的信息就可以知道如何进行 de-NAT 操作。</p>
 <h2 id="LVS"><a href="#LVS" class="headerlink" title="LVS"></a>LVS</h2><p>lvs(linux virtual server)是工作在网络层的一个虚拟服务器，工作在内核态。lvs 是利用 netfilter 的 hook 来实现的，它能够截获指定条件的 ip 包，并将其根据一定的策略转发到其他 linux 主机上，实现服务器的负载均衡。lvs 的工作位置比较特殊，它位于网络层与传输层之间。</p>
 <p><img src="/images/lvs_pos.png" alt="/images/lvs_pos.png"></p>
 <p>在经过网络层的处理之后，数据包会先被 lvs 截获，如果满足 lvs 的匹配条件，那么将会由 lvs 进行处理；若果不满足 lvs 的匹配条件，数据包才会被递交给传输层。由于 lvs 的特殊位置，在下层协议栈以及其他主机的视角中，它是作为一个传输层/应用层设备工作的，所以它被称作是一个“服务器”。但是，由于 lvs 并不真实处理应用层的请求，只是将数据包转发给其他的真实服务器，所以称其是“虚拟的”。lvs 更像是一个虚拟的应用层网关。</p>
@@ -471,7 +479,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
-          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#linux-%E5%86%85%E6%A0%B8%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.</span> <span class="nav-text">linux 内核网络模型</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%87%8D%E8%A6%81%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="nav-number">2.</span> <span class="nav-text">重要数据结构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#net-device"><span class="nav-number">2.1.</span> <span class="nav-text">net_device</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#socket"><span class="nav-number">2.2.</span> <span class="nav-text">socket</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sk-buff"><span class="nav-number">2.3.</span> <span class="nav-text">sk_buff</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%8C%85%E7%9A%84%E8%AF%BB%E5%8F%96%E6%B5%81%E7%A8%8B"><span class="nav-number">3.</span> <span class="nav-text">网络包的读取流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E7%A1%AC%E4%B8%AD%E6%96%AD"><span class="nav-number">3.1.</span> <span class="nav-text">网络设备硬中断</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BD%AF%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E5%85%A5%E5%8F%A3"><span class="nav-number">3.2.</span> <span class="nav-text">软中断处理入口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%B1%82%E5%A4%84%E7%90%86"><span class="nav-number">3.3.</span> <span class="nav-text">网络层处理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#ip-%E5%8D%8F%E8%AE%AE"><span class="nav-number">3.3.1.</span> <span class="nav-text">ip 协议</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%B6%E4%BB%96%E5%8D%8F%E8%AE%AE"><span class="nav-number">3.3.2.</span> <span class="nav-text">其他协议</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BC%A0%E8%BE%93%E5%B1%82%E5%A4%84%E7%90%86"><span class="nav-number">3.4.</span> <span class="nav-text">传输层处理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#TCP-%E9%83%A8%E5%88%86"><span class="nav-number">3.4.1.</span> <span class="nav-text">TCP 部分</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#UDP-%E9%83%A8%E5%88%86"><span class="nav-number">3.4.2.</span> <span class="nav-text">UDP 部分</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%8C%85%E7%9A%84%E5%86%99%E5%85%A5%E6%B5%81%E7%A8%8B"><span class="nav-number">4.</span> <span class="nav-text">网络包的写入流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BC%A0%E8%BE%93%E5%B1%82"><span class="nav-number">4.1.</span> <span class="nav-text">传输层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%B1%82"><span class="nav-number">4.2.</span> <span class="nav-text">网络层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E9%93%BE%E8%B7%AF%E5%B1%82"><span class="nav-number">4.3.</span> <span class="nav-text">数据链路层</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%99%9A%E6%8B%9F%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87"><span class="nav-number">5.</span> <span class="nav-text">虚拟网络设备</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Loopback-Interface"><span class="nav-number">5.1.</span> <span class="nav-text">Loopback Interface</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#IFB"><span class="nav-number">5.2.</span> <span class="nav-text">IFB</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#TUN-TAP"><span class="nav-number">5.3.</span> <span class="nav-text">TUN&#x2F;TAP</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#VETH"><span class="nav-number">5.4.</span> <span class="nav-text">VETH</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#LVS"><span class="nav-number">6.</span> <span class="nav-text">LVS</span></a></li></ol></div>
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#linux-%E5%86%85%E6%A0%B8%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B"><span class="nav-number">1.</span> <span class="nav-text">linux 内核网络模型</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%87%8D%E8%A6%81%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="nav-number">2.</span> <span class="nav-text">重要数据结构</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#net-device"><span class="nav-number">2.1.</span> <span class="nav-text">net_device</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#socket"><span class="nav-number">2.2.</span> <span class="nav-text">socket</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sk-buff"><span class="nav-number">2.3.</span> <span class="nav-text">sk_buff</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%8C%85%E7%9A%84%E8%AF%BB%E5%8F%96%E6%B5%81%E7%A8%8B"><span class="nav-number">3.</span> <span class="nav-text">网络包的读取流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E7%A1%AC%E4%B8%AD%E6%96%AD"><span class="nav-number">3.1.</span> <span class="nav-text">网络设备硬中断</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BD%AF%E4%B8%AD%E6%96%AD%E5%A4%84%E7%90%86%E5%85%A5%E5%8F%A3"><span class="nav-number">3.2.</span> <span class="nav-text">软中断处理入口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%B1%82%E5%A4%84%E7%90%86"><span class="nav-number">3.3.</span> <span class="nav-text">网络层处理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#ip-%E5%8D%8F%E8%AE%AE"><span class="nav-number">3.3.1.</span> <span class="nav-text">ip 协议</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%85%B6%E4%BB%96%E5%8D%8F%E8%AE%AE"><span class="nav-number">3.3.2.</span> <span class="nav-text">其他协议</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BC%A0%E8%BE%93%E5%B1%82%E5%A4%84%E7%90%86"><span class="nav-number">3.4.</span> <span class="nav-text">传输层处理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#TCP-%E9%83%A8%E5%88%86"><span class="nav-number">3.4.1.</span> <span class="nav-text">TCP 部分</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#UDP-%E9%83%A8%E5%88%86"><span class="nav-number">3.4.2.</span> <span class="nav-text">UDP 部分</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%8C%85%E7%9A%84%E5%86%99%E5%85%A5%E6%B5%81%E7%A8%8B"><span class="nav-number">4.</span> <span class="nav-text">网络包的写入流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BC%A0%E8%BE%93%E5%B1%82"><span class="nav-number">4.1.</span> <span class="nav-text">传输层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%B1%82"><span class="nav-number">4.2.</span> <span class="nav-text">网络层</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E9%93%BE%E8%B7%AF%E5%B1%82"><span class="nav-number">4.3.</span> <span class="nav-text">数据链路层</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%99%9A%E6%8B%9F%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87"><span class="nav-number">5.</span> <span class="nav-text">虚拟网络设备</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Loopback-Interface"><span class="nav-number">5.1.</span> <span class="nav-text">Loopback Interface</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#IFB"><span class="nav-number">5.2.</span> <span class="nav-text">IFB</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#TUN-TAP"><span class="nav-number">5.3.</span> <span class="nav-text">TUN&#x2F;TAP</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#VETH"><span class="nav-number">5.4.</span> <span class="nav-text">VETH</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#NAT"><span class="nav-number">6.</span> <span class="nav-text">NAT</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#LVS"><span class="nav-number">7.</span> <span class="nav-text">LVS</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -487,20 +495,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">30</span>
+          <span class="site-state-item-count">34</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-count">15</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-count">17</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>

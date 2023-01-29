@@ -99,7 +99,7 @@
       <h1 class="site-title">Sepk</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
-      <p class="site-subtitle" itemprop="description">ww</p>
+      <p class="site-subtitle" itemprop="description">个人博客</p>
   </div>
 
   <div class="site-nav-right">
@@ -193,7 +193,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/25/TCP%E4%B8%A4%E6%AC%A1%E6%8C%A5%E6%89%8B%E2%80%94%E2%80%94%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E6%8A%93%E5%8C%85%E5%BC%82%E5%B8%B8/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/25/Docker%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -207,7 +207,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/25/TCP%E4%B8%A4%E6%AC%A1%E6%8C%A5%E6%89%8B%E2%80%94%E2%80%94%E8%AE%B0%E5%BD%95%E4%B8%80%E6%AC%A1%E6%8A%93%E5%8C%85%E5%BC%82%E5%B8%B8/" class="post-title-link" itemprop="url">TCP 两次挥手？记录一次抓包异常</a>
+            <a href="/2022/12/25/Docker%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">Docker 网络模型</a>
         </h2>
 
         <div class="post-meta">
@@ -217,14 +217,14 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2022-12-25 15:16:45" itemprop="dateCreated datePublished" datetime="2022-12-25T15:16:45+08:00">2022-12-25</time>
+              <time title="创建时间：2022-12-25 16:53:15" itemprop="dateCreated datePublished" datetime="2022-12-25T16:53:15+08:00">2022-12-25</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-01-17 19:27:10" itemprop="dateModified" datetime="2023-01-17T19:27:10+08:00">2023-01-17</time>
+                <time title="修改时间：2022-12-26 14:30:34" itemprop="dateModified" datetime="2022-12-26T14:30:34+08:00">2022-12-26</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -232,11 +232,7 @@
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">计算机网络</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/tcp/" itemprop="url" rel="index"><span itemprop="name">tcp</span></a>
+                  <a href="/categories/%E4%BA%91%E6%8A%80%E6%9C%AF/" itemprop="url" rel="index"><span itemprop="name">云技术</span></a>
                 </span>
             </span>
 
@@ -246,14 +242,14 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>1.3k</span>
+              <span>2.2k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
                 <i class="far fa-clock"></i>
               </span>
                 <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>1 分钟</span>
+              <span>2 分钟</span>
             </span>
 
         </div>
@@ -265,29 +261,33 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="TCP-两次挥手？记录一次抓包异常"><a href="#TCP-两次挥手？记录一次抓包异常" class="headerlink" title="TCP 两次挥手？记录一次抓包异常"></a>TCP 两次挥手？记录一次抓包异常</h1><h2 id="问题简述"><a href="#问题简述" class="headerlink" title="问题简述"></a>问题简述</h2><p>我们都知道，正常的 TCP 关闭连接时是需要发生四次挥手的。但是在 wireshark 的一次抓包过程中，我却偶然发现了有一个 tcp 连接只发生了两次挥手，即客户端发送了 FIN 报文，并且收到了服务端的 ACK 报文，但是服务端却没有继续发送 FIN 报文，本次异常断开的抓包结果如下，图中的 192.168.10.1 是某经过系统刷机的路由器：</p>
-<p><img src="/images/image-20221225152318823.png" alt="img"></p>
-<p>这其实是由于服务端在收到客户端的关闭请求后，并没有使用系统调用 shutdown 或者 close 来对 tcp 通道进行关闭，导致这时的 tcp 连接变成了一个半双工的状态，即服务端仍然保持写入状态（虽然并没有数据需要写入)。这里可能是路由器的 http 服务中忘记对客户端连接进行关闭所导致的一次 tcp 异常断开。</p>
-<h2 id="孤儿-socket-在-tcp-挥手的作用"><a href="#孤儿-socket-在-tcp-挥手的作用" class="headerlink" title="孤儿 socket 在 tcp 挥手的作用"></a>孤儿 socket 在 tcp 挥手的作用</h2><p>在本次的 tcp 连接断开异常后，如果服务端还有数据需要写入，但是此时客户端中的浏览器已经关闭，这种情况下操作系统是如何处理的呢？</p>
-<p>这里需要提到一个概念：孤儿 socket。这是 socket 的一个特殊的状态，该状态下用户进程不再继续对 socket 持有，不进行写入和读取操作，但是 socket 仍未完成 tcp 的四次挥手，这时系统栈中仍然会保留该 socket 的资源来进行 tcp 挥手操作。孤儿 socket 的引入就是为了解决 tcp 连接不能够正常断开的情况的。在孤儿 socket 的引入后，一次 tcp 挥手的流程可以分为不同的情况：</p>
-<p>不优雅的 tcp 关闭（一）：客户端直接调用 close</p>
-<ul>
-<li>客户端需要关闭连接时，直接使用 close 系统调用，发送一个 FIN 报文，此后 socket 资源栈全部由系统负责（孤儿 socket）。</li>
-<li>服务端接收到 FIN 报文，并回复 ACK 报文，若此时服务端无数据需要写入，则再发送一个 FIN，接收到 ACK 后 socket 正常释放。</li>
-<li>若服务端接收到 FIN 报文后，仍然需要写入数据，由于对端已经全双工关闭，无法接受到数据，此时对端的操作系统协议栈在收到数据后会给服务端发送 RST 报文，提醒对端协议栈进行关闭。此时进程继续写入数据会收到一个 EOF 提醒，进程必须放弃写入，否则继续写入将会收到一个 SIGPIPE 信号。</li>
+          <h1 id="Docker-网络模型"><a href="#Docker-网络模型" class="headerlink" title="Docker 网络模型"></a>Docker 网络模型</h1><p>Docker 容器为了实现网络隔离，可以看作连接在不同虚拟网卡上的主机。网络隔离的基本需求是不同虚拟主机直接网络不能够互通，虚拟主机可以访问外部设备，而外部设备不能够直接访问虚拟主机，只能够通过端口来访问。</p>
+<h3 id="根据链来分"><a href="#根据链来分" class="headerlink" title="根据链来分"></a>根据链来分</h3><ul>
+<li>FORWARD 拦截所有非本地流量，所有 docker 流量都被包含在这里。下图，ISO 是隔离不同网桥之间的互相访问。由于已经过滤掉了不同隔离网络之间的访问，所以 docker 链中是接受所有外界的流量到 docker 网卡中。再往下两条是允许虚拟网卡流量流向主机外部和网卡本身。<br><img src="/images/25044E49-54B6-443E-AD9D-28A50BA05F43.jpg" alt="image">￼</li>
+<li>OUTPUT 和PREROUTING链则是截获所有本地非容器流量，他们都公用 DOCKER 链，如果发现是要访问host:port，将其 DNAT 到对应的容器地址。<br><img src="/images/46722EDA-E303-4193-BA0E-FFF224792801.jpg" alt="image">￼</li>
+<li>POSTROUTING 链是将所有容器访问主机外的流量，伪装成本地流量。<br><img src="/images/FCF35C50-9952-49CA-8613-306460E4EE80.jpg" alt="image">￼</li>
 </ul>
-<p>不优雅的 tcp 关闭（二）：客户端进程崩溃</p>
+<h3 id="单机网桥模式"><a href="#单机网桥模式" class="headerlink" title="单机网桥模式"></a>单机网桥模式</h3><p>单机网桥模式是没有指定任何网络选项的容器，假设容器的虚拟 ip 为 172.10.0.x，由于该网段宿主机并没有暴露给外界，因此外界无法访问容器。但有一种例外情况，就是外界主机通过修改路由表强行将 172.10.0.x 的流量转发给宿主机。这样流量在到达宿主机后是可以匹配到一条路由规则的，从而实现外界流量访问虚拟容器。</p>
+<p>容器内部的出流量在宿主机的 POST 链做了 MASQUERADE 处理，所以可以访问外界。假设容器的虚拟 ip 为 172.10.0.x，容器所有的出流量都会经过宿主机的 OUTPUT 和 POSTROUTING 链后选择合适的网卡进行转发。根据 docker 设置的 iptables 规则，所有出流量在 POSTROUTING 链经过 MASQUERADE 的 SNAT 伪装成为宿主机流量。tcp 回路的时候，宿主机会发现该数据包经历过 SNAT 规则转发，自动将回包的地址修改为 172.10.0.x，经过本地的路由规则转发到 docker0 网桥后就可以发送给对应的虚拟容器。</p>
+<h3 id="网桥模式"><a href="#网桥模式" class="headerlink" title="网桥模式"></a>网桥模式</h3><p>网桥模式即使用 -p 选项进行端口映射来启动的容器。单机网桥模式会复用主机端的端口，外部流量通过宿主机的 ip 地址加对应的端口号来访问虚拟容器。因此流量只要是到达主机的对应端口，就默认一定是访问主机端的服务。只用端口来判断流量是否走向 docker 容器就可以了。</p>
 <ul>
-<li>客户端进程崩溃会导致服务端进程不会收到任何 FIN 报文，此时的客户端 socket 同样是一个孤儿 socket。</li>
-<li>客户端进程崩溃的情况下，系统的协议栈会自动给对方发送 RST 报文来重置连接。</li>
+<li>外部流量入：外部流量需要走 PREROUTING-FORWARD-POSTROUTIN 链，外部流量的网卡是除了docker自带的网卡之外的所有网卡。所以这些流量都需要在 PREROUTING 做 DNAT 处理，将流量的目的地址修改为 docker 容器的网段。</li>
+<li>经过 DNAT 后，宿主机发现流量流向地址不是本地应用，转发到 FORWARD 和 POSTROUTING，并且根据路由表转发到容器对应的虚拟网卡里面。</li>
+<li>内部流量出：docker 容器出流量也是宿主机应用出流量，所以会从 docker 虚拟网卡发送到 OUTPUT 链，需要在 OUTPUT 链中进行 MASQUERADE 将发送到外部的流量全部 SNAT 为宿主机的地址；此外，还要将发送给本机暴露出的端口也进行 SNAT 处理，即自访问。</li>
+<li>不同网桥之间的隔离操作：一个网桥发送给其他网桥的流量不会 SNAT 和 DNAT，会被直接发送到虚拟网卡上。虚拟网卡的入链同样会走 PRE 链，检测到是虚拟网卡流量，直接不进行操作。放行到 FORWARD，检测到不同网桥之间的相互访问，由 ISO1 截获，由 ISO2 丢弃。</li>
+<li>用户安全性操作：所有外部流量在截获前，都会被DOCKER-USER 链截获，用户需要将自己的链接入 DOCKER-USER 链中。</li>
 </ul>
-<p>优雅的 tcp 关闭：使用 shutdown 进行关闭</p>
+<p>网桥模式中，主要是通过匹配端口号来实现外部流量的转发的，内部流量的流出过程与单机网桥模式是相同的。除此此外，网桥模式下还需要对不同 docker 网络段之间的流量进行隔离操作，防止没有连接的两个虚拟网络段之间相互通信。</p>
+<h3 id="DNS-服务器"><a href="#DNS-服务器" class="headerlink" title="DNS 服务器"></a>DNS 服务器</h3><p>对于使用了 network 选项启动的容器，docker 会自动使用 127.0.0.11 来创建一个 DNS 服务器，所有 docker 创建出的进程会使用该地址作为默认的 DNS 服务器。并且每一个服务名都会作为一个域名进行注册。该内嵌的 DNS 服务器会根据容器的网段地址来进行选择性查询，从而来实现不同网络驱动之间的域名隔离。</p>
+<h3 id="ROUTING-MESH模式"><a href="#ROUTING-MESH模式" class="headerlink" title="ROUTING MESH模式"></a>ROUTING MESH模式</h3><p>该模式的意思是，从任何一个宿主机上暴露端口访问，都可以被负载均衡到任一台宿主机的容器上。</p>
+<p><img src="/images/F0FC6715-47DA-4E75-AB35-A856B43431AA3.jpg" alt="image">￼</p>
 <ul>
-<li>客户端需要关闭连接时，使用 shutdown 关闭写入端，使 tcp 成为半双工状态，向对方发送 FIN 报文。</li>
-<li>服务端接收到 FIN 报文，回复 ACK 报文，在完成写入后使用 close 或 shutdown 系统调用关闭连接，发送 FIN 报文。</li>
-<li>客户端接收到 FIN 报文并且回复一个 ACK 报文。</li>
+<li>外部流量入口：所有的外部流量都会被 PREROUTING 中的 DOCKER-INGRESS 链截获。如果流量目标端口是一个使用 overlay 网络模式的容器，那么该流量会被捕获到 172.18.0.2 容器中。</li>
+<li>ingress-sbox：用来进行第二步iptables 流量控制。这里是通过mark+ipvs的方式来完成的，ipvs 的 vip 被绑定到overlay-bridge上。FORWARD 和 INPUT 链都会对不同端口数据包进行不同的标记，当数据包通过 INPUT 进入ipvs的vip 时，根据不同的标记进行负载均衡。</li>
+<li>目标容器：直接对流量进行处理。</li>
+<li>容器流量出口：vxlan 流量出来经过容器后，会经重定向发送到挂在宿主机的虚拟网卡。此时，网卡会被 OUTPUT链截获，如果发现是发送给 overlay 网络的流量，则会被 DNAT 到 ingress-box中。注意，docker_gwbridge 没有做外部 DNAT，无法被外部访问。</li>
+<li>以上是实现了overlay网络与普通网络流量之间的隔离。这个隔离是使用一个容器来完成的。</li>
 </ul>
-<h2 id="HTTP-重定向"><a href="#HTTP-重定向" class="headerlink" title="HTTP 重定向"></a>HTTP 重定向</h2><p>如果仔细看上述的抓包结果，可以注意到当客户端收到一个 HTTP 302 报文后，客户端会主动关闭 tcp 连接，并且重启一个新的 tcp 连接来访问重定向后的 url。这是因为重定向后的结果可能在一个新的 host 下，所以旧连接不一定可用，重新启动一个 tcp 连接更加安全。</p>
 
       
     </div>
@@ -306,7 +306,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/20/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><span class="page-number current">21</span><a class="page-number" href="/page/22/">22</a><span class="space">&hellip;</span><a class="page-number" href="/page/30/">30</a><a class="extend next" rel="next" href="/page/22/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/20/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><span class="page-number current">21</span><a class="page-number" href="/page/22/">22</a><span class="space">&hellip;</span><a class="page-number" href="/page/34/">34</a><a class="extend next" rel="next" href="/page/22/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -374,20 +374,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">30</span>
+          <span class="site-state-item-count">34</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-count">15</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-count">17</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>

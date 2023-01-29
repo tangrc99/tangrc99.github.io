@@ -99,7 +99,7 @@
       <h1 class="site-title">Sepk</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
-      <p class="site-subtitle" itemprop="description">ww</p>
+      <p class="site-subtitle" itemprop="description">个人博客</p>
   </div>
 
   <div class="site-nav-right">
@@ -193,7 +193,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/26/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/27/BSON%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -207,7 +207,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/26/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/" class="post-title-link" itemprop="url">MongoDB 无锁 Write FLow</a>
+            <a href="/2022/12/27/BSON%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">BSON结构分析</a>
         </h2>
 
         <div class="post-meta">
@@ -216,9 +216,8 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
-              
 
-              <time title="创建时间：2022-12-26 16:00:28 / 修改时间：16:57:26" itemprop="dateCreated datePublished" datetime="2022-12-26T16:00:28+08:00">2022-12-26</time>
+              <time title="创建时间：2022-12-27 00:08:27" itemprop="dateCreated datePublished" datetime="2022-12-27T00:08:27+08:00">2022-12-27</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -240,7 +239,7 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>1.2k</span>
+              <span>783</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
@@ -259,21 +258,22 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="MongoDB-无锁-Write-FLow"><a href="#MongoDB-无锁-Write-FLow" class="headerlink" title="MongoDB 无锁 Write FLow"></a>MongoDB 无锁 Write FLow</h1><h2 id="同一-key-的无锁读写"><a href="#同一-key-的无锁读写" class="headerlink" title="同一 key 的无锁读写"></a>同一 key 的无锁读写</h2><p>MongoDB 的一个 B+树索引中具有三个数据结构来存储键值对数据：</p>
+          <h1 id="BSON-结构分析"><a href="#BSON-结构分析" class="headerlink" title="BSON 结构分析"></a>BSON 结构分析</h1><h2 id="BSON-简介"><a href="#BSON-简介" class="headerlink" title="BSON 简介"></a>BSON 简介</h2><p>BSON 全称是 Binary JSON, 和 JSON 很像，但是采用二进制格式进行存储。相比 JSON 有以下优势：</p>
 <ul>
-<li>WT_ROW 数组，存储原本 Check Point 时刻的值。</li>
-<li>WT_UPDATE 跳跃表数组，存储已有键值对的更新值。</li>
-<li>WT_INSERT_HEAD 跳跃表数组，存储新插入键值对的更新值。</li>
+<li><strong>访问速度更快。</strong>BSON 会存储 Value 的类型，相比于明文存储，不需要进行字符串类型到其他类型的转换操作。以整型 12345678 为例，JSON 需要将字符串转成整型，而 BSON 中存储了整型类型标志，并用 4 个字节直接存储了整型值；</li>
+<li><strong>存储空间更低。</strong>还是以整型 12345678 为例，JSON 采用明文存储的方式需要 8 个字节，但是 BSON 对于 Int32 的值统一采用 4 字节存储，Long 和 Double 采用 8 字节存储。 当然这里说存储空间更低也分具体情况，比如对于小整型，BSON 消耗的空间反而更高；</li>
+<li><strong>数据类型更丰富。</strong>BSON 相比 JSON，增加了 BinData，TimeStamp，ObjectID，Decimal128 等类型。</li>
 </ul>
-<p>MongoDB 中所有的写操作并不会直接修改原有的内存位置，而是将新数据写入到B+树索引节点中的跳跃表中。结合惰性删除机制，跳跃表是可以做到无锁读写的。</p>
-<p>但是这种设计会使得读取的流程较长，因为要查询数据需要依次搜索WT_UPDATE，WT_ROW和WT_INSERT_HEAD 这三个数据结构，当插入数据过多时，跳跃表的搜索性能是要比 WT_ROW 的有序数组结构差的。</p>
-<h2 id="Check-Point-技术"><a href="#Check-Point-技术" class="headerlink" title="Check Point 技术"></a>Check Point 技术</h2><p>MongoDB 中会定期对 B+ 树进行整理，防止插入数据过多，影响读取性能，Check Point 技术会定期整理内存和硬盘中的 B+树结构。</p>
-<p>当一次 Check Point 发生后，MongoDB 将会新建一个 B+树，所有的写入操作会被转移到新的 B+树中。而所有的刷盘以及分裂操作只会影响到旧的 B+ 树。具体过程比较复杂，可以参考《MongoDB 核心原理与实践》。</p>
-<h2 id="变长-Page-减少-B-树节点分裂"><a href="#变长-Page-减少-B-树节点分裂" class="headerlink" title="变长 Page 减少 B+ 树节点分裂"></a>变长 Page 减少 B+ 树节点分裂</h2><p>MongoDB 中的索引部分使用的是 B+ 树这种数据结构，一般来说 B+ 树在节点分裂的过程中是无法做到无锁的，但是 WiredTiger 基于变长 Page 的技术来避免 B+ 树分裂时加锁。</p>
-<p>在数据库系统中，B+树在硬盘中的页面大小通常是硬盘扇区的大小，这主要是考虑到硬盘读写的原子性，防止破坏 B+树节点的内部结构。因为这种考虑，B+树的硬盘节点通常都比较小。而比较小的 B+树节点可能就意味着需要经常进行分裂操作来保持 B+树的平衡性。</p>
-<p>MongoDB 的 B+ 树在内存中和在硬盘中的 page 大小是不相同的，内存中的 page 大小要远远大于硬盘中的 page 大小。当内存中的 B+树 page 需要刷盘时，会将内存 page 分裂为多个硬盘 page 写入到硬盘中，这就是变长 Page 技术。变长 Page 技术能够减少 B+ 树的持久化次数，还能够尽量避免 B+ 树因为插入而导致的分裂。引入了变长 Page 技术后，MongoDB 中索引 B+ 树的节点分裂会被转移到 reconcile 和 eviction 过程中，从而避免了在 Write Flow 中出现索引变更的情况。</p>
-<h2 id="插入过多时小粒度分裂"><a href="#插入过多时小粒度分裂" class="headerlink" title="插入过多时小粒度分裂"></a>插入过多时小粒度分裂</h2><p>仅仅依靠变长 Page 还不能够解决所有的问题，如果在某一时刻发生大量的写入操作，导致一个B+树节点在短时间内就达到了内存 page 的上限，这种情况下依旧需要发生 B+树节点的分裂。</p>
-<p>由于 MongoDB 中所有新插入的节点都是存在于 WT_INSERT_HEAD 跳跃表数组中的，当B+树节点因为插入数量过多需要分裂时，会将WT_INSERT_HEAD 中的最后一个跳跃表复制到新的节点中（MongoDB 中的主键值基本上是自增的，最后一个跳跃表中的节点在大部分情况下是最多的）。这种小粒度的分裂能够避免对B+树进行大面积修改。</p>
+<h2 id="BSON-存储格式"><a href="#BSON-存储格式" class="headerlink" title="BSON 存储格式"></a>BSON 存储格式</h2><p>一条最简单的 BSON 文档，从前向后可以拆解成以下几个部分：</p>
+<ol>
+<li>文档的总长度， 占 4 个字节；</li>
+<li>Value 类型，参考<a target="_blank" rel="noopener" href="https://github.com/mongodb/mongo/blob/r4.2.21/src/mongo/bson/bsontypes.h#L59-L110">代码定义</a>，占 1 个字节；</li>
+<li>Key 的 String 表示形式（Key 只能 String 类型），长度不固定，以 ‘\0’ 结尾，占 len(Key)+1 个字节；</li>
+<li>Value 的二进制存储，比如 Int32 占 4 字节，Long 和 Double 占 8 个字节等；</li>
+<li>文档以 ‘\0’ 结尾，也就是在遍历 BSON 到末尾时，常见的 EOO(End Of Object)，占 1 个字节；</li>
+</ol>
+<h2 id="紧凑格式的缺点"><a href="#紧凑格式的缺点" class="headerlink" title="紧凑格式的缺点"></a>紧凑格式的缺点</h2><p>BSON 的存储格式非常紧凑，不同的键值对之间是无间隔存储。因此，修改 BSON 中的某一字段意味着需要组织处一个新的 BSON 对象。如果增加、删除或者修改了某个字段，要生成新 BSON 文档，而非在原有 BSON 文档上原地修改。</p>
+<p>在使用 MongoDB 时，可以使用 JSON 格式来暂时存储数据以便在不同的程序模块之间传递。当数据需要插入 MongoDB 时，再将数据封存，转换为 BSON 格式。</p>
 
       
     </div>
@@ -292,7 +292,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/15/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><span class="page-number current">16</span><a class="page-number" href="/page/17/">17</a><span class="space">&hellip;</span><a class="page-number" href="/page/30/">30</a><a class="extend next" rel="next" href="/page/17/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/15/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><span class="page-number current">16</span><a class="page-number" href="/page/17/">17</a><span class="space">&hellip;</span><a class="page-number" href="/page/34/">34</a><a class="extend next" rel="next" href="/page/17/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -360,20 +360,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">30</span>
+          <span class="site-state-item-count">34</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-count">15</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-count">17</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
