@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-mac-osx.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="本文结合了 Lua 源码浅析了 Lua 是如何运行并与 C 语言函数进行交互的，适合不理解 Lua 脚本运行机制、VM 运行机制的读者。 Lua 指令码Lua 虽然是脚本语言，但是在运行前需要进行代码编译；与 C&#x2F;C++ 不同，Lua 脚本经过编译生成后的二进制 chunk 文件并不能够直接被物理机识别和运行，只能够在 Lua Virtual Machine ( LVM ) 中运行。Lua 编译后">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Lua 脚本如何运行">
+<meta property="og:url" content="https://tangrc99.com/2023/02/13/Lua-%E8%84%9A%E6%9C%AC%E5%A6%82%E4%BD%95%E8%BF%90%E8%A1%8C/index.html">
+<meta property="og:site_name" content="Sepk">
+<meta property="og:description" content="本文结合了 Lua 源码浅析了 Lua 是如何运行并与 C 语言函数进行交互的，适合不理解 Lua 脚本运行机制、VM 运行机制的读者。 Lua 指令码Lua 虽然是脚本语言，但是在运行前需要进行代码编译；与 C&#x2F;C++ 不同，Lua 脚本经过编译生成后的二进制 chunk 文件并不能够直接被物理机识别和运行，只能够在 Lua Virtual Machine ( LVM ) 中运行。Lua 编译后">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://tangrc99.com/images/lua_compile_run.png">
+<meta property="og:image" content="https://tangrc99.com/images/lua_c.png">
+<meta property="article:published_time" content="2023-02-13T10:38:52.299Z">
+<meta property="article:modified_time" content="2023-02-14T09:36:58.804Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="编程语言">
+<meta property="article:tag" content="Lua">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://tangrc99.com/images/lua_compile_run.png">
+
+<link rel="canonical" href="https://tangrc99.com/2023/02/13/Lua-%E8%84%9A%E6%9C%AC%E5%A6%82%E4%BD%95%E8%BF%90%E8%A1%8C/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Lua 脚本如何运行 | Sepk</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<style>.darkmode--activated{--body-bg-color:#282828;--content-bg-color:#333;--card-bg-color:#555;--text-color:#ccc;--blockquote-color:#bbb;--link-color:#ccc;--link-hover-color:#eee;--brand-color:#ddd;--brand-hover-color:#ddd;--table-row-odd-bg-color:#282828;--table-row-hover-bg-color:#363636;--menu-item-bg-color:#555;--btn-default-bg:#222;--btn-default-color:#ccc;--btn-default-border-color:#555;--btn-default-hover-bg:#666;--btn-default-hover-color:#ccc;--btn-default-hover-border-color:#666;--highlight-background:#282b2e;--highlight-foreground:#a9b7c6;--highlight-gutter-background:#34393d;--highlight-gutter-foreground:#9ca9b6}.darkmode--activated img{opacity:.75}.darkmode--activated img:hover{opacity:.9}.darkmode--activated code{color:#69dbdc;background:0 0}button.darkmode-toggle{z-index:9999}.darkmode-ignore,img{display:flex!important}.beian img{display:inline-block!important}</style></head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Sepk</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">个人博客</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/02/13/Lua-%E8%84%9A%E6%9C%AC%E5%A6%82%E4%BD%95%E8%BF%90%E8%A1%8C/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Lua 脚本如何运行
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-02-13 18:38:52" itemprop="dateCreated datePublished" datetime="2023-02-13T18:38:52+08:00">2023-02-13</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-02-14 17:36:58" itemprop="dateModified" datetime="2023-02-14T17:36:58+08:00">2023-02-14</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/Lua/" itemprop="url" rel="index"><span itemprop="name">Lua</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>7.8k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>7 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>本文结合了 Lua 源码浅析了 Lua 是如何运行并与 C 语言函数进行交互的，适合不理解 Lua 脚本运行机制、VM 运行机制的读者。</p>
+<h2 id="Lua-指令码"><a href="#Lua-指令码" class="headerlink" title="Lua 指令码"></a>Lua 指令码</h2><p>Lua 虽然是脚本语言，但是在运行前需要进行代码编译；与 C/C++ 不同，Lua 脚本经过编译生成后的二进制 chunk 文件并不能够直接被物理机识别和运行，只能够在 Lua Virtual Machine ( LVM ) 中运行。Lua 编译后生成的二进制 chunk 文件是由 Lua 指令集构成的，仅能够被同版本的 Lua 虚拟机环境识别。</p>
+<p><img src="/images/lua_compile_run.png" alt="/images/lua_compile_run.png"></p>
+<p>在 chunk 文件中，主要负责与 LVM 进行交互的部分为 Lua 指令。在 Lua 的源码中，Lua 指令相关的代码主要集中在<code>lopcodes.h</code>文件中，该文件中也包含了对 Lua 指令的介绍：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*===========================================================================</span></span><br><span class="line"><span class="comment">  We assume that instructions are unsigned 32-bit integers.</span></span><br><span class="line"><span class="comment">  All instructions have an opcode in the first 7 bits.</span></span><br><span class="line"><span class="comment">  Instructions can have the following formats:</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">        3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0</span></span><br><span class="line"><span class="comment">        1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0</span></span><br><span class="line"><span class="comment">iABC          C(8)     |      B(8)     |k|     A(8)      |   Op(7)     |</span></span><br><span class="line"><span class="comment">iABx                Bx(17)               |     A(8)      |   Op(7)     |</span></span><br><span class="line"><span class="comment">iAsBx              sBx (signed)(17)      |     A(8)      |   Op(7)     |</span></span><br><span class="line"><span class="comment">iAx                           Ax(25)                     |   Op(7)     |</span></span><br><span class="line"><span class="comment">isJ                           sJ(25)                     |   Op(7)     |</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  A signed argument is represented in excess K: the represented value is</span></span><br><span class="line"><span class="comment">  the written unsigned value minus K, where K is half the maximum for the</span></span><br><span class="line"><span class="comment">  corresponding unsigned argument.</span></span><br><span class="line"><span class="comment">===========================================================================*/</span></span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">OpMode</span> &#123;</span>iABC, iABx, iAsBx, iAx, isJ&#125;;  <span class="comment">/* basic instruction formats */</span></span><br></pre></td></tr></table></figure>
+
+<p>一条 Lua 指令一共有 32 bit，即四个字节，可以分为 C、B、k、A、Op 五个部分。其中 A、B、C 都是 Lua 栈的标识位，用于表示当前指令需要操作的 Lua 栈；k 是一个特殊的标识位，作用在源码中已经详细说明。Op 代表了当前 Lua 指令的种类，用于指示 LVM 应当对栈采取何种操作。考虑到一些 Lua 指令并不需要三个操作数、某些情况需要的栈空间大于一个字节，Lua 指令被设计为 5 种不同的编码格式：iABC、iABx、iAsBx、iAx、isJ。后面四种格式编码的 Lua 指令会对 A、B、C、k 四个部分进行合并，以满足不同的需求。OpMode 并不会直接编码进入 chunk 文件中，一条 Lua 指令的编码格式是根据 Op 的种类来判断的。</p>
+<h2 id="LVM-中指令的运行"><a href="#LVM-中指令的运行" class="headerlink" title="LVM 中指令的运行"></a>LVM 中指令的运行</h2><p>LVM 是 Lua 中最为核心的部分，它负责解释和运行 Lua 指令，并根据指令修改 Lua 栈上的值。Lua 源码中与 LVM 直接相关的代码集中在<code>lvm.h/lvm.c</code>中，其中函数<code>luaV_execute</code>负责接收 Lua 指令并执行。该函数的主要部分是一个巨型 switch-case 结构，用于区分不同的 Lua 指令，我们截取函数中的一小部分：</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">void</span> <span class="title">luaV_execute</span> <span class="params">(lua_State *L, CallInfo *ci)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">	...</span><br><span class="line">        </span><br><span class="line">    <span class="comment">/* main loop of interpreter */</span></span><br><span class="line">    <span class="keyword">for</span> (;;) &#123;</span><br><span class="line">        Instruction i;  <span class="comment">/* instruction being executed */</span></span><br><span class="line">        <span class="built_in">vmfetch</span>();	<span class="comment">/* fetch an instruction and prepare its execution */</span></span><br><span class="line"></span><br><span class="line">        <span class="built_in">lua_assert</span>(base == ci-&gt;func.p + <span class="number">1</span>);</span><br><span class="line">        <span class="built_in">lua_assert</span>(base &lt;= L-&gt;top.p &amp;&amp; L-&gt;top.p &lt;= L-&gt;stack_last.p);</span><br><span class="line">        <span class="comment">/* invalidate top for instructions not expecting it */</span></span><br><span class="line">        <span class="built_in">lua_assert</span>(<span class="built_in">isIT</span>(i) || (<span class="built_in">cast_void</span>(L-&gt;top.p = base), <span class="number">1</span>));</span><br><span class="line"></span><br><span class="line">        <span class="built_in">vmdispatch</span> (<span class="built_in">GET_OPCODE</span>(i)) &#123;    <span class="comment">// i 是指令中 Op 的简写</span></span><br><span class="line">            <span class="comment">// MOVE 指令</span></span><br><span class="line">            <span class="built_in">vmcase</span>(OP_MOVE) &#123;</span><br><span class="line">            StkId ra = <span class="built_in">RA</span>(i);</span><br><span class="line">            <span class="built_in">setobjs2s</span>(L, ra, <span class="built_in">RB</span>(i));</span><br><span class="line">            vmbreak;</span><br><span class="line">            &#125;</span><br><span class="line">            </span><br><span class="line">            ...</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>截取的代码片段有一条 MOVE 指令的执行，在判断为 OP_MOVE 指令后，<code>luaV_execute</code>直接根据该指令的编码格式 iABC （虽然只有两个操作数，但是该指令仍为 iABC 格式），获取两个操作数 A 和 B。跟随<code>RA()</code>函数的调用链：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 获取 A 值大小</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> RA(i)	(base+GETARG_A(i))</span></span><br><span class="line"><span class="comment">// 获取 base 偏移量大小</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> GETARG_A(i)	getarg(i, POS_A, SIZE_A)</span></span><br><span class="line"><span class="comment">// 获取 base 偏移量大小</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> getarg(i,pos,size)	(cast_int(((i)&gt;&gt;(pos)) &amp; MASK1(size,0)))</span></span><br></pre></td></tr></table></figure>
+
+<p>上述代码中的 base 为<code>StkId</code>类型，它是<code>StackValue*</code>类型的 typedef，代表 Lua 栈值的位置：<code>RA()</code>和<code>RB()</code>函数实质上是获取两个 Lua 栈的位置 posA 和 posB，后续的<code>setobjs2s</code>函数的逻辑则是将 posB 的值拷贝给 posA。由于 posA 和 posB 都是根据偏移量计算得到的，因此通过修改 base 的值就可以模拟不同的栈环境进行指令运算。</p>
+<p>通过分析不难发现，Lua 脚本的执行过程其实是完全处于 C 环境下的，各个指令的实现也完全是 C 实现的，与 C 环境之间没有任何的隔离。既然 LVM 中完全使用 C 函数来完全相关功能，那么自然也可以通过某种方法在 Lua 指令的运行过程中来使用其他的 C 函数。</p>
+<h2 id="函数栈切换"><a href="#函数栈切换" class="headerlink" title="函数栈切换"></a>函数栈切换</h2><p>函数的运行是依赖于函数栈来进行环境隔离的，这一点在 Lua 中也不例外。在不指定函数的情况下，LVM 会运行在 main 函数中，并且使用该函数的栈。当调用其他函数时，LVM 将会切换函数栈，从而实现 local 值可见域的切换。</p>
+<p>经过前面对指令寻址的分析，我们得出只需要修改 base 变量就能够实现栈空间的切换，这正是 Lua 源码中的实现方式。当需要调用或退出调用时，LVM 会收到指令<code>OP_CALL</code>和<code>OP_TAILCALL</code>，然后根据指令来进行栈空间的切换。首先分析 LVM 中<code>OP_CALL</code>分支的实现：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">startfunc:</span><br><span class="line">...</span><br><span class="line">base = ci-&gt;func.p + <span class="number">1</span>;</span><br><span class="line">...</span><br><span class="line">vmcase(OP_CALL) &#123;</span><br><span class="line">    StkId ra = RA(i);</span><br><span class="line">    CallInfo *newci;</span><br><span class="line">    <span class="type">int</span> b = GETARG_B(i);</span><br><span class="line">    <span class="type">int</span> nresults = GETARG_C(i) - <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> (b != <span class="number">0</span>)  <span class="comment">/* fixed number of arguments? */</span></span><br><span class="line">      L-&gt;top.p = ra + b;  <span class="comment">/* top signals number of arguments */</span></span><br><span class="line">    <span class="comment">/* else previous instruction set top */</span></span><br><span class="line">    savepc(L);  <span class="comment">/* in case of errors */</span></span><br><span class="line">    <span class="keyword">if</span> ((newci = luaD_precall(L, ra, nresults)) == <span class="literal">NULL</span>)</span><br><span class="line">      updatetrap(ci);  <span class="comment">/* C call; nothing else to be done */</span></span><br><span class="line">    <span class="keyword">else</span> &#123;  <span class="comment">/* Lua call: run function in this same C frame */</span></span><br><span class="line">      ci = newci;</span><br><span class="line">      <span class="keyword">goto</span> startfunc;</span><br><span class="line">    &#125;</span><br><span class="line">    vmbreak;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这一分支的实现比较复杂，并且比较分散，这里解释一下主要的逻辑：当一个函数被调用时，LVM 将会更新当前运行的函数，并在 Lua 栈中选取一段合适的大小分配给该函数作为函数的运行栈。完成栈空间的分配后，LVM 会将函数的输入参数按照顺序拷贝到栈空间的起始位置，方便在函数中进行寻址操作。当完成上述这些操作后，LVM 判断需要调用的函数是否为 C 函数，若为 C 函数则运行后退出当前栈空间（C 函数在 LVM 退出逻辑不在这里）；否则将继续在当前栈空间下执行其他指令。</p>
+<p>当函数完成执行后，将会使用<code>OP_TAILCALL</code>进行退出函数栈，该分支的实现为：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">vmcase(OP_TAILCALL) &#123;</span><br><span class="line">    StkId ra = RA(i);</span><br><span class="line">    <span class="type">int</span> b = GETARG_B(i);  <span class="comment">/* number of arguments + 1 (function) */</span></span><br><span class="line">    <span class="type">int</span> n;  <span class="comment">/* number of results when calling a C function */</span></span><br><span class="line">    <span class="type">int</span> nparams1 = GETARG_C(i);</span><br><span class="line">    <span class="comment">/* delta is virtual &#x27;func&#x27; - real &#x27;func&#x27; (vararg functions) */</span></span><br><span class="line">    <span class="type">int</span> delta = (nparams1) ? ci-&gt;u.l.nextraargs + nparams1 : <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">if</span> (b != <span class="number">0</span>)</span><br><span class="line">        L-&gt;top.p = ra + b;</span><br><span class="line">    <span class="keyword">else</span>  <span class="comment">/* previous instruction set top */</span></span><br><span class="line">        b = cast_int(L-&gt;top.p - ra);</span><br><span class="line">    savepc(ci);  <span class="comment">/* several calls here can raise errors */</span></span><br><span class="line">    <span class="keyword">if</span> (TESTARG_k(i)) &#123;</span><br><span class="line">        luaF_closeupval(L, base);  <span class="comment">/* close upvalues from current call */</span></span><br><span class="line">        lua_assert(L-&gt;tbclist.p &lt; base);  <span class="comment">/* no pending tbc variables */</span></span><br><span class="line">        lua_assert(base == ci-&gt;func.p + <span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> ((n = luaD_pretailcall(L, ci, ra, b, delta)) &lt; <span class="number">0</span>)  <span class="comment">/* Lua function? */</span></span><br><span class="line">        <span class="keyword">goto</span> startfunc;  <span class="comment">/* execute the callee */</span></span><br><span class="line">    <span class="keyword">else</span> &#123;  <span class="comment">/* C function? */</span></span><br><span class="line">        ci-&gt;func.p -= delta;  <span class="comment">/* restore &#x27;func&#x27; (if vararg) */</span></span><br><span class="line">        luaD_poscall(L, ci, n);  <span class="comment">/* finish caller */</span></span><br><span class="line">        updatetrap(ci);  <span class="comment">/* &#x27;luaD_poscall&#x27; can change hooks */</span></span><br><span class="line">        <span class="keyword">goto</span> ret;  <span class="comment">/* caller returns after the tail call */</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>退出的逻辑更为复杂，因为在退出时还需要处理 upvalue、闭包的相关内容。这里只描述一下函数栈的变化：LVM 将会切换运行函数为上一个运行函数，并将切换前函数栈顶的元素（返回值）拷贝到切换后的栈顶，这样就复原了之前的调用状态。</p>
+<h2 id="C-函数的调用"><a href="#C-函数的调用" class="headerlink" title="C 函数的调用"></a>C 函数的调用</h2><p>上一节中，已经分析得到 C 函数与 Lua 函数是以同样的入口调用的，但是调用 C 函数还需要解决一些额外的问题：C 函数不能直接使用 Lua 指令与 Lua 栈交互。这个问题是通过 Lua C API 解决的。在<code>lua.h</code>文件中，Lua 提供了一些 API 来帮助 C 函数完成与 Lua 栈的交互功能。这些函数能够完成 C 环境下的变量与 Lua 环境下的变量之间的相互转换。</p>
+<p>由于 C 函数难以支持动态数量的函数参数以及返回值，Lua C API 在接口设计上并没有加入输入输出值的数量，只有一个<code>lua_state</code>类型的函数参数和一个<code>int</code>类型的函数返回值。因此 LVM 无法在调用时确定 C 函数所需要的函数栈，调用 C 函数时必须付出一些额外的代价。</p>
+<h2 id="UpValue-和闭包"><a href="#UpValue-和闭包" class="headerlink" title="UpValue 和闭包"></a>UpValue 和闭包</h2><p>UpValue 是 Lua 脚本中一个比较特殊的概念，它代表函数中引用的以非函数形式传递的值。正如其命名，它代表调用函数之前就已经存在的值。</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">foo</span><span class="params">()</span></span></span><br><span class="line">    <span class="built_in">print</span>(bar)	<span class="comment">-- bar 是一个 UpValue</span></span><br><span class="line">    <span class="keyword">return</span> </span><br><span class="line"><span class="keyword">end</span></span><br><span class="line">foo()</span><br></pre></td></tr></table></figure>
+
+<p>在上述代码中，bar 就是一个 UpValue，同样，bar 也是一个全局变量。在 Lua 中，全局变量是一种比较特殊的 UpValue，它与普通的 UpValue 存储位置不同。我们使用 luac 工具输出上述 Lua 脚本的指令：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">luac -l hello.lua</span><br><span class="line"></span><br><span class="line">main &lt;hello.lua:0,0&gt; (6 instructions at 0x600000928080)</span><br><span class="line">0+ params, 2 slots, 1 upvalue, 0 locals, 1 constant, 1 function</span><br><span class="line">	1	[1]	VARARGPREP	0</span><br><span class="line">	2	[4]	CLOSURE  	0 0	; 0x600000928100</span><br><span class="line">	3	[1]	SETTABUP 	0 0 0	; _ENV &quot;foo&quot;</span><br><span class="line">	4	[5]	GETTABUP 	0 0 0	; _ENV &quot;foo&quot;</span><br><span class="line">	5	[5]	CALL     	0 1 1	; 0 in 0 out</span><br><span class="line">	6	[5]	RETURN   	0 1 1	; 0 out</span><br><span class="line"></span><br><span class="line">function &lt;hello.lua:1,4&gt; (5 instructions at 0x600000928100)</span><br><span class="line">0 params, 2 slots, 1 upvalue, 0 locals, 2 constants, 0 functions</span><br><span class="line">	1	[2]	GETTABUP 	0 0 0	; _ENV &quot;print&quot;</span><br><span class="line">	2	[2]	GETTABUP 	1 0 1	; _ENV &quot;bar&quot;</span><br><span class="line">	3	[2]	CALL     	0 2 1	; 1 in 0 out</span><br><span class="line">	4	[3]	RETURN0  	</span><br><span class="line">	5	[4]	RETURN0  </span><br></pre></td></tr></table></figure>
+
+<p>根据输出的指令集，脚本中的 foo 函数会被 SETTABUP 指令注册到表 _ENV 中，键名为 “foo”；bar 变量则会使用 GETTABUP 指令在 _ENV 表中查找键 “bar”。表 _ENV 是用来存储全局变量的，可以称之为上值表，表中的每一个全局变量都是一个上值，因为在 Lua 环境中的任何位置都可以通过查找上值表来代替参数方式对其引用。同样地，Lua 中的每一个函数都是一个闭包，因为它们至少可以引用全局变量这一特殊的上值。</p>
+<p>在上述指令集中，函数的编译是以 CLOSURE 指令集进行的。该指令会根据语义分析阶段生成的<code>Proto</code>类型的函数定义来生成函数的调用入口，如果函数作用域是全局的，会将其放入 _ENV 表中；若函数作用域是局部的，则将其放入栈中。函数经过 CLOSURE 指令编译后，将会在内存中生成一段 chunk 文件，当需要调用该函数时，会通过 CALL 指令在内存中寻址，找到该 chunk 片段。除内存寻址外，还需要进行一些其他操作，在 LVM 的 OP_CALL 分支中，主要功能是通过<code>luaD_precall</code>来完成的，该函数有比较详细的注释：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">** Prepares the call to a function (C or Lua). For C functions, also do</span></span><br><span class="line"><span class="comment">** the call. The function to be called is at &#x27;*func&#x27;.  The arguments</span></span><br><span class="line"><span class="comment">** are on the stack, right after the function.  Returns the CallInfo</span></span><br><span class="line"><span class="comment">** to be executed, if it was a Lua function. Otherwise (a C function)</span></span><br><span class="line"><span class="comment">** returns NULL, with all the results on the stack, starting at the</span></span><br><span class="line"><span class="comment">** original function position.</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line">CallInfo *<span class="title function_">luaD_precall</span> <span class="params">(lua_State *L, StkId func, <span class="type">int</span> nresults)</span> &#123;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>根据注释，该函数的主要功能是将函数的参数拷贝到当前栈顶，然后在 Lua 栈与上值表中查询需要的上值并绑定。不是全局变量的 UpValue 被称为 OpenUpValue，这些值是存储在 Lua 栈中的，如果函数中所需要的上值并不是全局变量，那么该函数需要在 Lua 栈中查找所需的 OpenUpValue。</p>
+<h2 id="局部与全局变量"><a href="#局部与全局变量" class="headerlink" title="局部与全局变量"></a>局部与全局变量</h2><p>Lua 中局部全量与全局变量的存储位置不同，全局变量会存储在_ENV 表中，而局部变量则是直接存储在栈上的；由于存储位置不同，对二者的寻址方式也是不同的。以下述的脚本为例：</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">local</span> foo = <span class="number">1</span></span><br><span class="line">bar = <span class="number">2</span></span><br><span class="line"><span class="built_in">print</span>(foo + bar)</span><br></pre></td></tr></table></figure>
+
+<p>使用 luac 工具输出上述 Lua 脚本的指令：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">luac -l hello.lua</span><br><span class="line"></span><br><span class="line">main &lt;hello.lua:0,0&gt; (9 instructions at 0x600003c30080)</span><br><span class="line">0+ params, 3 slots, 1 upvalue, 1 local, 3 constants, 0 functions</span><br><span class="line">	1	[1]	VARARGPREP	0</span><br><span class="line">	2	[1]	LOADI    	0 1</span><br><span class="line">	3	[2]	SETTABUP 	0 0 1k	; _ENV &quot;bar&quot; 2</span><br><span class="line">	4	[3]	GETTABUP 	1 0 2	; _ENV &quot;print&quot;</span><br><span class="line">	5	[3]	GETTABUP 	2 0 0	; _ENV &quot;bar&quot;</span><br><span class="line">	6	[3]	ADD      	2 0 2</span><br><span class="line">	7	[3]	MMBIN    	0 2 6	; __add</span><br><span class="line">	8	[3]	CALL     	1 2 1	; 1 in 0 out</span><br><span class="line">	9	[3]	RETURN   	1 1 1	; 0 out</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，foo 变量是直接使用 LOADI 指令存储在栈位置 0 上的；而 bar 则是存储在了 _ENV 表中。在取值阶段，局部变量会直接在栈中寻址，而全局变量则需要使用 GETTABUP 指令先将值拷贝到栈上才能够使用。</p>
+<h2 id="关系图"><a href="#关系图" class="headerlink" title="关系图"></a>关系图</h2><p>最后以一张关系图作为结束，该图简单描述了 C 与 Lua 之间的关系。图中的虚线代表着逻辑调用，实现代表着实际调用的逻辑链，属于相同调用的关系用同一种颜色表达。</p>
+<p><img src="/images/lua_c.png" alt="/images/lua_c.png"></p>
+<p>以下为图中各个部分的解释：</p>
+<ul>
+<li>LVM：Lua Virtual Machine，以指令方式与 Lua 脚本交互；</li>
+<li>cfuncs：注册到 LVM 中的 C 函数，可以被 Lua 脚本直接调用；</li>
+<li>C Main：除 LVM 和 cfuncs 外的 C 代码，不能被 Lua 脚本直接调用；</li>
+<li>Lua Stack：LVM 中的栈，以 LValue 类型的形式的各种值；</li>
+<li>Lua Script：Lua 脚本，经过编译后的脚本以指令形式存储在 Lua 栈中；</li>
+</ul>
+<p>图中的各种颜色箭头分别代表：</p>
+<ul>
+<li>橙色：在 C 代码中调用 Lua 脚本中的方法；</li>
+<li>蓝色：Lua 脚本访问 Lua Stack；</li>
+<li>红色：在注册的 C 代码中调用 Lua 脚本中的方法；</li>
+<li>黑色：代表编译后的脚本存储在栈中；</li>
+<li>绿色：C 函数访问 Lua Stack中的值</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" rel="tag"><i class="fa fa-tag"></i> 编程语言</a>
+              <a href="/tags/Lua/" rel="tag"><i class="fa fa-tag"></i> Lua</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/02/10/redis%E4%B8%ADlua%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/" rel="prev" title="redis中lua模块的设计与实现">
+      <i class="fa fa-chevron-left"></i> redis中lua模块的设计与实现
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/02/13/Lua-%E4%B8%AD-TValue-%E5%92%8C-GCObject-%E7%9A%84%E9%9B%B6%E6%88%90%E6%9C%AC%E6%8A%BD%E8%B1%A1/" rel="next" title="Lua 中 TValue 和 GCObject 的零成本抽象">
+      Lua 中 TValue 和 GCObject 的零成本抽象 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Lua-%E6%8C%87%E4%BB%A4%E7%A0%81"><span class="nav-number">1.</span> <span class="nav-text">Lua 指令码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#LVM-%E4%B8%AD%E6%8C%87%E4%BB%A4%E7%9A%84%E8%BF%90%E8%A1%8C"><span class="nav-number">2.</span> <span class="nav-text">LVM 中指令的运行</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%87%BD%E6%95%B0%E6%A0%88%E5%88%87%E6%8D%A2"><span class="nav-number">3.</span> <span class="nav-text">函数栈切换</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#C-%E5%87%BD%E6%95%B0%E7%9A%84%E8%B0%83%E7%94%A8"><span class="nav-number">4.</span> <span class="nav-text">C 函数的调用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#UpValue-%E5%92%8C%E9%97%AD%E5%8C%85"><span class="nav-number">5.</span> <span class="nav-text">UpValue 和闭包</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B1%80%E9%83%A8%E4%B8%8E%E5%85%A8%E5%B1%80%E5%8F%98%E9%87%8F"><span class="nav-number">6.</span> <span class="nav-text">局部与全局变量</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B3%E7%B3%BB%E5%9B%BE"><span class="nav-number">7.</span> <span class="nav-text">关系图</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description">技术爱好者</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">38</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="sidebar-button motion-element">
+    lol welcome!
+  </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.zhihu.com/people/tangrc99" title="知乎 → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fa fa-link fa-fw"></i>知乎</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Tangrc99</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+<script src="https://unpkg.com/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+
+<script>
+var options = {
+  bottom: '64px',
+  right: '32px',
+  left: 'unset',
+  time: '0.5s',
+  mixColor: 'transparent',
+  backgroundColor: 'transparent',
+  buttonColorDark: '#100f2c',
+  buttonColorLight: '#fff',
+  saveInCookies: true,
+  label: '🌓',
+  autoMatchOsTheme: true
+}
+const darkmode = new Darkmode(options);
+window.darkmode = darkmode;
+darkmode.showWidget();
+</script>
+
+</body>
+</html>

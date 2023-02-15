@@ -193,7 +193,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/10/channel-%E4%B8%8E-select-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/26/MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E5%90%8C%E6%AD%A5%E8%BF%87%E7%A8%8B/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -207,7 +207,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/01/10/channel-%E4%B8%8E-select-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">channel 与 select 的一些记录</a>
+            <a href="/2022/12/26/MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E5%90%8C%E6%AD%A5%E8%BF%87%E7%A8%8B/" class="post-title-link" itemprop="url">MongoDB 复制集同步过程</a>
         </h2>
 
         <div class="post-meta">
@@ -218,7 +218,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2023-01-10 02:06:00 / 修改时间：08:00:42" itemprop="dateCreated datePublished" datetime="2023-01-10T02:06:00+08:00">2023-01-10</time>
+              <time title="创建时间：2022-12-26 23:31:59 / 修改时间：23:33:44" itemprop="dateCreated datePublished" datetime="2022-12-26T23:31:59+08:00">2022-12-26</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -226,11 +226,11 @@
               </span>
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
                 </span>
                   ，
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
                 </span>
             </span>
 
@@ -240,14 +240,14 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>3.5k</span>
+              <span>1.9k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
                 <i class="far fa-clock"></i>
               </span>
                 <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>3 分钟</span>
+              <span>2 分钟</span>
             </span>
 
         </div>
@@ -259,36 +259,119 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="channel-与-select-的一些记录"><a href="#channel-与-select-的一些记录" class="headerlink" title="channel 与 select 的一些记录"></a>channel 与 select 的一些记录</h1><p>本篇文章用于记录本人学习到的与 channel 与 select 有关的一些知识。</p>
-<h2 id="CSP-并发模型"><a href="#CSP-并发模型" class="headerlink" title="CSP 并发模型"></a>CSP 并发模型</h2><p>CSP 并发模型是指“不要通过共享内存来通信，而应该通过通信来共享内存”。go 语言的并发模型是基于 CSP 模型的，这得益于完备的 go、channel、select 体系。这一模型的核心思想是尽量降低程序模块之间的耦合度，尽可能地将每一个模块封装为状态机的形式，在不同的模块之间通过数据或标志位的传递来改变状态机的行为，并尽可能降低不同模块之间的临界竞争。</p>
-<p>在 C++程序中，线程之间的通信大多数场景也是遵循这一思想的。大部分线程之间会选择使用队列、原子标志位、期望值来进行同步，而不是多个线程同时去并发访问同一数据结构。毕竟无锁数据结构的设计非常复杂，并且可以设计为无锁形式的数据结构非常有限；而采取加锁的形式来保证线程安全可能会因为竞争而带来比较严重的性能问题。</p>
-<p>C++的并发编程中，简单的控制同步可以直接使用原子量来完成，数据类型的传递可以使用队列来完成。但是，如果状态机中的某个状态具有多个分支，可能就需要使用多个原子量、或者使用多态类型的队列，在实际编程过程中可能会比较繁琐。而 go 语言中的 select 语句可以很好地实现信号的多路复用，使得一个程序的模块可以更加轻松地使用复杂的状态机。这也是为什么 goroutine 并没有提供外界退出的方式，而是必须从自身的逻辑中退出。go 语言的编程逻辑中，更希望每一个 goroutine 中封装的是一个完成的状态机，每一个 goroutine 都是一个独立的模块，从而实现程序不同模块间的低耦合。</p>
-<p>如果进程内的所有线程/协程之间传递数据都使用FIFO 队列，可能会出现较多的内存拷贝。一种更好的方式是针对大对象，通过指针的方式来转移对象的所属权，使程序的不同模块用流水线的方式工作。</p>
-<p>CSP 并发模型，更多地还是在描述程序不同模块之间如何去进行信息交换。在程序模块的内部，为了高性能可以尝试使用一些更加底层的方法来进行更加复杂的操作，但是最好不要将这种复杂度传递给模块之外，否则程序将会变得难以维护。</p>
-<h2 id="hchan"><a href="#hchan" class="headerlink" title="hchan"></a>hchan</h2><p>go 语言中 channel 底层使用的是 hchan 结构体，它本质上是一个有锁的环形缓冲区，hchan 数据结构如下:</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> hchan <span class="keyword">struct</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 有缓冲时，存储相关信息</span></span><br><span class="line">    qcount   <span class="type">uint</span>           <span class="comment">// 循环数组中的元素数量</span></span><br><span class="line">    dataqsiz <span class="type">uint</span>           <span class="comment">// 循环数组的长度</span></span><br><span class="line">    buf      unsafe.Pointer <span class="comment">// 指向底层循环数组的指针</span></span><br><span class="line">    elemsize <span class="type">uint16</span> <span class="comment">//能够收发元素的大小</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    closed   <span class="type">uint32</span>   <span class="comment">//channel是否关闭的标志</span></span><br><span class="line">    elemtype *_type <span class="comment">//channel中的元素类型</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 读写游标</span></span><br><span class="line">    sendx    <span class="type">uint</span>   <span class="comment">// 下一次发送数据的下标位置</span></span><br><span class="line">    recvx    <span class="type">uint</span>   <span class="comment">// 下一次读取数据的下标位置</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 用于处理读写阻塞</span></span><br><span class="line">    recvq    waitq  <span class="comment">// 读等待队列</span></span><br><span class="line">    sendq    waitq  <span class="comment">// 写等待队列</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    lock mutex <span class="comment">//互斥锁，保证读写channel时不存在并发竞争问题</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+          <h1 id="MongoDB-复制集同步过程"><a href="#MongoDB-复制集同步过程" class="headerlink" title="MongoDB 复制集同步过程"></a>MongoDB 复制集同步过程</h1><p>MongoDB Replica Set 是一种基于分布式选举和复制状态机的高可用架构，这一套模式虽然与 paxos、raft 协议非常相似，但实质上差异却非常大。raft 协议中，所有事务的提交都是线性的，所有节点会进行同步提交，因此可以保持很高的数据一致性，但是写性能会比较差；而 MongoDB 的复制集则是一种异步复制+选举算法的结合，通过调节事务的提交时间来完成数据一致性的保证。</p>
+<h2 id="基于-Oplog-的数据同步机制"><a href="#基于-Oplog-的数据同步机制" class="headerlink" title="基于 Oplog 的数据同步机制"></a>基于 Oplog 的数据同步机制</h2><p>与 raft 协议类似，MongoDB 中也是采用复制状态机的模式来进行数据复制，在 MongoDB 中用于节点同步的日志类型称为 Oplog。Oplog 其实并不是一种日志文件，而是 WiredTiger 中一个特殊的 Collection，这种特殊的模式使得 MongoDB 中应用层日志、数据、索引实际上是作为一个事务整体写入的。这种设计能够有效地规避应用层日志与数据库日志不相同的问题，这个问题在 MySQL 中有所体现，并且困惑了开发者相当长一段时间。对比 etcd 的实现，可以认为 etcd 是按照 raft 状态机的模式，在 raft 节点之上构建一个数据库；而 MongoDB 其实仍然是一个传统的数据库同步模式，是一个基于数据库引擎的复制模式，这是两者之间的核心差异。</p>
+<h2 id="Oplog-的异步复制"><a href="#Oplog-的异步复制" class="headerlink" title="Oplog 的异步复制"></a>Oplog 的异步复制</h2><p>经过上一小节的讨论，MongoDB 的复制机制并不是 etcd 的模式，而是类似 MySQL 主从复制的模式。这样就能够更加轻松地理解为什么 Oplog 采取的一种异步复制的模式。</p>
+<img src="/images/20jq7bq4ya.png" alt="20jq7bq4ya" style="zoom: 67%;" />
 
-<p>如果 hchan 中的 ring_buffer 缓冲区有数据，那么读写操作无特殊之处。若 hchan 中缓冲区为空，并且接收到一个读操作，或者 hchan 中缓冲区已满，但是接收到一个写操作；那么就会将该操作注册到 waitq 结构体中，waitq 结构体底层是一个 sudog 链表，存储了阻塞 goroutine 的相关调度信息。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> sudog <span class="keyword">struct</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 原始G结构。相当于g_id</span></span><br><span class="line">    g *g</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 等待链表上的指针</span></span><br><span class="line">    next *sudog</span><br><span class="line">    prev *sudog</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 所属的channel，相当于channel_id</span></span><br><span class="line">    c    *hchan</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Oplog 的异步复制是由从节点发起的，每一个从节点都会有一个特殊的线程用于从主节点拉取 Oplog，我们这里称之为拉取线程。当拉取线程只负责完成 Oplog 的复制，并写入到本地的 Collection 中，当写入完成后拉取线程就会继续向主节点请求下一批 Oplog。拉取线程在拉取 Oplog 过程中不会发生任何的阻塞。</p>
+<p>Oplog 的重放是由重放线程来完成的，根据设置 MongoDB 中可以存在多个重放线程来加快复制速度，默认的重放线程为 16 个。重放线程实际上是在模拟客户端的请求向数据库发送命令完成数据的复制。回放线程尽量累积大量数据才回放（批量并发执行效率高）。但是如果oplog比较少，会提前返回。但是极端情况下，可能会有最多阻塞1秒的情况。</p>
+<p>当重放线程完成重放后，会直接通知主节点自身的当前版本。心跳与版本上报是两个不同的过程，因为心跳周期两秒的间隔时间过长，如果使用心跳上报会导致客户端请求长时间被阻塞。心跳只用于无请求时的保活操作。</p>
+<h2 id="选举机制"><a href="#选举机制" class="headerlink" title="选举机制"></a>选举机制</h2><p>MongoDB 中的选举与 raft 算法也有着一定的区别。raft 算法中由于客户端请求必须到达多数节点才能够提交，因此在选举过程中需要考虑数据一致性的问题，防止数据回滚。而 MongoDB 中，客户端操作并不会因为未到达多数节点而提交失败，只会发生超时错误（超时错误不会导致回滚），因此 MongoDB 中的选举算法主要考虑如何更快地选择数据更多更新的节点，并且尽量保证不丢失数据。</p>
+<p>MongoDB 选举机制中比较特殊的地方在于：当选举完成后，新选举的主节点会要求所有的从节点发送自身的最近数据，并且取这些数据的并集作为集群视图，raft 协议中则是直接按照主节点的状态机作为新视图。这点不同主要是考虑到每个从节点进行 Oplog 重放的顺序可能不同，虽然 Oplog 的拉取是严格按照次数的，但是在重放过程中由于使用了多线程重放，可能会有一部分线程阻塞，发生事务提交的重排。</p>
+<h2 id="网络分区的风险"><a href="#网络分区的风险" class="headerlink" title="网络分区的风险"></a>网络分区的风险</h2><p>当 MongoDB 复制集集群中发生主节点网络分区时，虽然集群中已经完成了选举，但主节点在当前的心跳周期仍然可以处理客户端的请求。</p>
+<p>如果客户端的写入请求为 w:1，那么在这种情况下仍然是可以成功写入的，并且客户端并不会得到写入超时的通知，即客户端视角下无法得知异常发生，无法采取相关的异常处理操作。当主节点网络恢复后，这部分时间内发生的写请求会发生回滚，回滚的数据会被写入到回滚文件中，必须要人工进行数据维护。如果不使用高于 w:majority 的写入等级，就需要承受数据发生回滚的风险。</p>
+<p>发生网络分区时，客户端的读请求会因为不同的  Read Peference 而发生不同的处理。在约一个心跳周期的时间范围内，MongoDB 只能够保证采取相同Read Concern 和 Read Peference 的读请求保持正确的读顺序。当Read Concern 和 Read Peference 不同时，可能会出现读请求R1读到主节点的过期数据，读请求R2 读到其他节点的正常数据，当 R2 时间早于 R1 时就会出现读操作的不安全性。 最好对相同的 Collection 采取相同的读设置来获取更一致的视图。</p>
 
-<p>sudog 是注册在一个具体的 hchan 上的，这是因为一个 goroutine 可能会因为不同的 channel 阻塞，因此每一个 hchan 都必须要保留能够查询到阻塞 goroutine 的指针。</p>
-<p>通过上述结构体的分析，goroutine 因为 channel 而陷入阻塞，是会主动让出执行权的。而唤醒操作则由另外一个操作 channel 的 goroutine 负责。</p>
-<h2 id="channel-的并发读写"><a href="#channel-的并发读写" class="headerlink" title="channel 的并发读写"></a>channel 的并发读写</h2><p>一般的互斥量性能都会随着并发量的增长而迅速下降；channel 虽然是一个有锁的数据结构，但是因为底层做了特殊的优化，即使由大量的 goroutine 进行并发操作也不会造成性能的严重下降，只会发生 ns 级别的改变。</p>
-<p>另外，由于涉及到 GC 的问题，所有数据结构在经过 channel 进行传递时都会发生一次复制。因此，可以尽量尝试使用指针来传递比较复杂的数据结构，防止内存复制损耗过多时间。</p>
-<h2 id="select-的阻塞与唤醒"><a href="#select-的阻塞与唤醒" class="headerlink" title="select 的阻塞与唤醒"></a>select 的阻塞与唤醒</h2><p>在早期的版本中，select 语句是由后台 goroutine 轮询来实现的，当分支过多的情况下性能会比较差。在最新版本中，已经针对 select 语句进行了优化，采取了被动调度的方式进行唤醒。</p>
-<p>select 语句的执行逻辑大致可以分为三步：</p>
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/26/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/12/26/MongoDB%20%E6%97%A0%E9%94%81Write%20FLow/" class="post-title-link" itemprop="url">MongoDB 无锁 Write FLow</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-12-26 16:00:28 / 修改时间：16:57:26" itemprop="dateCreated datePublished" datetime="2022-12-26T16:00:28+08:00">2022-12-26</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>1.2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>1 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="MongoDB-无锁-Write-FLow"><a href="#MongoDB-无锁-Write-FLow" class="headerlink" title="MongoDB 无锁 Write FLow"></a>MongoDB 无锁 Write FLow</h1><h2 id="同一-key-的无锁读写"><a href="#同一-key-的无锁读写" class="headerlink" title="同一 key 的无锁读写"></a>同一 key 的无锁读写</h2><p>MongoDB 的一个 B+树索引中具有三个数据结构来存储键值对数据：</p>
 <ul>
-<li>判断当前是否有就绪 channel，并随机选择一个分支执行操作</li>
-<li>若无就绪 channel，将 goroutine 信息注册到各个 channel 分支，进入阻塞</li>
-<li>被唤醒时检测就绪 channel，随机选择一个分支操作</li>
+<li>WT_ROW 数组，存储原本 Check Point 时刻的值。</li>
+<li>WT_UPDATE 跳跃表数组，存储已有键值对的更新值。</li>
+<li>WT_INSERT_HEAD 跳跃表数组，存储新插入键值对的更新值。</li>
 </ul>
-<p>这意味着，一个 for - select 循环在一直满足就绪条件下是可以不断执行的，直到运行被抢占。</p>
-<p>当一个 goroutine 中的 select 语句中并没有可满足的条件时，runtime.selectgo 函数会根据不同分支的 poller 顺序来选择被唤醒时的轮询顺序（每一次完成选择后会重新将该顺序打乱，保证随机选择分支）；还需要根据 channel 的内存指针顺序来依次加锁，以防止死锁。完成上述操作后，goroutine 会进入阻塞状态，等待自身的 G 结构被其他 goroutine 因发送 channel 而状态改变为 _Grunnable，也就是进入 select 阻塞后的 goroutine 只能够被 goroutine 调度器唤醒，而不会主动尝试运行。当 goroutine 被唤醒时，会将所有的 channel 加锁，并且释放所有的 sudog 结构体。</p>
-<p>由于 select 语句在进入阻塞和被唤醒时都需要对所有 channel 加锁，这里会有一定的性能损耗。</p>
-<p>select 语句是一个多分支语句，只能够随机选择一个 channel 运行。但是 go 语言中，sudog 的节点的移出是由解除阻塞的一方负责的，如果不加以控制，就可能会出现多个分支注册的 sudog 同时被多个协程删除的情况，这样就会造成channel 消息的丢失。为了防止这一情况，select 语句注册的 sudog 会做出特殊的标记处理。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// runtime/chan.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(q *waitq)</span></span> dequeue() *sudog &#123;</span><br><span class="line">  <span class="keyword">for</span> &#123;</span><br><span class="line">    <span class="comment">// 这里是链表删除的逻辑，进入函数前已经对 hchan 加锁</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// if a goroutine was put on this queue because of a</span></span><br><span class="line">    <span class="comment">// select, there is a small window between the goroutine</span></span><br><span class="line">    <span class="comment">// being woken up by a different case and it grabbing the</span></span><br><span class="line">    <span class="comment">// channel locks. Once it has the lock</span></span><br><span class="line">    <span class="comment">// it removes itself from the queue, so we won&#x27;t see it after that.</span></span><br><span class="line">    <span class="comment">// We use a flag in the G struct to tell us when someone</span></span><br><span class="line">    <span class="comment">// else has won the race to signal this goroutine but the goroutine</span></span><br><span class="line">    <span class="comment">// hasn&#x27;t removed itself from the queue yet.</span></span><br><span class="line">    <span class="keyword">if</span> sgp.isSelect &amp;&amp; !atomic.Cas(&amp;sgp.g.selectDone, <span class="number">0</span>, <span class="number">1</span>) &#123;</span><br><span class="line">      <span class="keyword">continue</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> sgp</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>可以看到，如果发现取出的 sudog 结构体是由 select 语句注册的，那么会使用 CAS 语句将 selectDone 标志位设置为 1。虽然在进入 dequeue 函数前已经对 hchan 加锁，但是这里的 selectDone 标志位也被注册到了其他 hchan 结构体中，可能会发生 concurrency unsafe。如果成功修改标志位，代表本次操作是第一个通知 select 的操作，此时才会进行数据拷贝；如果修改失败，那么会将忽略本次操作，并且再一次尝试取出 sudog。</p>
+<p>MongoDB 中所有的写操作并不会直接修改原有的内存位置，而是将新数据写入到B+树索引节点中的跳跃表中。结合惰性删除机制，跳跃表是可以做到无锁读写的。</p>
+<p>但是这种设计会使得读取的流程较长，因为要查询数据需要依次搜索WT_UPDATE，WT_ROW和WT_INSERT_HEAD 这三个数据结构，当插入数据过多时，跳跃表的搜索性能是要比 WT_ROW 的有序数组结构差的。</p>
+<h2 id="Check-Point-技术"><a href="#Check-Point-技术" class="headerlink" title="Check Point 技术"></a>Check Point 技术</h2><p>MongoDB 中会定期对 B+ 树进行整理，防止插入数据过多，影响读取性能，Check Point 技术会定期整理内存和硬盘中的 B+树结构。</p>
+<p>当一次 Check Point 发生后，MongoDB 将会新建一个 B+树，所有的写入操作会被转移到新的 B+树中。而所有的刷盘以及分裂操作只会影响到旧的 B+ 树。具体过程比较复杂，可以参考《MongoDB 核心原理与实践》。</p>
+<h2 id="变长-Page-减少-B-树节点分裂"><a href="#变长-Page-减少-B-树节点分裂" class="headerlink" title="变长 Page 减少 B+ 树节点分裂"></a>变长 Page 减少 B+ 树节点分裂</h2><p>MongoDB 中的索引部分使用的是 B+ 树这种数据结构，一般来说 B+ 树在节点分裂的过程中是无法做到无锁的，但是 WiredTiger 基于变长 Page 的技术来避免 B+ 树分裂时加锁。</p>
+<p>在数据库系统中，B+树在硬盘中的页面大小通常是硬盘扇区的大小，这主要是考虑到硬盘读写的原子性，防止破坏 B+树节点的内部结构。因为这种考虑，B+树的硬盘节点通常都比较小。而比较小的 B+树节点可能就意味着需要经常进行分裂操作来保持 B+树的平衡性。</p>
+<p>MongoDB 的 B+ 树在内存中和在硬盘中的 page 大小是不相同的，内存中的 page 大小要远远大于硬盘中的 page 大小。当内存中的 B+树 page 需要刷盘时，会将内存 page 分裂为多个硬盘 page 写入到硬盘中，这就是变长 Page 技术。变长 Page 技术能够减少 B+ 树的持久化次数，还能够尽量避免 B+ 树因为插入而导致的分裂。引入了变长 Page 技术后，MongoDB 中索引 B+ 树的节点分裂会被转移到 reconcile 和 eviction 过程中，从而避免了在 Write Flow 中出现索引变更的情况。</p>
+<h2 id="插入过多时小粒度分裂"><a href="#插入过多时小粒度分裂" class="headerlink" title="插入过多时小粒度分裂"></a>插入过多时小粒度分裂</h2><p>仅仅依靠变长 Page 还不能够解决所有的问题，如果在某一时刻发生大量的写入操作，导致一个B+树节点在短时间内就达到了内存 page 的上限，这种情况下依旧需要发生 B+树节点的分裂。</p>
+<p>由于 MongoDB 中所有新插入的节点都是存在于 WT_INSERT_HEAD 跳跃表数组中的，当B+树节点因为插入数量过多需要分裂时，会将WT_INSERT_HEAD 中的最后一个跳跃表复制到新的节点中（MongoDB 中的主键值基本上是自增的，最后一个跳跃表中的节点在大部分情况下是最多的）。这种小粒度的分裂能够避免对B+树进行大面积修改。</p>
 
       
     </div>
@@ -307,7 +390,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/10/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><span class="page-number current">11</span><a class="page-number" href="/page/12/">12</a><span class="space">&hellip;</span><a class="page-number" href="/page/34/">34</a><a class="extend next" rel="next" href="/page/12/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/10/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><span class="page-number current">11</span><a class="page-number" href="/page/12/">12</a><span class="space">&hellip;</span><a class="page-number" href="/page/19/">19</a><a class="extend next" rel="next" href="/page/12/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -375,20 +458,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">34</span>
+          <span class="site-state-item-count">38</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-count">16</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-count">19</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -403,6 +486,9 @@
       </span>
       <span class="links-of-author-item">
         <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.zhihu.com/people/tangrc99" title="知乎 → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fa fa-link fa-fw"></i>知乎</a>
       </span>
   </div>
 

@@ -193,7 +193,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/10/go-%E4%B8%AD%E7%9A%84-IO-%E6%93%8D%E4%BD%9C/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/27/C++-%E9%98%B2%E6%AD%A2%E5%A4%B4%E6%96%87%E4%BB%B6%E6%9A%B4%E9%9C%B2%E7%A7%81%E6%9C%89%E5%8F%98%E9%87%8F/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -207,7 +207,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/01/10/go-%E4%B8%AD%E7%9A%84-IO-%E6%93%8D%E4%BD%9C/" class="post-title-link" itemprop="url">go 中的 IO 操作</a>
+            <a href="/2022/12/27/C++-%E9%98%B2%E6%AD%A2%E5%A4%B4%E6%96%87%E4%BB%B6%E6%9A%B4%E9%9C%B2%E7%A7%81%E6%9C%89%E5%8F%98%E9%87%8F/" class="post-title-link" itemprop="url">C++ 防止头文件暴露私有变量</a>
         </h2>
 
         <div class="post-meta">
@@ -218,7 +218,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2023-01-10 17:24:48 / 修改时间：18:34:45" itemprop="dateCreated datePublished" datetime="2023-01-10T17:24:48+08:00">2023-01-10</time>
+              <time title="创建时间：2022-12-27 03:41:44 / 修改时间：03:45:18" itemprop="dateCreated datePublished" datetime="2022-12-27T03:41:44+08:00">2022-12-27</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -230,7 +230,7 @@
                 </span>
                   ，
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/C/" itemprop="url" rel="index"><span itemprop="name">C++</span></a>
                 </span>
             </span>
 
@@ -240,14 +240,14 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>2.1k</span>
+              <span>427</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
                 <i class="far fa-clock"></i>
               </span>
                 <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>2 分钟</span>
+              <span>1 分钟</span>
             </span>
 
         </div>
@@ -259,20 +259,111 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1 id="go-中的-IO-操作"><a href="#go-中的-IO-操作" class="headerlink" title="go 中的 IO 操作"></a>go 中的 IO 操作</h1><p>go 语言的官方库中对所有的文件描述符都做了统一的封装，无论是 socket 文件还是普通文件，都包含了<code>poll.FD</code>数据结构，并被 pollDesc 统一管理。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 普通文件描述符</span></span><br><span class="line"><span class="keyword">type</span> file <span class="keyword">struct</span> &#123;</span><br><span class="line">  pfd         poll.FD</span><br><span class="line">  name        <span class="type">string</span></span><br><span class="line">  dirinfo     *dirInfo <span class="comment">// nil unless directory being read</span></span><br><span class="line">  nonblock    <span class="type">bool</span>     <span class="comment">// whether we set nonblocking mode</span></span><br><span class="line">  stdoutOrErr <span class="type">bool</span>     <span class="comment">// whether this is stdout or stderr</span></span><br><span class="line">  appendMode  <span class="type">bool</span>     <span class="comment">// whether file is opened for appending</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// socket 描述符</span></span><br><span class="line"><span class="keyword">type</span> netFD <span class="keyword">struct</span> &#123;</span><br><span class="line">  pfd poll.FD</span><br><span class="line"></span><br><span class="line">  <span class="comment">// immutable until Close</span></span><br><span class="line">  family      <span class="type">int</span></span><br><span class="line">  sotype      <span class="type">int</span></span><br><span class="line">  isConnected <span class="type">bool</span> <span class="comment">// handshake completed or use of association with peer</span></span><br><span class="line">  net         <span class="type">string</span></span><br><span class="line">  laddr       Addr</span><br><span class="line">  raddr       Addr</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+          <h1 id="C-防止头文件暴露私有变量"><a href="#C-防止头文件暴露私有变量" class="headerlink" title="C++ 防止头文件暴露私有变量"></a>C++ 防止头文件暴露私有变量</h1><p>C++ 中可以通过嵌套类的形式防止成员私有变量暴露在头文件里。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 头文件</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Exposure</span> &#123;</span><br><span class="line">  </span><br><span class="line">  <span class="built_in">Exposure</span>();</span><br><span class="line">  <span class="function"><span class="type">int</span> <span class="title">interface</span><span class="params">(<span class="type">int</span> foo)</span></span>;</span><br><span class="line">  </span><br><span class="line"><span class="keyword">private</span>:</span><br><span class="line">		<span class="keyword">class</span> <span class="title class_">Impl</span>;</span><br><span class="line">  	std::unique_ptr&lt;Impl&gt; impl_;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>这两种文件类型的读写操作都会最终调用 <code>poll.FD</code>的读写函数，以文件描述符的读操作为例，最终会调用以下函数：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Read implements io.Reader.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(fd *FD)</span></span> Read(p []<span class="type">byte</span>) (<span class="type">int</span>, <span class="type">error</span>) &#123;</span><br><span class="line">  <span class="comment">// 检查、加锁、准备操作</span></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> &#123;</span><br><span class="line">    <span class="comment">// 忽略 EINTR 错误，并尝试进行读取</span></span><br><span class="line">    n, err := ignoringEINTRIO(syscall.Read, fd.Sysfd, p)</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">      n = <span class="number">0</span></span><br><span class="line">      <span class="comment">// 如果读取失败，错误为 EAGAIN，且 fd 被注册到了多路复用管理器中</span></span><br><span class="line">      <span class="comment">// 主动进入阻塞状态，并等待被唤醒</span></span><br><span class="line">      <span class="keyword">if</span> err == syscall.EAGAIN &amp;&amp; fd.pd.pollable() &#123;</span><br><span class="line">        <span class="keyword">if</span> err = fd.pd.waitRead(fd.isFile); err == <span class="literal">nil</span> &#123;</span><br><span class="line">          <span class="keyword">continue</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    err = fd.eofError(n, err)</span><br><span class="line">    <span class="keyword">return</span> n, err</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>函数处理读取的主要逻辑为：尝试非阻塞读取——如果读取成功则返回/读取失败则进入阻塞。该函数的处理逻辑其实已经对普通文件和 socket 文件进行了分流，普通文件的读写通常是不会进入阻塞状态的，通常会在第一次读取时返回。而 socket 类型的文件描述符，在尝试读取失败后，会进入到 <code>fd.pd.waitRead(fd.isFile)</code>，最终调用<code>runtime_pollWait</code> 函数，将当前 goroutine 的标识为更改为阻塞状态。</p>
-<p>go 语言中，虽然 IO 底层使用了非阻塞的多路复用，但最终提交给用户是阻塞调用的模式。非阻塞多路复用只是为了给 goroutine 提供调度——当一个协程发现自身不能满足执行条件时，得以能够主动修改自身状态，使自身进入到协程的阻塞状态，而不是被操作系统进行线程调度，使线程进入阻塞。用户态的阻塞 IO 是为了配合 goroutine 的调度机制和 go 语言的编程逻辑，即采用多个 goroutine 来处理并行的请求。这样程序在编写过程中就只要考虑请求的执行顺序，如果执行过程中遇到条件不满足的情况，直接进入阻塞并等待被唤醒。</p>
-<p>如果需要在 go 中使用非阻塞 IO，那么可能就需要抛弃官方库所构建出的高层次抽象，这其实更像是在写 C/C++程序。go 语言在 package unix 中提供了比较底层的 unix 标准函数封装，用户可以在此基础上自行搭建非阻塞 IO 模型来满足特定场景下的需求。</p>
-<p>如果需要调用底层的 package unix，一定要将 fd 设置为非阻塞的方式。因为操作系统的是无法感知到 goroutine 的，如果使用阻塞操作，可能会导致 M 被操作系统调度，导致无法进行 G 调度，导致 goroutine 正常切换调度收到影响。fd 的非阻塞已经在 package unix 中封装完毕，为了与 unix 函数保持一致，unix 包中的函数都没有自动设置为非阻塞状态，需要用户手动设置。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 非常经典的设置非阻塞，简直跟 C++ 一模一样</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">SetNonblock</span><span class="params">(fd <span class="type">int</span>, nonblocking <span class="type">bool</span>)</span></span> (err <span class="type">error</span>) &#123;</span><br><span class="line">  flag, err := fcntl(fd, F_GETFL, <span class="number">0</span>)</span><br><span class="line">  <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> err</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> nonblocking &#123;</span><br><span class="line">    flag |= O_NONBLOCK</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    flag &amp;= ^O_NONBLOCK</span><br><span class="line">  &#125;</span><br><span class="line">  _, err = fcntl(fd, F_SETFL, flag)</span><br><span class="line">  <span class="keyword">return</span> err</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 源文件</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Exposure</span>::Impl &#123;</span><br><span class="line">  <span class="comment">// 具体实现</span></span><br><span class="line">  <span class="function"><span class="type">int</span> <span class="title">interfaceImpl</span><span class="params">(<span class="type">int</span> foo)</span></span>&#123;</span><br><span class="line">    	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">Exposure::<span class="built_in">Exposure</span>() : <span class="built_in">impl_</span>(std::<span class="built_in">make_unique</span>&lt;Impl&gt;())&#123;&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="type">int</span> <span class="title">Exposure::interface</span><span class="params">(<span class="type">int</span> foo)</span></span>&#123;</span><br><span class="line">  	<span class="keyword">return</span> <span class="keyword">this</span>-&gt;impl_-&gt;<span class="built_in">interfaceImpl</span>(foo);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
 
+      
+    </div>
 
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/27/BSON%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/12/27/BSON%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">BSON结构分析</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-12-27 00:08:27" itemprop="dateCreated datePublished" datetime="2022-12-27T00:08:27+08:00">2022-12-27</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>783</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>1 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="BSON-结构分析"><a href="#BSON-结构分析" class="headerlink" title="BSON 结构分析"></a>BSON 结构分析</h1><h2 id="BSON-简介"><a href="#BSON-简介" class="headerlink" title="BSON 简介"></a>BSON 简介</h2><p>BSON 全称是 Binary JSON, 和 JSON 很像，但是采用二进制格式进行存储。相比 JSON 有以下优势：</p>
+<ul>
+<li><strong>访问速度更快。</strong>BSON 会存储 Value 的类型，相比于明文存储，不需要进行字符串类型到其他类型的转换操作。以整型 12345678 为例，JSON 需要将字符串转成整型，而 BSON 中存储了整型类型标志，并用 4 个字节直接存储了整型值；</li>
+<li><strong>存储空间更低。</strong>还是以整型 12345678 为例，JSON 采用明文存储的方式需要 8 个字节，但是 BSON 对于 Int32 的值统一采用 4 字节存储，Long 和 Double 采用 8 字节存储。 当然这里说存储空间更低也分具体情况，比如对于小整型，BSON 消耗的空间反而更高；</li>
+<li><strong>数据类型更丰富。</strong>BSON 相比 JSON，增加了 BinData，TimeStamp，ObjectID，Decimal128 等类型。</li>
+</ul>
+<h2 id="BSON-存储格式"><a href="#BSON-存储格式" class="headerlink" title="BSON 存储格式"></a>BSON 存储格式</h2><p>一条最简单的 BSON 文档，从前向后可以拆解成以下几个部分：</p>
+<ol>
+<li>文档的总长度， 占 4 个字节；</li>
+<li>Value 类型，参考<a target="_blank" rel="noopener" href="https://github.com/mongodb/mongo/blob/r4.2.21/src/mongo/bson/bsontypes.h#L59-L110">代码定义</a>，占 1 个字节；</li>
+<li>Key 的 String 表示形式（Key 只能 String 类型），长度不固定，以 ‘\0’ 结尾，占 len(Key)+1 个字节；</li>
+<li>Value 的二进制存储，比如 Int32 占 4 字节，Long 和 Double 占 8 个字节等；</li>
+<li>文档以 ‘\0’ 结尾，也就是在遍历 BSON 到末尾时，常见的 EOO(End Of Object)，占 1 个字节；</li>
+</ol>
+<h2 id="紧凑格式的缺点"><a href="#紧凑格式的缺点" class="headerlink" title="紧凑格式的缺点"></a>紧凑格式的缺点</h2><p>BSON 的存储格式非常紧凑，不同的键值对之间是无间隔存储。因此，修改 BSON 中的某一字段意味着需要组织处一个新的 BSON 对象。如果增加、删除或者修改了某个字段，要生成新 BSON 文档，而非在原有 BSON 文档上原地修改。</p>
+<p>在使用 MongoDB 时，可以使用 JSON 格式来暂时存储数据以便在不同的程序模块之间传递。当数据需要插入 MongoDB 时，再将数据封存，转换为 BSON 格式。</p>
 
       
     </div>
@@ -291,7 +382,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/9/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/9/">9</a><span class="page-number current">10</span><a class="page-number" href="/page/11/">11</a><span class="space">&hellip;</span><a class="page-number" href="/page/34/">34</a><a class="extend next" rel="next" href="/page/11/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/9/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/9/">9</a><span class="page-number current">10</span><a class="page-number" href="/page/11/">11</a><span class="space">&hellip;</span><a class="page-number" href="/page/19/">19</a><a class="extend next" rel="next" href="/page/11/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -359,20 +450,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">34</span>
+          <span class="site-state-item-count">38</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">15</span>
+        <span class="site-state-item-count">16</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-count">19</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
@@ -387,6 +478,9 @@
       </span>
       <span class="links-of-author-item">
         <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.zhihu.com/people/tangrc99" title="知乎 → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fa fa-link fa-fw"></i>知乎</a>
       </span>
   </div>
 

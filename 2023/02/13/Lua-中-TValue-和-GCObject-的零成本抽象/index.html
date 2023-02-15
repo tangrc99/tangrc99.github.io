@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-mac-osx.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Lua 中一共具有 8 个基本类型，分别为：nil、boolean、number、string、userdata、function、thread 和 table。这些基础类型都可以被视为TValue这种类型，从面向对象的角度来看，可以认为TValue是这些类型的基类。GCObject类型则是 LVM 进行 GC 所使用的数据结构，从面向对象的角度来看，GCObject也是所有可 GC 类型的基类。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Lua 中 TValue 和 GCObject 的零成本抽象">
+<meta property="og:url" content="https://tangrc99.com/2023/02/13/Lua-%E4%B8%AD-TValue-%E5%92%8C-GCObject-%E7%9A%84%E9%9B%B6%E6%88%90%E6%9C%AC%E6%8A%BD%E8%B1%A1/index.html">
+<meta property="og:site_name" content="Sepk">
+<meta property="og:description" content="Lua 中一共具有 8 个基本类型，分别为：nil、boolean、number、string、userdata、function、thread 和 table。这些基础类型都可以被视为TValue这种类型，从面向对象的角度来看，可以认为TValue是这些类型的基类。GCObject类型则是 LVM 进行 GC 所使用的数据结构，从面向对象的角度来看，GCObject也是所有可 GC 类型的基类。">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-02-13T15:12:11.787Z">
+<meta property="article:modified_time" content="2023-02-13T15:52:09.755Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="编程语言">
+<meta property="article:tag" content="Lua">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://tangrc99.com/2023/02/13/Lua-%E4%B8%AD-TValue-%E5%92%8C-GCObject-%E7%9A%84%E9%9B%B6%E6%88%90%E6%9C%AC%E6%8A%BD%E8%B1%A1/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Lua 中 TValue 和 GCObject 的零成本抽象 | Sepk</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<style>.darkmode--activated{--body-bg-color:#282828;--content-bg-color:#333;--card-bg-color:#555;--text-color:#ccc;--blockquote-color:#bbb;--link-color:#ccc;--link-hover-color:#eee;--brand-color:#ddd;--brand-hover-color:#ddd;--table-row-odd-bg-color:#282828;--table-row-hover-bg-color:#363636;--menu-item-bg-color:#555;--btn-default-bg:#222;--btn-default-color:#ccc;--btn-default-border-color:#555;--btn-default-hover-bg:#666;--btn-default-hover-color:#ccc;--btn-default-hover-border-color:#666;--highlight-background:#282b2e;--highlight-foreground:#a9b7c6;--highlight-gutter-background:#34393d;--highlight-gutter-foreground:#9ca9b6}.darkmode--activated img{opacity:.75}.darkmode--activated img:hover{opacity:.9}.darkmode--activated code{color:#69dbdc;background:0 0}button.darkmode-toggle{z-index:9999}.darkmode-ignore,img{display:flex!important}.beian img{display:inline-block!important}</style></head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Sepk</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">个人博客</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/02/13/Lua-%E4%B8%AD-TValue-%E5%92%8C-GCObject-%E7%9A%84%E9%9B%B6%E6%88%90%E6%9C%AC%E6%8A%BD%E8%B1%A1/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Lua 中 TValue 和 GCObject 的零成本抽象
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-02-13 23:12:11 / 修改时间：23:52:09" itemprop="dateCreated datePublished" datetime="2023-02-13T23:12:11+08:00">2023-02-13</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/Lua/" itemprop="url" rel="index"><span itemprop="name">Lua</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2.2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>2 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Lua 中一共具有 8 个基本类型，分别为：nil、boolean、number、string、userdata、function、thread 和 table。这些基础类型都可以被视为<code>TValue</code>这种类型，从面向对象的角度来看，可以认为<code>TValue</code>是这些类型的基类。<code>GCObject</code>类型则是 LVM 进行 GC 所使用的数据结构，从面向对象的角度来看，<code>GCObject</code>也是所有可 GC 类型的基类。Lua 是由纯 C 写成的，不包含面向对象的语法，本篇笔记会根据 Lua 源码分析这两种数据结构的实现和使用，笔记会按照我读懂源码的顺序展开。</p>
+<h2 id="GCObject"><a href="#GCObject" class="headerlink" title="GCObject"></a>GCObject</h2><p><code>GCObject</code>类型则是 LVM 进行 GC 所使用的数据结构，其数据结构定义在 lobject.h 头文件中：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> CommonHeader	struct GCObject *next; lu_byte tt; lu_byte marked</span></span><br><span class="line"><span class="comment">// 原定义</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">GCObject</span> &#123;</span></span><br><span class="line">    CommonHeader;</span><br><span class="line">&#125; GCObject;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 展开 define 后</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">GCObject</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">GCObject</span> *<span class="title">next</span>;</span>	<span class="comment">// 指向下一个 GCObject</span></span><br><span class="line">    lu_byte tt;			<span class="comment">// 当前节点类型</span></span><br><span class="line">    lu_byte marked;		<span class="comment">// 是否被 GC 标记</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果学习过 linux 内核中的链表实现，在看到 tt 这个字段后，可能会对该数据结构非常敏感——二者是非常类似的实现。在 lstate.h 中，可以找到有关 GCObject 的转换函数：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* macros to convert a GCObject into a specific value */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> gco2ts(o)  check_exp(novariant((o)-&gt;tt) == LUA_TSTRING, &amp;((cast_u(o))-&gt;ts))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> gco2u(o)  check_exp((o)-&gt;tt == LUA_VUSERDATA, &amp;((cast_u(o))-&gt;u))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> gco2lcl(o)  check_exp((o)-&gt;tt == LUA_VLCL, &amp;((cast_u(o))-&gt;cl.l))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> gco2ccl(o)  check_exp((o)-&gt;tt == LUA_VCCL, &amp;((cast_u(o))-&gt;cl.c))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> gco2cl(o)  check_exp(novariant((o)-&gt;tt) == LUA_TFUNCTION, &amp;((cast_u(o))-&gt;cl))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> gco2t(o)  check_exp((o)-&gt;tt == LUA_VTABLE, &amp;((cast_u(o))-&gt;h))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> gco2p(o)  check_exp((o)-&gt;tt == LUA_VPROTO, &amp;((cast_u(o))-&gt;p))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> gco2th(o)  check_exp((o)-&gt;tt == LUA_VTHREAD, &amp;((cast_u(o))-&gt;th))</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> gco2upv(o)	check_exp((o)-&gt;tt == LUA_VUPVAL, &amp;((cast_u(o))-&gt;upv))</span></span><br></pre></td></tr></table></figure>
+
+<p>这些转换函数的是通过指针的类型转换来实现的，与 linux 内核链表实现方式相同。</p>
+<h2 id="TValue"><a href="#TValue" class="headerlink" title="TValue"></a>TValue</h2><p>在看懂<code>GCObject</code>的实现之后，自然会留意 Lua 源码中的其余部分是否有类似实现。<code>TValue</code>数据结构同样定义在 lobject.h 中：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> TValuefields	Value value_; lu_byte tt_</span></span><br><span class="line"><span class="comment">// 原定义</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">TValue</span> &#123;</span></span><br><span class="line">    TValuefields;</span><br><span class="line">&#125; TValue;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 展开后</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">TValue</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">union</span> <span class="title">Value</span> &#123;</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">GCObject</span> *<span class="title">gc</span>;</span>    <span class="comment">/* collectable objects */</span></span><br><span class="line">        <span class="type">void</span> *p;         <span class="comment">/* light userdata */</span></span><br><span class="line">        lua_CFunction f; <span class="comment">/* light C functions */</span></span><br><span class="line">        lua_Integer i;   <span class="comment">/* integer numbers */</span></span><br><span class="line">        lua_Number n;    <span class="comment">/* float numbers */</span></span><br><span class="line">        <span class="comment">/* not used, but may avoid warnings for uninitialized value */</span></span><br><span class="line">        lu_byte ub;</span><br><span class="line">    &#125; value_;</span><br><span class="line"></span><br><span class="line">    lu_byte tt_;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，<code>TValue</code>数据结构同样包含了一个用于记录类型的字段<code>tt_</code>，这里应该是使用了相同的实现方法。在<code>TValue</code>定义下方有一个用于<code>TValue</code>的方法：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> val_(o)		((o)-&gt;value_)</span></span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">typedef union StackValue &#123;</span><br><span class="line">  TValue val;</span><br><span class="line">  struct &#123;</span><br><span class="line">    TValuefields;</span><br><span class="line">    unsigned short delta;</span><br><span class="line">  &#125; tbclist;</span><br><span class="line">&#125; StackValue;</span><br></pre></td></tr></table></figure>
+
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" rel="tag"><i class="fa fa-tag"></i> 编程语言</a>
+              <a href="/tags/Lua/" rel="tag"><i class="fa fa-tag"></i> Lua</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/02/13/Lua-%E8%84%9A%E6%9C%AC%E5%A6%82%E4%BD%95%E8%BF%90%E8%A1%8C/" rel="prev" title="Lua 脚本如何运行">
+      <i class="fa fa-chevron-left"></i> Lua 脚本如何运行
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#GCObject"><span class="nav-number">1.</span> <span class="nav-text">GCObject</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#TValue"><span class="nav-number">2.</span> <span class="nav-text">TValue</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description">技术爱好者</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">38</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="sidebar-button motion-element">
+    lol welcome!
+  </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.zhihu.com/people/tangrc99" title="知乎 → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fa fa-link fa-fw"></i>知乎</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Tangrc99</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+<script src="https://unpkg.com/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+
+<script>
+var options = {
+  bottom: '64px',
+  right: '32px',
+  left: 'unset',
+  time: '0.5s',
+  mixColor: 'transparent',
+  backgroundColor: 'transparent',
+  buttonColorDark: '#100f2c',
+  buttonColorLight: '#fff',
+  saveInCookies: true,
+  label: '🌓',
+  autoMatchOsTheme: true
+}
+const darkmode = new Darkmode(options);
+window.darkmode = darkmode;
+darkmode.showWidget();
+</script>
+
+</body>
+</html>

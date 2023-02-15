@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-mac-osx.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="在 Redis 的设计中，用户可以使用 Lua 脚本来完成拓展功能，实现一些 RESP 协议中不提供的操作，这些复杂功能往往需要操作多个键值对，并且操作具有上下文关系，如限流算法、简单事务等。 在 Redis 官方手册中的介绍中，使用 Lua 脚本具有如下优点：  逻辑运行在服务端处而非客户端处，减少了 C&#x2F;S 之间传输的网络延迟； Lua 脚本独占服务器运行权，能够保证脚本执行的原子性； 能够组">
+<meta property="og:type" content="article">
+<meta property="og:title" content="redis中lua模块的设计与实现">
+<meta property="og:url" content="https://tangrc99.com/2023/02/10/redis%E4%B8%ADlua%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/index.html">
+<meta property="og:site_name" content="Sepk">
+<meta property="og:description" content="在 Redis 的设计中，用户可以使用 Lua 脚本来完成拓展功能，实现一些 RESP 协议中不提供的操作，这些复杂功能往往需要操作多个键值对，并且操作具有上下文关系，如限流算法、简单事务等。 在 Redis 官方手册中的介绍中，使用 Lua 脚本具有如下优点：  逻辑运行在服务端处而非客户端处，减少了 C&#x2F;S 之间传输的网络延迟； Lua 脚本独占服务器运行权，能够保证脚本执行的原子性； 能够组">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://tangrc99.com/images/lua_stack.png">
+<meta property="article:published_time" content="2023-02-10T07:28:16.054Z">
+<meta property="article:modified_time" content="2023-02-14T11:42:08.224Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="redis">
+<meta property="article:tag" content="数据库">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://tangrc99.com/images/lua_stack.png">
+
+<link rel="canonical" href="https://tangrc99.com/2023/02/10/redis%E4%B8%ADlua%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>redis中lua模块的设计与实现 | Sepk</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<style>.darkmode--activated{--body-bg-color:#282828;--content-bg-color:#333;--card-bg-color:#555;--text-color:#ccc;--blockquote-color:#bbb;--link-color:#ccc;--link-hover-color:#eee;--brand-color:#ddd;--brand-hover-color:#ddd;--table-row-odd-bg-color:#282828;--table-row-hover-bg-color:#363636;--menu-item-bg-color:#555;--btn-default-bg:#222;--btn-default-color:#ccc;--btn-default-border-color:#555;--btn-default-hover-bg:#666;--btn-default-hover-color:#ccc;--btn-default-hover-border-color:#666;--highlight-background:#282b2e;--highlight-foreground:#a9b7c6;--highlight-gutter-background:#34393d;--highlight-gutter-foreground:#9ca9b6}.darkmode--activated img{opacity:.75}.darkmode--activated img:hover{opacity:.9}.darkmode--activated code{color:#69dbdc;background:0 0}button.darkmode-toggle{z-index:9999}.darkmode-ignore,img{display:flex!important}.beian img{display:inline-block!important}</style></head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Sepk</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">个人博客</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/02/10/redis%E4%B8%ADlua%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          redis中lua模块的设计与实现
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-02-10 15:28:16" itemprop="dateCreated datePublished" datetime="2023-02-10T15:28:16+08:00">2023-02-10</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-02-14 19:42:08" itemprop="dateModified" datetime="2023-02-14T19:42:08+08:00">2023-02-14</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/redis/" itemprop="url" rel="index"><span itemprop="name">redis</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>17k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>15 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>在 Redis 的设计中，用户可以使用 Lua 脚本来完成拓展功能，实现一些 RESP 协议中不提供的操作，这些复杂功能往往需要操作多个键值对，并且操作具有上下文关系，如限流算法、简单事务等。</p>
+<p>在 Redis 官方手册中的介绍中，使用 Lua 脚本具有如下优点：</p>
+<ul>
+<li>逻辑运行在服务端处而非客户端处，减少了 C/S 之间传输的网络延迟；</li>
+<li>Lua 脚本独占服务器运行权，能够保证脚本执行的原子性；</li>
+<li>能够组合使用 Redis 支持的现有操作以完成更加复杂的逻辑。</li>
+</ul>
+<p>在《Redis 设计与实现》一书中，作者详细地讲述了 Lua 脚本虚拟环境的搭建、Lua 脚本的运行流程；但是书中较少展示Redis 的源码，如果对 Lua 了解较少，可能会对该部分的具体实现过程较为困惑。本文将以 Redis 6.2.6 版本为例，介绍 Redis 中 Lua 脚本部分的实现。</p>
+<h2 id="Lua-脚本简介"><a href="#Lua-脚本简介" class="headerlink" title="Lua 脚本简介"></a>Lua 脚本简介</h2><p>Lua 是一种脚本语言，它使用标准 C 语言编写，具有很强的嵌入能力，能够作为“胶水语言”来为应用程序提高扩展性。除了 Redis 以外，Nginx 也同样适用了 Lua 来支持拓展功能。</p>
+<p>Lua 语言的一个重要特性是它支持 C/Lua 函数之间的相互调用，这种相互调用是依赖于 Lua 虚拟机的栈特性实现的。下面以一个 demo 来简述 Lua 虚拟机中的栈特性。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">l_Replace</span><span class="params">(lua_State *L)</span> &#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;Read From Lua: %s\n&quot;</span>,luaL_checkstring(L,<span class="number">1</span>)); <span class="comment">// 从栈顶读取数据</span></span><br><span class="line">    lua_pushstring(L, <span class="string">&quot;replaced&quot;</span>);  <span class="comment">// 返回给lua的值压栈</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">1</span>;   <span class="comment">// 返回 1 代表运行成功</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">l_Origin</span><span class="params">(lua_State *L)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">l_Fail</span><span class="params">(lua_State *L)</span>&#123;</span><br><span class="line">    lua_pushstring(L,<span class="string">&quot;fail&quot;</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span> *argv[])</span> &#123;</span><br><span class="line">    lua_State *L = luaL_newstate();  <span class="comment">// 创建lua状态机</span></span><br><span class="line">    luaL_openlibs(L);   <span class="comment">// 打开Lua状态机中所有Lua标准库</span></span><br><span class="line">    lua_register(L, <span class="string">&quot;replace&quot;</span>, l_Replace);<span class="comment">//注册C函数到lua</span></span><br><span class="line">    lua_register(L, <span class="string">&quot;origin&quot;</span>, l_Origin);<span class="comment">//注册C函数到lua</span></span><br><span class="line">    lua_register(L, <span class="string">&quot;fail&quot;</span>, l_Fail);<span class="comment">//注册C函数到lua</span></span><br><span class="line"></span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *testfunc = <span class="string">&quot;print(&#x27;lua output:&#x27;,replace(&#x27;original&#x27;))&quot;</span></span><br><span class="line">                           <span class="string">&quot;print(&#x27;lua output:&#x27;,origin(&#x27;original&#x27;))&quot;</span></span><br><span class="line">                           <span class="string">&quot;print(&#x27;lua output:&#x27;,fail(&#x27;original&#x27;))&quot;</span>; <span class="comment">//lua中调用c函数</span></span><br><span class="line">    <span class="keyword">if</span> (luaL_dostring(L, testfunc))    <span class="comment">// 执行Lua命令。</span></span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">&quot;Failed to invoke.\n&quot;</span>);</span><br><span class="line"></span><br><span class="line">    lua_close(L);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这段函数的输出结果为：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Read From Lua: original</span><br><span class="line">lua output:	replaced</span><br><span class="line">lua output:	original</span><br><span class="line">lua output:</span><br></pre></td></tr></table></figure>
+
+<p>当 Lua 中需要调用 C/C++ 函数时，需要使用 Lua 标准库中的<code>lua_register</code>函数将相应的函数注册到 Lua 虚拟机中。与传统的函数调用方式不同，Lua 中并不是依赖于 C/C++ 函数的返回值来进行值传递，而是在调用过程中创建一个栈，需要 C/C++ 函数将需要返回的值压入栈中，当该函数运行结束后，再将栈中的值作为函数的返回值；而 C/C++ 的返回值则用于表示是否执行成功，如果 return 0，则代表值 nil。</p>
+<p><img src="/images/lua_stack.png" alt="lua_stack"></p>
+<p>这种设计解决了 Lua 这种动态类型语言与 C/C++ 这种强类型语言之间值传递的问题，并且屏蔽了彼此之间的内存差异。但是这种方式使得 C/C++ 代码中需要嵌套大量操作 Lua 虚拟机的代码，具有一定的编程难度，比较好的一种做法是设置专门的模块作为中间层与 Lua 虚拟机进行交互，避免其他模块代码直接与 Lua 虚拟机进行耦合。这一思想在 Redis 源码中也有所体现。</p>
+<h2 id="Redis-中-Lua-虚拟环境的构建"><a href="#Redis-中-Lua-虚拟环境的构建" class="headerlink" title="Redis 中 Lua 虚拟环境的构建"></a>Redis 中 Lua 虚拟环境的构建</h2><h3 id="虚拟环境的构建流程"><a href="#虚拟环境的构建流程" class="headerlink" title="虚拟环境的构建流程"></a>虚拟环境的构建流程</h3><p>Redis 中 Lua 虚拟机环境的创建是在<code>scriptingInit</code>函数中完成的，函数比较简单，将代码简化后，可以分为以下几个阶段：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">scriptingInit</span><span class="params">(<span class="type">int</span> setup)</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// step1: 使用 liblua 来创建虚拟环境</span></span><br><span class="line">    lua_State *lua = lua_open();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (setup) &#123;</span><br><span class="line">        server.lua_client = <span class="literal">NULL</span>;	<span class="comment">// 清理 server 参数</span></span><br><span class="line">        server.lua_caller = <span class="literal">NULL</span>;</span><br><span class="line">        server.lua_cur_script = <span class="literal">NULL</span>;</span><br><span class="line">        server.lua_timedout = <span class="number">0</span>;</span><br><span class="line">        ldbInit();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// step2: 加载需要的库，并去除不需要的库</span></span><br><span class="line">    luaLoadLibraries(lua);</span><br><span class="line">    luaRemoveUnsupportedFunctions(lua);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// step3: 创建字典，用于保存 Lua 脚本</span></span><br><span class="line">    server.lua_scripts = dictCreate(&amp;shaScriptObjectDictType,<span class="literal">NULL</span>);</span><br><span class="line">    server.lua_scripts_mem = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// step4: 注册函数到 redis 哈希表中</span></span><br><span class="line">    <span class="comment">// 创建哈希表</span></span><br><span class="line">    lua_newtable(lua);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 注册 redis.call</span></span><br><span class="line">    lua_pushstring(lua,<span class="string">&quot;call&quot;</span>);</span><br><span class="line">    lua_pushcfunction(lua,luaRedisCallCommand);</span><br><span class="line">    lua_settable(lua,<span class="number">-3</span>);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// 省略了重复的注册过程</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 将哈希表命名为 redis 并设置为全局变量</span></span><br><span class="line">    lua_setglobal(lua,<span class="string">&quot;redis&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// step5: 更替 random 函数库</span></span><br><span class="line">    lua_getglobal(lua,<span class="string">&quot;math&quot;</span>);</span><br><span class="line"></span><br><span class="line">    lua_pushstring(lua,<span class="string">&quot;random&quot;</span>);</span><br><span class="line">    lua_pushcfunction(lua,redis_math_random);</span><br><span class="line">    lua_settable(lua,<span class="number">-3</span>);</span><br><span class="line"></span><br><span class="line">    lua_pushstring(lua,<span class="string">&quot;randomseed&quot;</span>);</span><br><span class="line">    lua_pushcfunction(lua,redis_math_randomseed);</span><br><span class="line">    lua_settable(lua,<span class="number">-3</span>);</span><br><span class="line"></span><br><span class="line">    lua_setglobal(lua,<span class="string">&quot;math&quot;</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 添加帮助函数，过程省略</span></span><br><span class="line">	...</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// step6: 创建 fake 客户端</span></span><br><span class="line">    <span class="keyword">if</span> (server.lua_client == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        server.lua_client = createClient(<span class="literal">NULL</span>);</span><br><span class="line">        server.lua_client-&gt;flags |= CLIENT_LUA;</span><br><span class="line">        server.lua_client-&gt;flags |= CLIENT_DENY_BLOCKING;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// step7: 设置全局保护</span></span><br><span class="line">    scriptingEnableGlobalsProtection(lua);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// step8: 保存 lua 环境</span></span><br><span class="line">    server.lua = lua;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>初始化函数虽然较长，结构为线性结构，逻辑也比较简单，初始化函数中的几个阶段分别完成了如下工作：</p>
+<ol>
+<li>使用 liblua 库函数创建 lua 虚拟机环境；</li>
+<li>加载 Lua 基础函数库与表格库，并移除<code>loadfile</code>和<code>dofile</code>函数，防止引发安全问题；</li>
+<li>创建一个 dict 用于保存 sha-script；</li>
+<li>在 Lua 中创建 redis 表，并将 C 函数注册到该表格中，从而实现<code>redis.call</code>接口；</li>
+<li>更替 random 函数库，保证随机函数在不同主机上生成相同的序列；</li>
+<li>创建一个 fake 客户端，用于交互 redis 数据库；</li>
+<li>设置全局保护，禁止设置全局变量；</li>
+<li>将已经完成设置的 Lua 环境保存到 server 结构体中。</li>
+</ol>
+<h3 id="全局变量保护的实现"><a href="#全局变量保护的实现" class="headerlink" title="全局变量保护的实现"></a>全局变量保护的实现</h3><p>全局变量保护是许多 Lua 虚拟环境中都会完成的工作，利用的原理也大都相似——通过修改 _ENV 表中 _G 表中 metatable 来实现。metatable 是 Lua 表中的一个特殊表，它的每个字段中都存储了控制当前表一些行为的函数，如 <code>__index</code>字段 控制索引操作、<code>__add</code>字段控制表的相加操作。当需要对一个表进行操作时，LVM 将会查询该表的 metatable 是否有相关控制字段，若有该控制字段，会按照字段中存储的函数来执行操作。</p>
+<p>基于元表的这一原理，通过修改 _G 表中 metatable 的 <code>__newindex</code> 和 ``__index`字段，就可以实现对插入和读取全局变量的保护。Redis 中实现该行为所使用的 Lua 脚本为：</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">local</span> dbg=<span class="built_in">debug</span></span><br><span class="line"><span class="keyword">local</span> mt = &#123;&#125;</span><br><span class="line"><span class="comment">-- 将 mt 赋值给 _G 的 metatable</span></span><br><span class="line"><span class="built_in">setmetatable</span>(<span class="built_in">_G</span>, mt)</span><br><span class="line">mt.<span class="built_in">__newindex</span> = <span class="function"><span class="keyword">function</span> <span class="params">(t, n, v)</span></span></span><br><span class="line">    <span class="keyword">if</span> dbg.<span class="built_in">getinfo</span>(<span class="number">2</span>) <span class="keyword">then</span></span><br><span class="line">        <span class="keyword">local</span> w = dbg.<span class="built_in">getinfo</span>(<span class="number">2</span>, <span class="string">&quot;S&quot;</span>).what</span><br><span class="line">        <span class="comment">-- 如果不在 main 或 C 函数中，将不允许设置环境变量</span></span><br><span class="line">        <span class="comment">-- Redis 环境中，用户脚本都是包裹在 f_sha 函数中运行的，不能创建全局变量</span></span><br><span class="line">        <span class="keyword">if</span> w ~= <span class="string">&quot;main&quot;</span> <span class="keyword">and</span> w ~= <span class="string">&quot;C&quot;</span> <span class="keyword">then</span></span><br><span class="line">            <span class="built_in">error</span>(<span class="string">&quot;Script attempted to create global variable &#x27;&quot;</span>..<span class="built_in">tostring</span>(n)..<span class="string">&quot;&#x27;&quot;</span>, <span class="number">2</span>)</span><br><span class="line">        <span class="keyword">end</span></span><br><span class="line">    <span class="keyword">end</span></span><br><span class="line">    <span class="comment">-- 除上述条件外，允许设置全局变量</span></span><br><span class="line">    <span class="comment">-- 这是为了将用户脚本放入到全局变量中</span></span><br><span class="line">    <span class="built_in">rawset</span>(t, n, v)</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line">mt.<span class="built_in">__index</span> = <span class="function"><span class="keyword">function</span> <span class="params">(t, n)</span></span></span><br><span class="line">    <span class="comment">-- 如果不在 main 或 C 函数中，将不允许访问不存在的环境变量</span></span><br><span class="line">    <span class="keyword">if</span> dbg.<span class="built_in">getinfo</span>(<span class="number">2</span>) <span class="keyword">and</span> dbg.<span class="built_in">getinfo</span>(<span class="number">2</span>, <span class="string">&quot;S&quot;</span>).what ~= <span class="string">&quot;C&quot;</span> <span class="keyword">then</span></span><br><span class="line">        <span class="built_in">error</span>(<span class="string">&quot;Script attempted to access nonexistent global variable &#x27;&quot;</span>..<span class="built_in">tostring</span>(n)..<span class="string">&quot;&#x27;&quot;</span>, <span class="number">2</span>)</span><br><span class="line">    <span class="keyword">end</span></span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">rawget</span>(t, n)</span><br><span class="line"><span class="keyword">end</span></span><br><span class="line"><span class="built_in">debug</span> = <span class="literal">nil</span></span><br></pre></td></tr></table></figure>
+
+<p>由于 Redis 中所有的用户脚本都是被包裹在名为 f_sha 的函数中运行的，这里通过修改元表中的行为，不允许在非 main 以及非 C 条件下设置全局变量、访问不存在的全局变量；这样就实现了全局变量的保护。</p>
+<h3 id="redis-call-的实现"><a href="#redis-call-的实现" class="headerlink" title="redis.call 的实现"></a>redis.call 的实现</h3><p>这里介绍一下<code>redis.call()</code>接口的实现。在 Lua 中，函数是一等公民，可以作为值被放入到哈希表中，然后从哈希表中取出并调用。<code>redis.call()</code>其实是一种 Lua 语法糖的写法，其原始的写法应该是<code>redis[&#39;call&#39;]()</code>，即从 redis 哈希表中取出键为 call 的函数值并调用。在环境初始化过程中，<code>redis.call</code>最终会绑定到<code>luaRedisGenericCommmand</code>函数上，该函数负责与 redis 数据库进行交互，Lua 环境下并不会直接与 C 环境下的 redis 数据库进行交互。</p>
+<p><code>luaRedisGenericCommmand</code>函数总长度约为 300 行，大部分逻辑为类型检查、异常处理等。剔除这些部分，仅仅保留主执行逻辑，我们可以把该函数分为以下几个阶段。<strong>函数中所有的参数检查都已经被删除</strong>。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">luaRedisGenericCommand</span><span class="params">(lua_State *lua, <span class="type">int</span> raise_error)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// step1: 参数绑定阶段</span></span><br><span class="line">    <span class="comment">// 从栈中获取传递的参数个数 argc ，并构建 argv </span></span><br><span class="line">    <span class="type">int</span> j, argc = lua_gettop(lua);</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">redisCommand</span> *<span class="title">cmd</span>;</span></span><br><span class="line">    client *c = server.lua_client;</span><br><span class="line">    sds reply;</span><br><span class="line">    <span class="type">static</span> robj **argv = <span class="literal">NULL</span>;</span><br><span class="line">    <span class="type">static</span> <span class="type">int</span> argv_size = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (argv_size &lt; argc) &#123;</span><br><span class="line">        argv = zrealloc(argv,<span class="keyword">sizeof</span>(robj*)*argc);</span><br><span class="line">        argv_size = argc;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 构建 agrv 数组</span></span><br><span class="line">    <span class="keyword">for</span> (j = <span class="number">0</span>; j &lt; argc; j++) &#123;</span><br><span class="line">        <span class="type">char</span> *obj_s;</span><br><span class="line">        <span class="type">size_t</span> obj_len;</span><br><span class="line">        <span class="type">char</span> dbuf[<span class="number">64</span>];</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 依次解析栈中的参数，要求参数为 number 或 string 类型</span></span><br><span class="line">        <span class="keyword">if</span> (lua_type(lua,j+<span class="number">1</span>) == LUA_TNUMBER) &#123;</span><br><span class="line">            lua_Number num = lua_tonumber(lua,j+<span class="number">1</span>);</span><br><span class="line">            obj_len = <span class="built_in">snprintf</span>(dbuf,<span class="keyword">sizeof</span>(dbuf),<span class="string">&quot;%.17g&quot;</span>,(<span class="type">double</span>)num);</span><br><span class="line">            obj_s = dbuf;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            obj_s = (<span class="type">char</span>*)lua_tolstring(lua,j+<span class="number">1</span>,&amp;obj_len);</span><br><span class="line">            <span class="keyword">if</span> (obj_s == <span class="literal">NULL</span>) <span class="keyword">break</span>; <span class="comment">/* Not a string. */</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Setup our fake client for command execution */</span></span><br><span class="line">    c-&gt;argv = argv;</span><br><span class="line">    c-&gt;argc = argc;</span><br><span class="line">    c-&gt;user = server.lua_caller-&gt;user;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Process module hooks */</span></span><br><span class="line">    moduleCallCommandFilters(c);</span><br><span class="line">    argv = c-&gt;argv;</span><br><span class="line">    argc = c-&gt;argc;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// step2: 获取 command，检查是否允许运行</span></span><br><span class="line">    cmd = lookupCommand(argv[<span class="number">0</span>]-&gt;ptr);</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// command 检查，主要可以分为以下几个步骤：</span></span><br><span class="line">    <span class="comment">// 1.是否存在</span></span><br><span class="line">    <span class="comment">// 2.command 是否允许运行</span></span><br><span class="line">    <span class="comment">// 3.当前内存是否达到上限</span></span><br><span class="line">    <span class="comment">// 4.检查随机函数与写函数</span></span><br><span class="line">    <span class="comment">// 5.检查 ACL 与 Cluster 选项</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="comment">// step3: 命令运行阶段</span></span><br><span class="line">    <span class="comment">// 更新 server 状态</span></span><br><span class="line">    <span class="type">int</span> call_flags = CMD_CALL_SLOWLOG | CMD_CALL_STATS;</span><br><span class="line">    <span class="keyword">if</span> (server.lua_replicate_commands) &#123;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (server.lua_repl &amp; PROPAGATE_AOF)</span><br><span class="line">            call_flags |= CMD_CALL_PROPAGATE_AOF;</span><br><span class="line">        <span class="keyword">if</span> (server.lua_repl &amp; PROPAGATE_REPL)</span><br><span class="line">            call_flags |= CMD_CALL_PROPAGATE_REPL;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// core : 调用 redis 中的命令表</span></span><br><span class="line">    call(c,call_flags);</span><br><span class="line">    serverAssert((c-&gt;flags &amp; CLIENT_BLOCKED) == <span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// step4: 命令结束阶段</span></span><br><span class="line">    <span class="comment">// 将客户端收到的 RESP 格式结果转换为 Lua 格式结果，并送入 Lua 栈中。</span></span><br><span class="line">    redisProtocolToLuaType(lua,reply);</span><br><span class="line"></span><br><span class="line">	<span class="comment">// step5: 清理阶段</span></span><br><span class="line">cleanup:</span><br><span class="line">    </span><br><span class="line">    <span class="comment">// 清理 argc/argv 并尝试缓存。</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 错误处理，将 err 字段压入哈希表中</span></span><br><span class="line">    <span class="keyword">if</span> (raise_error) &#123;</span><br><span class="line">        <span class="comment">/* If we are here we should have an error in the stack, in the</span></span><br><span class="line"><span class="comment">         * form of a table with an &quot;err&quot; field. Extract the string to</span></span><br><span class="line"><span class="comment">         * return the plain error. */</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> luaRaiseError(lua);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>整体来说，该函数的逻辑也较为简单：从 Lua 栈中取出参数——调用 redis 命令表——将结果压入 Lua 栈中。函数中使用了一个 fake 客户端与数据库部分进行交互，因此<code>luaRedisGenericCommand</code>函数中必须要在 Lua 类型与 RESP 类型之间进行两次类型转换，但是这样的设计却有更多的优点：</p>
+<ul>
+<li>避免重写数据库操作函数，降低了工程量；</li>
+<li>共用操作函数，保障了 Lua 脚本与其他命令执行结果的一致性；</li>
+<li>加入了中间层，降低了 Lua 环境与 C 环境的耦合度；</li>
+</ul>
+<p>由于 Lua 语言本身是不含错误处理的，因此 Redis 额外设置了 pcall 用于包裹命令的执行，通过操作 Lua 栈的形式来进行错误的传递。当 Lua 脚本中使用<code>redis.pcall</code>时，<code>luaRedisGenericCommand</code>函数中的参数<code>raise_error</code>会被设置为 1，如果在命令执行过程中发生了错误，那么将会在最终的清理阶段通过<code>luaRaiseError</code>函数主动将错误信息压入到 Lua 栈中，以此来达到错误传递的目的。</p>
+<h2 id="eval-族函数的一些实现"><a href="#eval-族函数的一些实现" class="headerlink" title="eval 族函数的一些实现"></a>eval 族函数的一些实现</h2><p>Redis 中 eval 族命令最终都会调用<code>evalGenericCommand</code>，该函数的细节部分较多，这里将函数分为几个部分来讲述，以下代码片段在非标明前提下均来自于<code>evalGenericCommand</code>函数。</p>
+<h3 id="脚本的存储与编译"><a href="#脚本的存储与编译" class="headerlink" title="脚本的存储与编译"></a>脚本的存储与编译</h3><p>Redis 服务器提供了 Lua 脚本的复用功能，所有的脚本都会以 f_sha 的形式命名并存储在字典以及 Lua 环境中，其中 sha 是脚本经过 sha1hex 算法后计算得到的 40 位字符串。在调用脚本时，Redis 会直接尝试在 Lua 环境中使用 f_sha 来查找函数，若未找到，才会进行脚本的初始化。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">funcname[<span class="number">0</span>] = <span class="string">&#x27;f&#x27;</span>; funcname[<span class="number">1</span>] = <span class="string">&#x27;_&#x27;</span>;</span><br><span class="line"><span class="keyword">if</span> (!evalsha) &#123;</span><br><span class="line">	<span class="comment">// 计算 sha 值</span></span><br><span class="line">    sha1hex(funcname+<span class="number">2</span>,c-&gt;argv[<span class="number">1</span>]-&gt;ptr,sdslen(c-&gt;argv[<span class="number">1</span>]-&gt;ptr));</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="type">int</span> j; <span class="type">char</span> *sha = c-&gt;argv[<span class="number">1</span>]-&gt;ptr;</span><br><span class="line">    <span class="keyword">for</span> (j = <span class="number">0</span>; j &lt; <span class="number">40</span>; j++)</span><br><span class="line">        funcname[j+<span class="number">2</span>] = (sha[j] &gt;= <span class="string">&#x27;A&#x27;</span> &amp;&amp; sha[j] &lt;= <span class="string">&#x27;Z&#x27;</span>) ? sha[j]+(<span class="string">&#x27;a&#x27;</span>-<span class="string">&#x27;A&#x27;</span>) : sha[j];</span><br><span class="line">    funcname[<span class="number">42</span>] = <span class="string">&#x27;\0&#x27;</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">/* Push the pcall error handler function on the stack. */</span></span><br><span class="line">lua_getglobal(lua, <span class="string">&quot;__redis__err__handler&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 在 Lua 环境中查找脚本</span></span><br><span class="line">lua_getglobal(lua, funcname);</span><br><span class="line"><span class="keyword">if</span> (lua_isnil(lua,<span class="number">-1</span>)) &#123;</span><br><span class="line">    lua_pop(lua,<span class="number">1</span>); </span><br><span class="line">    <span class="keyword">if</span> (evalsha) &#123;</span><br><span class="line">        lua_pop(lua,<span class="number">1</span>); </span><br><span class="line">        addReplyErrorObject(c, shared.noscripterr);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 进行脚本的初始化</span></span><br><span class="line">    <span class="keyword">if</span> (luaCreateFunction(c,lua,c-&gt;argv[<span class="number">1</span>]) == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        lua_pop(lua,<span class="number">1</span>); </span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">	<span class="comment">// 重新获取脚本函数</span></span><br><span class="line">    lua_getglobal(lua, funcname);</span><br><span class="line">    serverAssert(!lua_isnil(lua,<span class="number">-1</span>));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在<code>luaCreateFunction</code>函数中，用户发送的脚本会被处理，并写入到 Lua 环境中的全局表中。假设用户所发送的 Lua 脚本内容为 function_body，那么最终将会被拼接为如下的形式：</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">f_</span>&lt;<span class="title">sha</span>&gt;<span class="params">()</span></span> function_body</span><br><span class="line">    <span class="keyword">end</span></span><br></pre></td></tr></table></figure>
+
+<p>如果对 Redis 手册较为熟悉，那么可以了解到所有的 Lua 脚本在服务器重启后都会失效，需要重新加载。这一特性从函数<code>luaCreateFunction</code>中可以了解到缘由。Lua 脚本在被创建时，会被注册到<code>lua_scripts</code>哈希表中，而这一哈希表对于 redis 来说是一个“二等公民”，它并不享有数据持久化的功能，在每一次重启时，redis 并不会自动导入之前已经载入的脚本。Lua 脚本相关的持久化功能只会被用于主从复制等场景。</p>
+<h3 id="脚本运行"><a href="#脚本运行" class="headerlink" title="脚本运行"></a>脚本运行</h3><p>Lua 脚本的运行在 C 代码中的体现比较少，在经过脚本的存储与编译后，只使用了如下代码来运行脚本：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 将 KEYS 和 ARGV 作为全局变量放入 Lua 环境</span></span><br><span class="line">luaSetGlobalArray(lua,<span class="string">&quot;KEYS&quot;</span>,c-&gt;argv+<span class="number">3</span>,numkeys);</span><br><span class="line">luaSetGlobalArray(lua,<span class="string">&quot;ARGV&quot;</span>,c-&gt;argv+<span class="number">3</span>+numkeys,c-&gt;argc<span class="number">-3</span>-numkeys);</span><br><span class="line"></span><br><span class="line">prepareLuaClient();</span><br><span class="line"></span><br><span class="line"><span class="comment">/* At this point whether this script was never seen before or if it was</span></span><br><span class="line"><span class="comment">  already defined, we can call it. We have zero arguments and expect</span></span><br><span class="line"><span class="comment">  a single return value. */</span></span><br><span class="line">err = lua_pcall(lua,<span class="number">0</span>,<span class="number">1</span>,<span class="number">-2</span>);</span><br><span class="line"></span><br><span class="line">resetLuaClient();</span><br></pre></td></tr></table></figure>
+
+<p>由于脚本内容和输入参数已经被送入到了 Lua 虚拟机的栈中，这里直接使用了<code>lua_pcall</code>执行脚本，运行中需要访问数据库的操作将会使用已经注册到 Lua 环境中的 redis 族函数。若脚本在运行中发生错误，那么 Lua 栈顶部将会存储错误信息，在清理阶段将会收集信息并返回客户端。</p>
+<h3 id="超时检测"><a href="#超时检测" class="headerlink" title="超时检测"></a>超时检测</h3><p>Redis 中所有用户命令的执行都是单线程串行的，为了防止单个 Lua 脚本运行时间过长阻塞服务端，Lua 模块中提供了脚本运行超时功能，当脚本运行超时后，用户可以使用 script kill 命令来强行结束脚本。这一功能是通过 Lua hook 来实现的，在<code>evalGenericCommand</code>函数中使用<code>lua_sethook(lua,luaMaskCountHook,LUA_MASKCOUNT,100000);</code>代码将函数<code>luaMaskCountHook</code>作为 hook 注册到 Lua 环境中，每执行 100000 条语句，Lua 将强制执行一次该函数。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">luaMaskCountHook</span><span class="params">(lua_State *lua, lua_Debug *ar)</span> &#123;</span><br><span class="line">    <span class="comment">// 计算脚本运行的事件</span></span><br><span class="line">    <span class="type">long</span> <span class="type">long</span> elapsed = elapsedMs(server.lua_time_start);</span><br><span class="line">    UNUSED(ar);</span><br><span class="line">    UNUSED(lua);</span><br><span class="line">    <span class="comment">// 如果脚本运行超时</span></span><br><span class="line">    <span class="keyword">if</span> (elapsed &gt;= server.lua_time_limit &amp;&amp; server.lua_timedout == <span class="number">0</span>) &#123;</span><br><span class="line">        serverLog(LL_WARNING,</span><br><span class="line">            <span class="string">&quot;Lua slow script detected: still in execution after %lld milliseconds. &quot;</span></span><br><span class="line">            <span class="string">&quot;You can try killing the script using the SCRIPT KILL command. &quot;</span></span><br><span class="line">            <span class="string">&quot;Script SHA1 is: %s&quot;</span>,</span><br><span class="line">            elapsed, server.lua_cur_script);</span><br><span class="line">        server.lua_timedout = <span class="number">1</span>;</span><br><span class="line">        blockingOperationStarts();</span><br><span class="line">        <span class="comment">// 防止其他部分代码关闭脚本调用客户端</span></span><br><span class="line">        protectClient(server.lua_caller);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (server.lua_timedout) processEventsWhileBlocked();</span><br><span class="line">    <span class="keyword">if</span> (server.lua_kill) &#123;</span><br><span class="line">        serverLog(LL_WARNING,<span class="string">&quot;Lua script killed by user with SCRIPT KILL.&quot;</span>);</span><br><span class="line"></span><br><span class="line">        lua_sethook(lua, luaMaskCountHook, LUA_MASKLINE, <span class="number">0</span>);</span><br><span class="line">        <span class="comment">// 在 Lua 环境下退出运行</span></span><br><span class="line">        lua_pushstring(lua,<span class="string">&quot;Script killed by user with SCRIPT KILL...&quot;</span>);</span><br><span class="line">        lua_error(lua);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>脚本的运行时间是由该函数进行计算的，当脚本运行超时时函数将会输出一条日志，并且允许其他客户端强行中断脚本。中断一个正在运行的脚本是有条件的，必须确保当前执行的脚本没有进行过写操作，否则可能会严重影响数据库的安全性，甚至让数据库处于中间状态。Redis 中是通过记录脚本运行状态来判断脚本是否执行过写操作的，即标识位<code>server.lua_write_dirty</code>。在 Lua 脚本准备执行写操作时，会将该标识位置为 1，此时将不会允许脚本被中断。</p>
+<p>Redis 同样会在该 hook 函数中来执行中断脚本的逻辑。当脚本发生超时后，每次执行 hook 函数，都会调用一次特殊的事件处理函数<code>processEventsWhileBlocked</code>：</p>
+<p>Redis 的事务执行是单线程的，那么当 eventLoop 正在执行脚本时，为什么 Redis 还可以处理其余命令。Redis 并没有为 Lua 脚本单独开辟线程来运行，而是利用 Lua 环境中注册的 hook 函数来执行的。在 hook 函数中调用了<code>processEventsWhileBlocked</code>：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">processEventsWhileBlocked</span><span class="params">(<span class="type">void</span>)</span> &#123;</span><br><span class="line">    <span class="type">int</span> iterations = <span class="number">4</span>; 	<span class="comment">// 限制处理事务的时间</span></span><br><span class="line"></span><br><span class="line">    updateCachedTime(<span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">    ProcessingEventsWhileBlocked = <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">while</span> (iterations--) &#123;</span><br><span class="line">        <span class="type">long</span> <span class="type">long</span> startval = server.events_processed_while_blocked;</span><br><span class="line">        <span class="type">long</span> <span class="type">long</span> ae_events = aeProcessEvents(server.el,</span><br><span class="line">            AE_FILE_EVENTS|AE_DONT_WAIT|</span><br><span class="line">            AE_CALL_BEFORE_SLEEP|AE_CALL_AFTER_SLEEP);</span><br><span class="line"></span><br><span class="line">        server.events_processed_while_blocked += ae_events;</span><br><span class="line">        <span class="type">long</span> <span class="type">long</span> events = server.events_processed_while_blocked - startval;</span><br><span class="line">        <span class="keyword">if</span> (!events) <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    whileBlockedCron();</span><br><span class="line">    ProcessingEventsWhileBlocked = <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>processEventsWhileBlocked</code>每一次被调用时都会最多处理四个已经解析完毕的客户端命令。在阻塞状态下，Redis 服务器将会只允许一部分命令执行，这些命令不影响数据库的状态或者用于关闭正在运行的脚本，其余命令将会被拒绝执行。允许被执行的命令如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">processCommand</span><span class="params">(client *c)</span> &#123;</span><br><span class="line">	...  </span><br><span class="line">	<span class="keyword">if</span> (server.lua_timedout &amp;&amp;</span><br><span class="line">          c-&gt;cmd-&gt;proc != authCommand &amp;&amp;</span><br><span class="line">          c-&gt;cmd-&gt;proc != helloCommand &amp;&amp;</span><br><span class="line">          c-&gt;cmd-&gt;proc != replconfCommand &amp;&amp;</span><br><span class="line">          c-&gt;cmd-&gt;proc != multiCommand &amp;&amp;</span><br><span class="line">          c-&gt;cmd-&gt;proc != discardCommand &amp;&amp;</span><br><span class="line">          c-&gt;cmd-&gt;proc != watchCommand &amp;&amp;</span><br><span class="line">          c-&gt;cmd-&gt;proc != unwatchCommand &amp;&amp;</span><br><span class="line">          c-&gt;cmd-&gt;proc != resetCommand &amp;&amp;</span><br><span class="line">        !(c-&gt;cmd-&gt;proc == shutdownCommand &amp;&amp;</span><br><span class="line">          c-&gt;argc == <span class="number">2</span> &amp;&amp;</span><br><span class="line">          <span class="built_in">tolower</span>(((<span class="type">char</span>*)c-&gt;argv[<span class="number">1</span>]-&gt;ptr)[<span class="number">0</span>]) == <span class="string">&#x27;n&#x27;</span>) &amp;&amp;</span><br><span class="line">        !(c-&gt;cmd-&gt;proc == scriptCommand &amp;&amp;</span><br><span class="line">          c-&gt;argc == <span class="number">2</span> &amp;&amp;</span><br><span class="line">          <span class="built_in">tolower</span>(((<span class="type">char</span>*)c-&gt;argv[<span class="number">1</span>]-&gt;ptr)[<span class="number">0</span>]) == <span class="string">&#x27;k&#x27;</span>))</span><br><span class="line">    &#123;</span><br><span class="line">        rejectCommand(c, shared.slowscripterr);</span><br><span class="line">        <span class="keyword">return</span> C_OK;</span><br><span class="line">    &#125;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在允许被执行的命令中，auth, hello, replconf, multi, discard, watch, unwatch, reset 都不会对数据库产生任何影响，其余的两个命令则是用于关闭脚本运行。</p>
+<h3 id="随机命令检测"><a href="#随机命令检测" class="headerlink" title="随机命令检测"></a>随机命令检测</h3><p>Redis 对 Lua 脚本环境下的随机命令有所限制，根据官方手册：Redis 不允许在 Lua 脚本中随机命令发生在写命令前，单独的随机命令不受影响；这是为了防止同一份 Lua 脚本在不同实例中的执行结果不同。例如，一个脚本的执行逻辑是随机获取 100 个键，并将其中键值最小的 10 个键删除；由于每个实例中随机获取的键不同，最终可能会导致不同 Redis 实例的状态不同。但是先写入，后随机读取的情况则是允许的，例如先更新一个键，然后随机读取 10 个键；这不会造成 Redis 实例状态不同。</p>
+<p>这一功能的实现原理同脚本中断，也是使用标识位来实现的。这一功能的实现位于<code>luaRedisGenericCommmand</code>函数中，处于获取命令后的检查阶段：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">luaRedisGenericCommand</span><span class="params">(lua_State *lua, <span class="type">int</span> raise_error)</span> &#123;</span><br><span class="line">    </span><br><span class="line">    ...</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span> (cmd-&gt;flags &amp; CMD_WRITE) &#123;</span><br><span class="line">        <span class="type">int</span> deny_write_type = writeCommandsDeniedByDiskError();</span><br><span class="line">        <span class="keyword">if</span> (server.lua_random_dirty &amp;&amp; !server.lua_replicate_commands) &#123;</span><br><span class="line">            luaPushError(lua,</span><br><span class="line">                <span class="string">&quot;Write commands not allowed after non deterministic commands. Call redis.replicate_commands() at the start of your script in order to switch to single commands replication mode.&quot;</span>);</span><br><span class="line">            <span class="keyword">goto</span> cleanup;</span><br><span class="line">        &#125; </span><br><span class="line">        <span class="comment">// 其他检查</span></span><br><span class="line">        ...</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 如果命令是写操作或随机操作，修改标识位</span></span><br><span class="line">    <span class="keyword">if</span> (cmd-&gt;flags &amp; CMD_RANDOM) server.lua_random_dirty = <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> (cmd-&gt;flags &amp; CMD_WRITE) server.lua_write_dirty = <span class="number">1</span>;</span><br><span class="line">    </span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到这一段函数的逻辑是在写操作中检查<code>if(server.lua_random_dirty == 1)</code>，因此先执行写操作，后执行随机操作是被允许的。但是，Redis 中实现的这一冲突检查并没有判断写操作是否是依赖于随机操作的，哪怕写操作与随机操作之间毫无关系，同样也会被报错；例如先随机读取 100 个键，然后删除掉特定的键，这样的逻辑是不被允许的。</p>
+<p>另外，值得注意的是，这段逻辑中只检查了 Lua 脚本中的 redis 命令是否为随机命令，并不会检查 Lua 脚本中是否使用了随机函数。这是因为在 Lua 环境初始化阶段将<code>math.rand</code>函数已经被更替为 redis 的实现；redis 的随机函数实现中，只要保证使用相同的随机数种子，就能够在不同的主机环境下生成相同的随机数序。因此能够确保 Lua 脚本中的随机函数在不同主机下运行结果相同，不需要进行检测。</p>
+<p>Redis 这里的实现是非常巧妙的，除了 Redis 选择的这种方法外，还有其他的方式可以完成随机函数的检测。其一是直接通过扫描脚本内容来实现随机函数的检测，这种方法能够在脚本运行前完成推断，但是需要依赖于语义分析，不仅实现困难，而且运行性能比较差。其二是通过覆盖 Lua 环境中的随机函数，在调用随机函数时更改<code>server.lua_random_dirty</code>标识位，这种方法的性能损耗比较小，但是也有一个比较隐秘的缺点——相比 Redis 实现，当用户只使用 Lua 随机函数时，需要中断脚本的运行。Redis 的实现方法基本上是无副作用的，并且 Lua 环境中并没有使用与数据库相同的随机种子，这也在一定程度上保护了数据库的安全性，防止通过脚本来推断出 Redis 数据库使用的随机种子。</p>
+<h2 id="多机环境下的-Lua-脚本"><a href="#多机环境下的-Lua-脚本" class="headerlink" title="多机环境下的 Lua 脚本"></a>多机环境下的 Lua 脚本</h2><p>在单机环境下，Redis 对 Lua 模块的限制较小，但是在多机环境下，为了保障数据库的安全性，Redis 对 Lua 模块加入了一些限制条件。</p>
+<h3 id="Replica-环境下的限制条件"><a href="#Replica-环境下的限制条件" class="headerlink" title="Replica 环境下的限制条件"></a>Replica 环境下的限制条件</h3><p>Replica 环境下的限制条件主要有以下几点：</p>
+<ul>
+<li>随机命令与写命令的顺序问题：随机命令不能发生在写命令之前，即使写命令不依赖随机命令；</li>
+<li>脚本的加载时机与 evalsha 命令的传播问题；</li>
+</ul>
+<p>考虑这样一种情况：在构建复制集之前，Master 节点已经载入了一个 Lua 脚本。由于 Lua 脚本是一个“二等公民”，脚本本身并不会被 AOF/RDB 持久化记录；因此在构建出的复制集中，Slave 节点是不存在 Lua 脚本的源文件的。如果此时客户端直接使用 evalsha 命令来调用 Lua 脚本，Slave 节点中将无法执行该脚本，因为脚本并未在 Slave 节点中完成初始化。这有可能会导致主从节点的状态不一致。</p>
+<p>为了解决这一冲突，在主从复制模式下，evalsha 会被转义为 eval 命令在主从节点之间传递，即传递全部 Lua 脚本。如果脚本过大，可能会影响网络带宽。</p>
+<h3 id="Cluster-环境下的限制条件"><a href="#Cluster-环境下的限制条件" class="headerlink" title="Cluster 环境下的限制条件"></a>Cluster 环境下的限制条件</h3><h4 id="禁止访问不同分片"><a href="#禁止访问不同分片" class="headerlink" title="禁止访问不同分片"></a>禁止访问不同分片</h4><p>Cluster 环境下的限制更为苛刻：脚本只允许同时被访问当前实例所负责的分片。一方面是由于 Redis Cluster 设计，避免脚本重放，另一方面则是为了规避分布式事务的复杂性。</p>
+<p>在 Redis Cluster 中允许一个分片中存在一主多从来实现故障恢复，保证高可用。考虑如下一种情况，分片 A 目前存活一主一从，而分片 B 目前存活一主；如果 Lua 脚本被允许访问不同分片上的数据，那么当分片 A 的主节点执行完毕后，分片 B 的从节点也需要执行一次脚本，这就需要付出一些额外的检查措施来保证分片 B 中的数据只会访问一次。这将会大大增加系统的复杂度，很难保证这一功能在加入之后会 0 bug。</p>
+<p>另一方面，Lua 脚本中是允许使用 MULTI 事务的，如果支持访问多个分片的数据就必然会引入分布式事务的问题。Redis 本身定位是一个弱事务的内存数据库，必然不可能支持这一特性。</p>
+<p>Redis 是在脚本运行中检查键是否存在于当前分片的，检查发生在<code>luaRedisGenericCommand</code>函数中：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">int</span> <span class="title function_">luaRedisGenericCommand</span><span class="params">(lua_State *lua, <span class="type">int</span> raise_error)</span> &#123;</span><br><span class="line">    </span><br><span class="line">	...</span><br><span class="line">        </span><br><span class="line">    <span class="comment">/* If this is a Redis Cluster node, we need to make sure Lua is not</span></span><br><span class="line"><span class="comment">     * trying to access non-local keys, with the exception of commands</span></span><br><span class="line"><span class="comment">     * received from our master or when loading the AOF back in memory. */</span></span><br><span class="line">    <span class="keyword">if</span> (server.cluster_enabled &amp;&amp; !server.loading &amp;&amp;</span><br><span class="line">        !(server.lua_caller-&gt;flags &amp; CLIENT_MASTER))</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="type">int</span> error_code;</span><br><span class="line">        <span class="comment">/* Duplicate relevant flags in the lua client. */</span></span><br><span class="line">        c-&gt;flags &amp;= ~(CLIENT_READONLY|CLIENT_ASKING);</span><br><span class="line">        c-&gt;flags |= server.lua_caller-&gt;flags &amp; (CLIENT_READONLY|CLIENT_ASKING);</span><br><span class="line">        <span class="comment">// 检查的具体逻辑发生在 getNodeByQuery 函数中</span></span><br><span class="line">        <span class="keyword">if</span> (getNodeByQuery(c,c-&gt;cmd,c-&gt;argv,c-&gt;argc,<span class="literal">NULL</span>,&amp;error_code) !=</span><br><span class="line">                           server.cluster-&gt;myself)&#123;</span><br><span class="line">            <span class="comment">// 自身分片不可用</span></span><br><span class="line">            <span class="keyword">if</span> (error_code == CLUSTER_REDIR_DOWN_RO_STATE) &#123;</span><br><span class="line">                luaPushError(lua,</span><br><span class="line">                    <span class="string">&quot;Lua script attempted to execute a write command while the &quot;</span></span><br><span class="line">                    <span class="string">&quot;cluster is down and readonly&quot;</span>);</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (error_code == CLUSTER_REDIR_DOWN_STATE) &#123;</span><br><span class="line">                luaPushError(lua,</span><br><span class="line">                    <span class="string">&quot;Lua script attempted to execute a command while the &quot;</span></span><br><span class="line">                    <span class="string">&quot;cluster is down&quot;</span>);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                <span class="comment">// 试图访问其他分片</span></span><br><span class="line">                luaPushError(lua,</span><br><span class="line">                    <span class="string">&quot;Lua script attempted to access a non local key in a &quot;</span></span><br><span class="line">                    <span class="string">&quot;cluster node&quot;</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">goto</span> cleanup;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Redis 并不会在脚本运行前对所有需要访问的键进行检查，而是在运行中进行检查。因此，贸然访问不同分片上的值可能会让 Lua 脚本在运行中被中断，无法保证脚本逻辑的完整性。在分片模式下使用 Lua 脚本必须首先确保访问的所有键值对都处于同一分片，最好不要同时访问多个键。</p>
+<p>在确定分片时，如果 key 值中存在<code>&#123;&#125;</code>，那么会使用第一个<code>&#123;&#125;</code>中的值计算哈希槽；当集群模式下需要用 Lua 脚本来访问多个键时，可以将键值对以相同的开头命名，确保所有键值对都被分配到同一个哈希槽内。</p>
+<h4 id="禁止使用发布订阅"><a href="#禁止使用发布订阅" class="headerlink" title="禁止使用发布订阅"></a>禁止使用发布订阅</h4><p>在 Lua 脚本中使用发布订阅同样也会因为脚本重放而引发一系列问题。由于 Cluster 模式中全局共享发布订阅频道，当脚本在主从节点之间传递时，会导致发布订阅命令被多次执行。</p>
+<h2 id="Redis-Function"><a href="#Redis-Function" class="headerlink" title="Redis Function"></a>Redis Function</h2><p>Redis Function 是 Redis 7.0 版本推出的全新功能，该功能是在原有 Lua 模块上的扩展与完善。Redis Function 将会被作为“一等公民”存储在数据库中，支持完整的持久化功能，这解决了 Lua 模块中的一些痛点。在使用 Redis 7.0 时，可以使用 Redis Function 来代替 Lua 模块。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/redis/" rel="tag"><i class="fa fa-tag"></i> redis</a>
+              <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/01/29/boltdb%E6%BA%90%E7%A0%81%E9%80%9A%E8%AF%BB/" rel="prev" title="boltdb源码通读笔记">
+      <i class="fa fa-chevron-left"></i> boltdb源码通读笔记
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/02/13/Lua-%E8%84%9A%E6%9C%AC%E5%A6%82%E4%BD%95%E8%BF%90%E8%A1%8C/" rel="next" title="Lua 脚本如何运行">
+      Lua 脚本如何运行 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Lua-%E8%84%9A%E6%9C%AC%E7%AE%80%E4%BB%8B"><span class="nav-number">1.</span> <span class="nav-text">Lua 脚本简介</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redis-%E4%B8%AD-Lua-%E8%99%9A%E6%8B%9F%E7%8E%AF%E5%A2%83%E7%9A%84%E6%9E%84%E5%BB%BA"><span class="nav-number">2.</span> <span class="nav-text">Redis 中 Lua 虚拟环境的构建</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%99%9A%E6%8B%9F%E7%8E%AF%E5%A2%83%E7%9A%84%E6%9E%84%E5%BB%BA%E6%B5%81%E7%A8%8B"><span class="nav-number">2.1.</span> <span class="nav-text">虚拟环境的构建流程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%85%A8%E5%B1%80%E5%8F%98%E9%87%8F%E4%BF%9D%E6%8A%A4%E7%9A%84%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.2.</span> <span class="nav-text">全局变量保护的实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#redis-call-%E7%9A%84%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.3.</span> <span class="nav-text">redis.call 的实现</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#eval-%E6%97%8F%E5%87%BD%E6%95%B0%E7%9A%84%E4%B8%80%E4%BA%9B%E5%AE%9E%E7%8E%B0"><span class="nav-number">3.</span> <span class="nav-text">eval 族函数的一些实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%84%9A%E6%9C%AC%E7%9A%84%E5%AD%98%E5%82%A8%E4%B8%8E%E7%BC%96%E8%AF%91"><span class="nav-number">3.1.</span> <span class="nav-text">脚本的存储与编译</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%84%9A%E6%9C%AC%E8%BF%90%E8%A1%8C"><span class="nav-number">3.2.</span> <span class="nav-text">脚本运行</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B6%85%E6%97%B6%E6%A3%80%E6%B5%8B"><span class="nav-number">3.3.</span> <span class="nav-text">超时检测</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%9A%8F%E6%9C%BA%E5%91%BD%E4%BB%A4%E6%A3%80%E6%B5%8B"><span class="nav-number">3.4.</span> <span class="nav-text">随机命令检测</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A4%9A%E6%9C%BA%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84-Lua-%E8%84%9A%E6%9C%AC"><span class="nav-number">4.</span> <span class="nav-text">多机环境下的 Lua 脚本</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Replica-%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E9%99%90%E5%88%B6%E6%9D%A1%E4%BB%B6"><span class="nav-number">4.1.</span> <span class="nav-text">Replica 环境下的限制条件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Cluster-%E7%8E%AF%E5%A2%83%E4%B8%8B%E7%9A%84%E9%99%90%E5%88%B6%E6%9D%A1%E4%BB%B6"><span class="nav-number">4.2.</span> <span class="nav-text">Cluster 环境下的限制条件</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%A6%81%E6%AD%A2%E8%AE%BF%E9%97%AE%E4%B8%8D%E5%90%8C%E5%88%86%E7%89%87"><span class="nav-number">4.2.1.</span> <span class="nav-text">禁止访问不同分片</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E7%A6%81%E6%AD%A2%E4%BD%BF%E7%94%A8%E5%8F%91%E5%B8%83%E8%AE%A2%E9%98%85"><span class="nav-number">4.2.2.</span> <span class="nav-text">禁止使用发布订阅</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Redis-Function"><span class="nav-number">5.</span> <span class="nav-text">Redis Function</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description">技术爱好者</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">38</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="sidebar-button motion-element">
+    lol welcome!
+  </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.zhihu.com/people/tangrc99" title="知乎 → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fa fa-link fa-fw"></i>知乎</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Tangrc99</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+<script src="https://unpkg.com/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+
+<script>
+var options = {
+  bottom: '64px',
+  right: '32px',
+  left: 'unset',
+  time: '0.5s',
+  mixColor: 'transparent',
+  backgroundColor: 'transparent',
+  buttonColorDark: '#100f2c',
+  buttonColorLight: '#fff',
+  saveInCookies: true,
+  label: '🌓',
+  autoMatchOsTheme: true
+}
+const darkmode = new Darkmode(options);
+window.darkmode = darkmode;
+darkmode.showWidget();
+</script>
+
+</body>
+</html>
