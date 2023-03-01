@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-mac-osx.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="反射是 Go 语言中较为难以理解的一个特性，网上讲解反射的文章有很多，但是要么讲解细致但是篇幅过长，要么讲解稍微模糊。但其实如果掌握了反射所使用到了一些技术，反射本身是很好理解的，其原理就是一个向上和向下转换的过程。本文会从反射所基于的语言特性出发，简要地分析反射这一特性是如何实现的。 unsafe.Pointer在讨论unsafe.Pointer之前，我们先来讨论一下 C 语言中的原始指针类型以">
+<meta property="og:type" content="article">
+<meta property="og:title" content="从unsafe.Pointer出发，浅析Go反射原理">
+<meta property="og:url" content="https://tangrc99.com/2023/03/01/%E4%BB%8Eunsafe.Pointer%E5%87%BA%E5%8F%91%EF%BC%8C%E6%B5%85%E6%9E%90Go%E5%8F%8D%E5%B0%84%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="Sepk">
+<meta property="og:description" content="反射是 Go 语言中较为难以理解的一个特性，网上讲解反射的文章有很多，但是要么讲解细致但是篇幅过长，要么讲解稍微模糊。但其实如果掌握了反射所使用到了一些技术，反射本身是很好理解的，其原理就是一个向上和向下转换的过程。本文会从反射所基于的语言特性出发，简要地分析反射这一特性是如何实现的。 unsafe.Pointer在讨论unsafe.Pointer之前，我们先来讨论一下 C 语言中的原始指针类型以">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://tangrc99.com/images/image-20230301110108021.png">
+<meta property="og:image" content="https://tangrc99.com/images/eface%20and%20iface.png">
+<meta property="og:image" content="https://tangrc99.com/images/iface-xxtype.png">
+<meta property="article:published_time" content="2023-02-28T17:09:33.008Z">
+<meta property="article:modified_time" content="2023-03-01T07:25:37.131Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="go">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://tangrc99.com/images/image-20230301110108021.png">
+
+<link rel="canonical" href="https://tangrc99.com/2023/03/01/%E4%BB%8Eunsafe.Pointer%E5%87%BA%E5%8F%91%EF%BC%8C%E6%B5%85%E6%9E%90Go%E5%8F%8D%E5%B0%84%E5%8E%9F%E7%90%86/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>从unsafe.Pointer出发，浅析Go反射原理 | Sepk</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<style>.darkmode--activated{--body-bg-color:#282828;--content-bg-color:#333;--card-bg-color:#555;--text-color:#ccc;--blockquote-color:#bbb;--link-color:#ccc;--link-hover-color:#eee;--brand-color:#ddd;--brand-hover-color:#ddd;--table-row-odd-bg-color:#282828;--table-row-hover-bg-color:#363636;--menu-item-bg-color:#555;--btn-default-bg:#222;--btn-default-color:#ccc;--btn-default-border-color:#555;--btn-default-hover-bg:#666;--btn-default-hover-color:#ccc;--btn-default-hover-border-color:#666;--highlight-background:#282b2e;--highlight-foreground:#a9b7c6;--highlight-gutter-background:#34393d;--highlight-gutter-foreground:#9ca9b6}.darkmode--activated img{opacity:.75}.darkmode--activated img:hover{opacity:.9}.darkmode--activated code{color:#69dbdc;background:0 0}button.darkmode-toggle{z-index:9999}.darkmode-ignore,img{display:flex!important}.beian img{display:inline-block!important}</style></head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Sepk</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">个人博客</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/01/%E4%BB%8Eunsafe.Pointer%E5%87%BA%E5%8F%91%EF%BC%8C%E6%B5%85%E6%9E%90Go%E5%8F%8D%E5%B0%84%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          从unsafe.Pointer出发，浅析Go反射原理
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-03-01 01:09:33 / 修改时间：15:25:37" itemprop="dateCreated datePublished" datetime="2023-03-01T01:09:33+08:00">2023-03-01</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>6.6k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>6 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>反射是 Go 语言中较为难以理解的一个特性，网上讲解反射的文章有很多，但是要么讲解细致但是篇幅过长，要么讲解稍微模糊。但其实如果掌握了反射所使用到了一些技术，反射本身是很好理解的，其原理就是一个向上和向下转换的过程。本文会从反射所基于的语言特性出发，简要地分析反射这一特性是如何实现的。</p>
+<h2 id="unsafe-Pointer"><a href="#unsafe-Pointer" class="headerlink" title="unsafe.Pointer"></a>unsafe.Pointer</h2><p>在讨论<code>unsafe.Pointer</code>之前，我们先来讨论一下 C 语言中的原始指针类型以及指针之间的相互转换。在 C 语言中，所有指针都是可以相互转换的，而对指针取值其实就相当于取当前指针所声明类型长度的一段内存。我们可以利用 C 语言指针的这种特性在不同长度的结构体实现变换，最为经典的例子是 linux 链表。Go 中同样也有指针，但由于 Go 是一种 GC 语言，如果保留 C 指针的这样灵活性，将会对 GC 扫描带来很大的挑战，如果一个指针向上转换了，那么很有可能会造成内存泄露的问题。</p>
+<p>为了实现 C 语言中这种灵活转换的特性，Go 中引入了<code>unsafe.Pointer</code>这一类型。<code>unsafe.Pointer</code>是 go 中用于实现类型转换的一种中间类，我们可以将一个长度为 n 的<code>unsafe.Pointer</code>视作是一个长度为 n 的数组（即内存中的某一段数据），但是这一段数组中的数据对用户来说是不可见的。在某种意义上来说，<code>unsafe.Pointer</code>是用来告诉 GC 扫描器这段内存已经被分配，如果需要进行垃圾清理，必须释放这段内存，防止内存泄露。在 C++ 中，这一特性是通过将析构函数作为虚函数来实现的。</p>
+<p>为了更直观地表示这一功能，以一个代码实例来演示：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> A <span class="keyword">struct</span> &#123;</span><br><span class="line">    header <span class="type">int</span></span><br><span class="line">    hidden unsafe.Pointer	<span class="comment">// 占位，该字段的所有信息对用户隐藏</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> B <span class="keyword">struct</span> &#123;</span><br><span class="line">    header  <span class="type">int</span></span><br><span class="line">    toHide <span class="type">int</span>	<span class="comment">// 将会被隐藏的字段</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    b := B&#123;<span class="number">1</span>, <span class="number">1</span>&#125;</span><br><span class="line">    <span class="keyword">var</span> a A</span><br><span class="line">    a = *(*A)(unsafe.Pointer(&amp;b))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这段代码是可以编译通过并运行的，通过调试器来观察 a 中的值。</p>
+<p><img src="/images/image-20230301110108021.png" alt="image-20230301110108021"></p>
+<p>可以看到，b 中 header 字段的值被拷贝给了 a，而 hidden 字段则成为了一个 8 字节长度（int 长度）的<code>unsafe.Pointer</code>用于占位，当 a 声明周期结束时，将会释放 header + hidden 长度的内存。要实现这一功能，必须要保证两个结构体的几个起始字段类型和顺序是相同的，并且“基类”需要以<code>unsafe.Pointer</code>字段结尾。</p>
+<p>在 go 语言中，为了实现反射大量使用了这一特性，如果对这一特性不了解，建议先学习一下 linux 中的链表实现，这将有助于理解 go 的反射原理。</p>
+<h2 id="eface-和-iface"><a href="#eface-和-iface" class="headerlink" title="eface 和 iface"></a>eface 和 iface</h2><p><code>eface</code>和<code>iface</code>是 go 中非空接口与空接口的底层实现，其原始定义代码出现在 runtime2.go:202：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> iface <span class="keyword">struct</span> &#123;</span><br><span class="line">    tab  *itab	<span class="comment">// 存储接口与原始类的类型信息</span></span><br><span class="line">    data unsafe.Pointer <span class="comment">// 存储原始类的其他信息</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> eface <span class="keyword">struct</span> &#123;</span><br><span class="line">    _type *_type	<span class="comment">// 存储原始类的类型信息</span></span><br><span class="line">    data  unsafe.Pointer	<span class="comment">// 存储原始类的其他信息</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们将代码展开，来比较两个结构体之间的差异：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> iface <span class="keyword">struct</span> &#123;</span><br><span class="line">    <span class="comment">// 原 tab 字段 start</span></span><br><span class="line">    inter *interfacetype	<span class="comment">// 存储接口类型信息</span></span><br><span class="line">    _type *_type	<span class="comment">// 存储原始类的类型信息</span></span><br><span class="line">    hash  <span class="type">uint32</span> <span class="comment">// copy of _type.hash. Used for type switches.</span></span><br><span class="line">    _     [<span class="number">4</span>]<span class="type">byte</span>	<span class="comment">// 占位，4 字节</span></span><br><span class="line">    fun   [<span class="number">1</span>]<span class="type">uintptr</span> <span class="comment">// variable sized. fun[0]==0 means _type does not implement inter.</span></span><br><span class="line">    <span class="comment">// 原 tab 字段 end</span></span><br><span class="line"></span><br><span class="line">    data unsafe.Pointer <span class="comment">// 存储原始类的其他信息</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> eface <span class="keyword">struct</span> &#123;</span><br><span class="line">    _type *_type	<span class="comment">// 存储原始类的类型信息</span></span><br><span class="line">    data  unsafe.Pointer	<span class="comment">// 存储原始类的其他信息</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>注意这两个类型展开后的区别，<code>iface</code>在起始位置比<code>eface</code>多了一个 inter 字段，该字段用于存储接口信息，这是为了比较不同的非空接口是否相等；而<code>iface</code>和<code>eface</code>的最后一个字段都是<code>unsafe.Pointer</code>类型。暂时不考虑其中存储的数据类型，将<code>iface.hash</code>字段至<code>iface.data</code>字段也都视为字节（这些字段是为了实现与 XXtype 之间的相互转换），那么可以发现，<code>iface</code>实际上可以表示为如下的形式：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> iface <span class="keyword">struct</span> &#123;</span><br><span class="line">    inter *interfacetype	<span class="comment">// 存储接口类型信息</span></span><br><span class="line">    _type *_type	<span class="comment">// 存储原始类的类型信息</span></span><br><span class="line">    data  unsafe.Pointer	<span class="comment">// 存储原始类的其他信息</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>实际上，去掉<code>inter</code>字段后，<code>iface</code>就成为了<code>eface</code>，因此只需要在该字段上进行相关操作，就能够实现两者之间的相互转换。用一张图来表示两者之间的关系：</p>
+<p><img src="/images/eface%20and%20iface.png" alt="eface and iface"></p>
+<h2 id="XXtype-类型"><a href="#XXtype-类型" class="headerlink" title="XXtype 类型"></a>XXtype 类型</h2><p>在 runtime/type.go 文件中，有如下结构体的定义：<code>interfacetype</code>, <code>methodtype</code> , <code>maptype</code>, <code>arraytype</code>, <code>chantype</code>, <code>slicetype</code>, <code>functype</code>, <code>ptrtype</code>, <code>structtype</code>。这些结构体表示了在接口中，go 语言中各种类型的存储形式。值得注意的是，这些结构体全部以<code>_type</code>类型的字段作为起始，这一类型同样被接口用于记录类型。以 <code>structtype</code>为例：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> structtype <span class="keyword">struct</span> &#123;</span><br><span class="line">    <span class="comment">// Type 信息</span></span><br><span class="line">    typ     _type</span><br><span class="line">    <span class="comment">// Value 信息</span></span><br><span class="line">    pkgPath name	<span class="comment">// 4 字节</span></span><br><span class="line">    fields  []structfield	<span class="comment">// 24 字节</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以同一字段作为起始位置，这种做法在 C 中比较常见，其实就是通过统一字段加类型转换的方式实现了零成本的多态，例如 linux 链表，Lua LValue 的实现，都是使用了这种思想。go 中的指针虽然带有类型检查，不能强制转换，但是同样可以使用<code>unsafe.Pointer</code>来实现类似的“向上转换”。事实上，如果将<code>structtype</code>中 Value 信息部分视作一个<code>unsafe.Pointer</code>，那么就可以将其视作是一个<code>eface</code>类型。在 go 中，空接口就是使用这种方式来存储类型信息的，因为空接口没有任何方法，只需要进行类型转换和比较，因此只需要保留 Type 信息字段即可。另外注意到在 typ 字段后的字节（不同 struct 中字段名不同）都是一个指针类型，长度是四个字节，这个长度与<code>iface</code>中的 hash 字段是相互对应的。</p>
+<p><img src="/images/iface-xxtype.png" alt="iface-xxtype"></p>
+<p>用一张图像来表示更为直观，<code>iface</code>结构体的第二和第三个字段与 XXtype 中的第一个和第二个字段是对齐的，两个结构体的长度也是相同的；这也意味着 XXtype 与<code>eface</code>结构体的第一个字段是对齐的，二者的结构体也是相同的。三者之间可以通过一定的方式相互转换，这是接口赋值与反射的基础原理。</p>
+<h2 id="struct-与-interface-的转换"><a href="#struct-与-interface-的转换" class="headerlink" title="struct 与 interface 的转换"></a>struct 与 interface 的转换</h2><p>读到这里，应该可以隐约明白 Relect 是如何实现的了，但是其中还有比较关键的一步，那就是<code>structtype</code>类型究竟是如何生成并且被存储到一个空接口或非空接口中的。许多博客文章起始都没有提到这一点，或者是对这一点介绍地较为简略。</p>
+<p>在零成本抽样的 C++ 中以虚函数表的形式来实现了多态，然而这一功能并非 Zero Cost；同样地，在 go 中一个 struct 被赋值给一个它所实现的 interface，这个过程并不是零成本的。go 编译器隐藏了一些必要的工作：在编译时，编译器会增加一些代码来完成这些额外的工作。</p>
+<p>在如下的代码片段中：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// B 是一个接口</span></span><br><span class="line"><span class="keyword">type</span> B <span class="keyword">interface</span> &#123;&#125;</span><br><span class="line"><span class="comment">// A 是一个结构体</span></span><br><span class="line"><span class="keyword">type</span> A <span class="keyword">struct</span> &#123;&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">var</span> b B</span><br><span class="line">    a := A&#123;&#125;</span><br><span class="line">    <span class="comment">// 编译器会做许多额外工作</span></span><br><span class="line">    b = a</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>当 struct A 被赋值给 interface B 时，经过 go 编译器编译后的代码，实际上会实现如下的逻辑：</p>
+<ul>
+<li>若生成一个非空接口，将接口所需的<code>interfacetype</code>类型信息拷贝到栈上；</li>
+<li>在符号表中寻找 A 类型及其实现的方法，以及 A 实例 data，将这些拷贝到栈上；</li>
+<li>调用<code>convT2E64(t *_type, elem unsafe.Pointer) (e eface)</code>生成空接口，或调用<code>convT2I(tab *itab, elem unsafe.Pointer) (i iface)</code>生成非空接口。</li>
+</ul>
+<p>这个过程实际上是在搜寻所需要的类型信息，并将类型信息与类型实例中各字段的值打包在一起，<strong>生成一个 XXtype 类型实例</strong>，最终使用“向上转换”生成接口实例。<strong>这个过程中发生了值的拷贝</strong>，因为利用<code>unsafe.Pointer</code>实现“向上转换”的前提是数据是连续的。无法确定 A 实例中值在内存中的地址前有足够的空间来分配生成接口所需的字段，因为需要将 A 实例的值拷贝到内存中的其他区域。可以看到，struct 到 interface 的转换其实是一个代价较大的操作。</p>
+<h2 id="Reflect-的实现"><a href="#Reflect-的实现" class="headerlink" title="Reflect 的实现"></a>Reflect 的实现</h2><p>既然已经知道，struct 赋值给 interface 之后会发生什么，那么理解 Reflect 的实现就是一个非常简单的事情。Reflect 主要实现了取值和取类型这两类的操作。</p>
+<h3 id="取类型"><a href="#取类型" class="headerlink" title="取类型"></a>取类型</h3><p>首先分析一下取类型的源码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TypeOf</span><span class="params">(i any)</span></span> Type &#123;</span><br><span class="line">    <span class="comment">// 这一步是为了取空接口中完整的数据类型</span></span><br><span class="line">    eface := *(*emptyInterface)(unsafe.Pointer(&amp;i))	<span class="comment">// emptyInterface 与 eface 是 alias 的关系</span></span><br><span class="line">    <span class="keyword">return</span> toType(eface.typ)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 类型转换与封装</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">toType</span><span class="params">(t *rtype)</span></span> Type &#123;</span><br><span class="line">    <span class="keyword">if</span> t == <span class="literal">nil</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> t</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这段源码虽然很短，但是理解起来还是稍微困难的。感觉这里理解困难的点主要在于 go 是自举，这里用了一些 go 语言编译中的一些特性，如果用 C 的眼光去看这段代码，其实会更好理解。这段代码其实主要做了以下工作：</p>
+<ul>
+<li>在传参阶段，将 struct 转换为 any 类型，这一步发生了上一节中所讲内容；</li>
+<li>对 any 类型 i 进行原地转换，这一步是为了取接口中存储的原始值；</li>
+<li>将原始值中的 type 字段传递给一个接口 Type，实现封装。</li>
+</ul>
+<p>可以注意到，这个过程中发生了<strong>两次接口的赋值</strong>，由于接口赋值需要拷贝数据，因此在反射中只取类型也是一个代价高昂的操作。最好不要重复获取一个对象的 Type。</p>
+<h3 id="取值"><a href="#取值" class="headerlink" title="取值"></a>取值</h3><p>对一个对象进行反射取值操作，最终会得到一个<code>Value</code>结构体，结构体的实现如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Value <span class="keyword">struct</span> &#123;</span><br><span class="line">    typ *rtype	</span><br><span class="line">    ptr unsafe.Pointer	<span class="comment">// data</span></span><br><span class="line">    flag	<span class="comment">// 操作标识</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到<code>Value</code>其实就是一个<code>eface</code>加上一个<code>flag</code>标识位，该标识位用于表示可以被采取什么样的操作。事实上，它就是由<code>eface</code>拼接得到的：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">ValueOf</span><span class="params">(i any)</span></span> Value &#123;</span><br><span class="line">    <span class="keyword">if</span> i == <span class="literal">nil</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> Value&#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 防止 GC，这里不需要关心</span></span><br><span class="line">    escapes(i)</span><br><span class="line">    <span class="comment">// 关键过程发生在这里</span></span><br><span class="line">    <span class="keyword">return</span> unpackEface(i)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unpackEface</span><span class="params">(i any)</span></span> Value &#123;</span><br><span class="line">    <span class="comment">// 取得空接口中的原始数据</span></span><br><span class="line">    e := (*emptyInterface)(unsafe.Pointer(&amp;i))</span><br><span class="line">    <span class="comment">// <span class="doctag">NOTE:</span> don&#x27;t read e.word until we know whether it is really a pointer or not.</span></span><br><span class="line">    t := e.typ</span><br><span class="line">    <span class="keyword">if</span> t == <span class="literal">nil</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> Value&#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 生成标志位</span></span><br><span class="line">    f := flag(t.Kind())</span><br><span class="line">    <span class="keyword">if</span> ifaceIndir(t) &#123;</span><br><span class="line">      f |= flagIndir</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 将类型，数据，标志位进行拼接</span></span><br><span class="line">    <span class="keyword">return</span> Value&#123;t, e.word, f&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个过程中仍然是发生了两次拷贝，一次是 struct 传入 any 接口，一次是创建 Value 结构体。注意到，Value 这里使用的是复制后的数据，因此如果想使用反射来修改原数据，一定要传入指针。</p>
+<h3 id="取字段"><a href="#取字段" class="headerlink" title="取字段"></a>取字段</h3><p>反射中的取字段是将<code>Value</code>类型向下转换来实现的。在<code>Value.ptr</code>字段中存储了 XXtype 除类型头外的所有信息，在获取 Value 的基础上再使用“向下转换”可以获取类型具体，我们以获取 struct 中字段个数的方法为例：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(v Value)</span></span> NumField() <span class="type">int</span> &#123;</span><br><span class="line">    <span class="comment">// 通过 flag 字段检验类型</span></span><br><span class="line">    v.mustBe(Struct)</span><br><span class="line">    <span class="comment">// Value 向下转换，得到 structType</span></span><br><span class="line">    tt := (*structType)(unsafe.Pointer(v.typ))</span><br><span class="line">    <span class="comment">// 返回 structType 中的信息</span></span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">len</span>(tt.fields)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>代码中比较关键的过程就是使用<code>unsafe.Pointer</code>来向下转换，这里向下转换能够成为是因为<code>Value</code>，<code>eface</code>，<code>XXtype</code>的同源性，这三者本身就是相同的。</p>
+<p>在反射中需要如果使用字段的名称来获取字段，需要经过如下代码，该代码最终是：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(v Value)</span></span> FieldByName(name <span class="type">string</span>) Value &#123;</span><br><span class="line">    v.mustBe(Struct)</span><br><span class="line">    <span class="keyword">if</span> f, ok := v.typ.FieldByName(name); ok &#123;</span><br><span class="line">      <span class="keyword">return</span> v.FieldByIndex(f.Index)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> Value&#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 该函数是调用链的最后一环</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *structType)</span></span> FieldByName(name <span class="type">string</span>) (f StructField, present <span class="type">bool</span>) &#123;</span><br><span class="line">    <span class="comment">// Quick check for top-level name, or struct without embedded fields.</span></span><br><span class="line">    hasEmbeds := <span class="literal">false</span></span><br><span class="line">    <span class="keyword">if</span> name != <span class="string">&quot;&quot;</span> &#123;</span><br><span class="line">      <span class="comment">// 核心：遍历并且比较各个字段的名称</span></span><br><span class="line">      <span class="keyword">for</span> i := <span class="keyword">range</span> t.fields &#123;</span><br><span class="line">        tf := &amp;t.fields[i]</span><br><span class="line">        <span class="keyword">if</span> tf.name.name() == name &#123;</span><br><span class="line">          <span class="keyword">return</span> t.Field(i), <span class="literal">true</span></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> tf.embedded() &#123;</span><br><span class="line">          hasEmbeds = <span class="literal">true</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> !hasEmbeds &#123;</span><br><span class="line">      <span class="keyword">return</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> t.FieldByNameFunc(<span class="function"><span class="keyword">func</span><span class="params">(s <span class="type">string</span>)</span></span> <span class="type">bool</span> &#123; <span class="keyword">return</span> s == name &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，<code>FieldByName</code>函数其实是使用遍历加比较字符串的方式来确认字段是否匹配的，当结构体的字段数量较大，并且字段名较长时，性能就会比较差。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>Reflect 的实现其实并不是很难，阻碍理解的地方主要在于 struct 与 interface 的转换、unsafe.Pointer 的使用这两点。由于 interface 和 Reflect 中需要全量拷贝值，因此使用引用类型是一个非常明智的抉择。但与之相对的，大量使用引用类型会导致 GC 问题。可以考虑将类型取指针后再赋值给接口。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/go/" rel="tag"><i class="fa fa-tag"></i> go</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/02/25/Ristretto-%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/" rel="prev" title="Ristretto 源码阅读笔记">
+      <i class="fa fa-chevron-left"></i> Ristretto 源码阅读笔记
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#unsafe-Pointer"><span class="nav-number">1.</span> <span class="nav-text">unsafe.Pointer</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#eface-%E5%92%8C-iface"><span class="nav-number">2.</span> <span class="nav-text">eface 和 iface</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#XXtype-%E7%B1%BB%E5%9E%8B"><span class="nav-number">3.</span> <span class="nav-text">XXtype 类型</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#struct-%E4%B8%8E-interface-%E7%9A%84%E8%BD%AC%E6%8D%A2"><span class="nav-number">4.</span> <span class="nav-text">struct 与 interface 的转换</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Reflect-%E7%9A%84%E5%AE%9E%E7%8E%B0"><span class="nav-number">5.</span> <span class="nav-text">Reflect 的实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%96%E7%B1%BB%E5%9E%8B"><span class="nav-number">5.1.</span> <span class="nav-text">取类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%96%E5%80%BC"><span class="nav-number">5.2.</span> <span class="nav-text">取值</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%96%E5%AD%97%E6%AE%B5"><span class="nav-number">5.3.</span> <span class="nav-text">取字段</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">6.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description">技术爱好者</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">39</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="sidebar-button motion-element">
+    lol welcome!
+  </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.zhihu.com/people/tangrc99" title="知乎 → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fa fa-link fa-fw"></i>知乎</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Tangrc99</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+<script src="https://unpkg.com/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+
+<script>
+var options = {
+  bottom: '64px',
+  right: '32px',
+  left: 'unset',
+  time: '0.5s',
+  mixColor: 'transparent',
+  backgroundColor: 'transparent',
+  buttonColorDark: '#100f2c',
+  buttonColorLight: '#fff',
+  saveInCookies: true,
+  label: '🌓',
+  autoMatchOsTheme: true
+}
+const darkmode = new Darkmode(options);
+window.darkmode = darkmode;
+darkmode.showWidget();
+</script>
+
+</body>
+</html>

@@ -193,7 +193,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/20/gnet-%E4%B8%AD%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%BE%E8%AE%A1/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/29/boltdb%E6%BA%90%E7%A0%81%E9%80%9A%E8%AF%BB/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -207,7 +207,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/01/20/gnet-%E4%B8%AD%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%BE%E8%AE%A1/" class="post-title-link" itemprop="url">gnet 中的一些设计</a>
+            <a href="/2023/01/29/boltdb%E6%BA%90%E7%A0%81%E9%80%9A%E8%AF%BB/" class="post-title-link" itemprop="url">boltdb源码通读笔记</a>
         </h2>
 
         <div class="post-meta">
@@ -217,14 +217,14 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2023-01-20 23:55:49" itemprop="dateCreated datePublished" datetime="2023-01-20T23:55:49+08:00">2023-01-20</time>
+              <time title="创建时间：2023-01-29 17:27:40" itemprop="dateCreated datePublished" datetime="2023-01-29T17:27:40+08:00">2023-01-29</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-01-21 00:02:12" itemprop="dateModified" datetime="2023-01-21T00:02:12+08:00">2023-01-21</time>
+                <time title="修改时间：2023-02-21 18:08:45" itemprop="dateModified" datetime="2023-02-21T18:08:45+08:00">2023-02-21</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -236,11 +236,15 @@
                 </span>
                   ，
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">计算机网络</span></a>
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
                 </span>
                   ，
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
                   <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/boltdb/" itemprop="url" rel="index"><span itemprop="name">boltdb</span></a>
                 </span>
             </span>
 
@@ -250,14 +254,14 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>2.4k</span>
+              <span>6k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
                 <i class="far fa-clock"></i>
               </span>
                 <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>2 分钟</span>
+              <span>5 分钟</span>
             </span>
 
         </div>
@@ -269,66 +273,46 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>gnet 是一个基于 Reactor 模式的高性能 go 网络库，工作原理类似 netty 和 libuv，直接使用 epoll 或 kqueue 系统调用来构建网络应用，这使其有着非常好的性能表现。本文章着重讲在阅读 gnet v2.2.3源码中注意到的一些问题。</p>
-<h2 id="主从-Reactor-通信方式"><a href="#主从-Reactor-通信方式" class="headerlink" title="主从 Reactor 通信方式"></a>主从 Reactor 通信方式</h2><p>主从 Reactor 模式中，主 Reactor 与从 Reactor 模式之间需要通信机制来实现任务的调度。由于主从 Reactor 运行在不同的 goroutine 上，所以很轻松地可以想到使用 channel 进行通信。但是考虑到主 Reactor 与从 Reactor 直接的通信是一读一写的模式，gnet 中使用的是无锁队列的通信机制。这种一读一写的方式是比较经典的无锁队列使用场景了。gnet 中的无锁队列是一个非常经典的实现。</p>
-<p>在学习 gnet 框架的时候，恰好我所写的一个玩具项目中也有类似的场景；因为我尝试模仿 gnet 的做法，将 channel 替换为无锁队列。但是在做出这样的修改后，我发现软件的性能竟然比修改之前要下降了。这让我比较疑惑，于是我测试了 gnet 中无锁队列的性能以及 channel 的性能。测试环境为 Macos Ventura, 双核四线程 CPU，8GB 内存，go 1.19 版本；测试的方法一共有两种，一种是测试写入侧完成写入的耗时，第二种是测试读取侧完成读取的耗时。测试结果如下，其中 channel 的缓冲区选取 1000：</p>
-<table>
-<thead>
-<tr>
-<th align="center">测试编号</th>
-<th align="center">数据量10W</th>
-<th align="center">数据量100W</th>
-<th align="center">数据量500W</th>
-<th align="center">数据量1000W</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center">queue 完成写入</td>
-<td align="center">8 ms</td>
-<td align="center">89 ms</td>
-<td align="center">647 ms</td>
-<td align="center">1228 ms</td>
-</tr>
-<tr>
-<td align="center">channel 完成写入</td>
-<td align="center">6 ms</td>
-<td align="center">64 ms</td>
-<td align="center">528 ms</td>
-<td align="center">961ms</td>
-</tr>
-<tr>
-<td align="center">queue 完成读取</td>
-<td align="center">14 ms</td>
-<td align="center">159 ms</td>
-<td align="center">703 ms</td>
-<td align="center">1854 ms</td>
-</tr>
-<tr>
-<td align="center">channel 完成读取</td>
-<td align="center">11 ms</td>
-<td align="center">142 ms</td>
-<td align="center">558 ms</td>
-<td align="center">1414 ms</td>
-</tr>
-</tbody></table>
-<p>根据测试结果，无锁队列的性能确实会比 channel 的性能要低，相同数据量下，使用无锁队列的耗时是使用 channel 耗时的约<strong>1.2倍</strong>左右。</p>
-<p>在得到测试结果后，我以为是我的测试用例有问题，于是花费了很多时间去搜寻资料无果。后来，我尝试替换其他的无锁队列进行测试，于是我选择了<code>github.com/yireyun/go-queue</code>项目进行测试，但测试结果与 gent 中的无锁队列相似，仍然是比 channel 要慢的。于是我开始疑惑，为什么 gnet 中要选择无锁队列来作为消息传递的方式。</p>
-<p>在思考无果后，我又开始查询资料，最终找到了可能的答案。这是 go-queue 项目中的一个 <a target="_blank" rel="noopener" href="https://github.com/yireyun/go-queue/issues/13">issue</a>，它指出 go-queue 会比官方的 channel 速度要慢约10%左右，在其中的一个回复中有如下内容：</p>
-<blockquote>
-<h3 id="yireyun-commented-on-Jul-25-2022"><a href="#yireyun-commented-on-Jul-25-2022" class="headerlink" title="yireyun commented on Jul 25, 2022"></a><strong><a target="_blank" rel="noopener" href="https://github.com/yireyun">yireyun</a></strong> commented <a target="_blank" rel="noopener" href="https://github.com/yireyun/go-queue/issues/13#issuecomment-1193690662">on Jul 25, 2022</a></h3><p>已经在 MacPro M1 基于go1.17.12 上确认了”<strong>Chan 比 Queue 快</strong>”；并没有用之前机器和go版本回归测试，初步结论是 chan 比以前快多了； go1.8.3 的 chan 在高并发情况下，性能会急速下降，但在 go1.17.14 上发现高并发，chan性能下降缓慢。</p>
-</blockquote>
-<p>go-queue 确实是一个四年前的项目，其测试环境为 go1.8.3，这让我回想起在知乎曾经看到的一篇文章，“<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/21514693">Golang号称高并发，但高并发时性能不高</a>”，里面有这样一段内容：</p>
-<blockquote>
-<p>管道chan吞吐极限10,000,000，单次Put,Get耗时大约100ns/op，无论是采用单Go程，还是多Go程并发(并发数:100, 10000, 100000)，耗时均没有变化，Go内核这对chan进行优化。</p>
-</blockquote>
-<p>而 gnet v2 是基于 go 1.11 开发的，因此我<strong>猜测</strong> gnet 这里的设计可能是因为 channel 在低版本 go 中性能表现较差。而在高版本 go 中，数据量 10W 左右的级别无锁队列与 channel 并没有表现出较大的性能差异，因此这里并没有对其进行修改。毕竟主从 Reactor 之间更多地只会传递 *conn 指针，很难会出现 10W 以上这种级别的新连接同时到达的情况。</p>
-<h2 id="连接管理优化"><a href="#连接管理优化" class="headerlink" title="连接管理优化"></a>连接管理优化</h2><p>这个问题在 gnet 的 <a target="_blank" rel="noopener" href="https://github.com/panjf2000/gnet/issues/334">issue</a> 中有提到，目前解决方案还没有加入到正式版本中。gnet 中，每一个从 Reactor 都需要管理分配到的所有连接，为了区分这些连接，gent 目前采用的是哈希表的方式，将每一个连接的 [file descriptor,*conn] 注册到哈希表中。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> eventloop <span class="keyword">struct</span> &#123;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    connCount    <span class="type">int32</span>           <span class="comment">// number of active connections in event-loop</span></span><br><span class="line">    udpSockets   <span class="keyword">map</span>[<span class="type">int</span>]*conn   <span class="comment">// client-side UDP socket map: fd -&gt; conn</span></span><br><span class="line">    connections  <span class="keyword">map</span>[<span class="type">int</span>]*conn   <span class="comment">// TCP connection map: fd -&gt; conn</span></span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+          <p>Bolt 是一个完全由 go 写成的基于硬盘的 K/V 存储引擎，为了表示区分一般被称为 boltdb。对于一款存储引擎而言，boltdb 的源码非常短小精悍，包含测试代码仅有 17000 行左右。正是因为其体量比较小，boltdb 并不具备较为复杂的功能；在实现上，boltdb 主要借鉴了其他语言中的做法并将其改进，使之更加符合 go 语言的基础架构。</p>
+<p>通读 boltdb 的代码，主要是为了学习作者是如何利用 go 语言的特性来实现数据库的，这是本文的重点内容。而 boltdb 的用法以及其中的基本概念，可以参考<a target="_blank" rel="noopener" href="https://www.bookstack.cn/books/jaydenwen123-boltdb_book">《自底向上分析 BoltDB 源码》</a>。</p>
+<h2 id="各模块实现方式"><a href="#各模块实现方式" class="headerlink" title="各模块实现方式"></a>各模块实现方式</h2><p>首先介绍一下 boltdb 中各个模块的实现方式：</p>
+<ul>
+<li>数据库文件落盘：使用 mmap 读取数据库文件，使用 write 接口写回脏页；</li>
+<li>空闲页面管理：使用链表/哈希表进行管理，按需取出，不够时重新 mmap 映射；</li>
+<li>数据库文件 compact：使用写缓冲，重写数据库文件；</li>
+<li>内存硬盘之间页面大小保持一致，直接映射；</li>
+<li>无日志，事务提交时直接落盘，使用读写锁控制并发。</li>
+</ul>
+<p>可以看到 boltdb 中的各个模块实现都是比较简单的，这也在一定程度上保障了其稳定性。boltdb 无日志的设计使得写写之间是禁止并发的，因此 boltdb 可以很轻松地实现可串行级别的事务隔离。同时这也导致 boltdb 的写入性能非常差，只适合多读少写的场景。另外，boltdb 直接使用了 mmap 来映射数据库文件，这在一方面避免了 go 中的 GC 保证了数据库的性能，但另一方面当数据库大小超过内存时，可能会导致内存页面频繁被置换从而影响性能。但在 go 语言中大量使用指针可能会导致 GC 问题，使用 mmap 映射相当于避免了内存 B+ 树页面的 GC 扫描，这在 go 语言限制下应该是一种比较好的设计。</p>
+<h2 id="mmap-映射"><a href="#mmap-映射" class="headerlink" title="mmap 映射"></a>mmap 映射</h2><h3 id="mmap-映射实现"><a href="#mmap-映射实现" class="headerlink" title="mmap 映射实现"></a>mmap 映射实现</h3><p>boltdb 使用 mmap 系统调用的源码片段如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">mmap</span><span class="params">(db *DB, sz <span class="type">int</span>)</span></span> <span class="type">error</span> &#123;</span><br><span class="line">	<span class="comment">// Map the data file to memory.</span></span><br><span class="line">	b, err := unix.Mmap(<span class="type">int</span>(db.file.Fd()), <span class="number">0</span>, sz, syscall.PROT_READ, syscall.MAP_SHARED|db.MmapFlags)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Advise the kernel that the mmap is accessed randomly.</span></span><br><span class="line">	err = unix.Madvise(b, syscall.MADV_RANDOM)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &amp;&amp; err != syscall.ENOSYS &#123;</span><br><span class="line">		<span class="comment">// Ignore not implemented error in kernel because it still works.</span></span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;madvise: %s&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Save the original byte slice and convert to a byte array pointer.</span></span><br><span class="line">	db.dataref = b</span><br><span class="line">	db.data = (*[maxMapSize]<span class="type">byte</span>)(unsafe.Pointer(&amp;b[<span class="number">0</span>]))</span><br><span class="line">	db.datasz = sz</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>这种设计在非 GC 语言中可能没有问题，但是在 GC 语言中可能会带来性能问题。GC 扫描对于连续的数据结构是非常快的，但是对于哈希表这种非连续存储的数据结构就会相对较慢。如果使用值存储的形式，哈希表会为键值对分配出一块的连续的内存，而使用指针存储时，值会逃逸到堆上，这样在扫描时就无法采取连续扫描的方式。如果在此基础上，再使用指针来存储比较大的对象，可能会导致扫描哈希表的耗时大大增加。</p>
-<p>由于 gnet 主要面对的是类似 redis 和 HaProxy 的场景，这种场景下应用层的处理时间很短，网络库的性能对软件的整体性能影响非常大。而恰好这种情景都是作为后端的基础架构来使用的，客户端数量可能会非常多。当服务端需要处理的连接数较大时，直接使用哈希表来存储指针可能会造成 GC 耗时增加，从而造成比较严重的性能劣化。</p>
-<p>gnet 后期可能会依据 bigcache 的模式做出优化，将哈希表更改为二级索引的数据结构，从而实现 GC 的线性扫描。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 原方案</span></span><br><span class="line"><span class="keyword">map</span>[<span class="type">int</span>]*conn</span><br><span class="line"></span><br><span class="line"><span class="comment">// 优化思路，fd 作为索引在哈希表中存储slice下标</span></span><br><span class="line"><span class="keyword">map</span>[<span class="type">int</span>]<span class="type">int</span></span><br><span class="line"><span class="comment">// 在 slice 中存储 *conn 指针</span></span><br><span class="line">slice[]*conn</span><br></pre></td></tr></table></figure>
+<p>这部分内容很简单，将 mmap 映射获得的内存设置为只读，并且允许进程间共享；调用 madvise 将内存片段设置为随机读取模式，防止操作系统按照顺序读的方式来置换出内存页面。 最后，boltdb 将 mmap 获得的内存片段转换为了一个长度为<code>maxMapSize</code>的切片指针，这一个步骤主要是为了方便进行<code>page</code>、<code>meta</code>等数据结构的映射。设置切片长度为<code>maxMapSize</code>是为了能够方便地完成 Golang 中的 unsafe 转换，保证转换长度足够。</p>
+<p>如果成功获得内存映射片段，boltdb 还会调用<code>mlock</code>尝试禁止页面置换，从而提升数据库读性能。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> mmap(minsz <span class="type">int</span>) <span class="type">error</span> &#123;</span><br><span class="line">	...</span><br><span class="line">    <span class="keyword">if</span> db.Mlock &#123;</span><br><span class="line">        <span class="comment">// Don&#x27;t allow swapping of data file</span></span><br><span class="line">        <span class="keyword">if</span> err := db.mlock(fileSize); err != <span class="literal">nil</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> err</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>虽然<code>mlock</code>调用会抛出 error，但是并不会影响数据库的正常处理流程。</p>
+<p> boltdb 并没有使用 mmap 接口直接进行文件写入的操作，因为 mmap 的写入时机较为特殊，它不会立刻进行刷盘，而是等待内存页面被置换出时再进行刷盘，或者进程主动使用 madvise + msnyc 进行刷盘。这是因为操作系统并不确定进程是否会在未来的一段时间内再次对内存片段进行更新，因此采取惰性处理策略会更好。boltdb 中选择使用了<code>writeAt</code>接口进行文件写入。当一个写事务被提交时，它会将当前数据库文件中的所有脏页写回到硬盘中。</p>
+<h3 id="mmap-映射策略"><a href="#mmap-映射策略" class="headerlink" title="mmap 映射策略"></a>mmap 映射策略</h3><p>随着数据库文件大小的增长，boltdb 从操作系统中获得的 mmap 内存大小可能会小于数据库文件的长度。这种情况发生时，boltdb 将会再次使用 mmap 来增加映射内存的长度。boltdb 每次进行内存映射时，映射的内存大小并不等于数据库文件的大小，而是根据一定策略来选择内存大小。选择映射内存大小的逻辑出现在 db.go 的<code>mmapSize</code>函数中：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> mmapSize(size <span class="type">int</span>) (<span class="type">int</span>, <span class="type">error</span>) &#123;</span><br><span class="line">	<span class="comment">// Double the size from 32KB until 1GB.</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="type">uint</span>(<span class="number">15</span>); i &lt;= <span class="number">30</span>; i++ &#123;	<span class="comment">// 数据库文件小于1GB时，每次映射的大小翻倍</span></span><br><span class="line">		<span class="keyword">if</span> size &lt;= <span class="number">1</span>&lt;&lt;i &#123;</span><br><span class="line">			<span class="keyword">return</span> <span class="number">1</span> &lt;&lt; i, <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// Verify the requested size is not above the maximum allowed.</span></span><br><span class="line">    <span class="comment">// maxMapSize == 0xFFFFFFFFFFFF</span></span><br><span class="line">	<span class="keyword">if</span> size &gt; maxMapSize &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="number">0</span>, fmt.Errorf(<span class="string">&quot;mmap too large&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// If larger than 1GB then grow by 1GB at a time.</span></span><br><span class="line">	sz := <span class="type">int64</span>(size)</span><br><span class="line">    <span class="comment">// maxMmapStep == 1 &lt;&lt; 30</span></span><br><span class="line">	<span class="keyword">if</span> remainder := sz % <span class="type">int64</span>(maxMmapStep); remainder &gt; <span class="number">0</span> &#123;</span><br><span class="line">		sz += <span class="type">int64</span>(maxMmapStep) - remainder</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// Ensure that the mmap size is a multiple of the page size.</span></span><br><span class="line">	<span class="comment">// This should always be true since we&#x27;re incrementing in MBs.</span></span><br><span class="line">	pageSize := <span class="type">int64</span>(db.pageSize)</span><br><span class="line">	<span class="keyword">if</span> (sz % pageSize) != <span class="number">0</span> &#123;</span><br><span class="line">		sz = ((sz / pageSize) + <span class="number">1</span>) * pageSize</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// If we&#x27;ve exceeded the max size then only grow up to the max size.</span></span><br><span class="line">	<span class="keyword">if</span> sz &gt; maxMapSize &#123;</span><br><span class="line">		sz = maxMapSize</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="type">int</span>(sz), <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>根据源码，我们可以得到 boltdb 中内存映射的策略具有两个阶段，即快速增长期与慢速增长期。当数据库文件小于 1GB 时，boltdb 的内存分配处于快速增长期，进行内存映射时会直接按照数据库文件大小向上取整为 2 的幂。当数据库文件大于 1GB 时，每一次进行内存映射时的内存大小较上一次增长 1GB。由于在慢速增长期，内存映射策略是步进的，可能会出现步进后的内存大小并不是页面大小(4 KB)的整数倍，这种情况下使用最后一个页面将会导致程序越界访问内存，导致程序崩溃；因此需要向上取整为页面的大小。</p>
+<h2 id="struct-零成本重建"><a href="#struct-零成本重建" class="headerlink" title="struct 零成本重建"></a>struct 零成本重建</h2><p>boltdb 使用了直接映射的方式来完成一些数据结构的写入和重建，该方式并不会拷贝内存而是重新解释 unsafe pointer 来完成对象的重建，这些操作使用了 unsafe.go 中的接口：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeAdd</span><span class="params">(base unsafe.Pointer, offset <span class="type">uintptr</span>)</span></span> unsafe.Pointer &#123;</span><br><span class="line">    <span class="keyword">return</span> unsafe.Pointer(<span class="type">uintptr</span>(base) + offset)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeIndex</span><span class="params">(base unsafe.Pointer, offset <span class="type">uintptr</span>, elemsz <span class="type">uintptr</span>, n <span class="type">int</span>)</span></span> unsafe.Pointer &#123;</span><br><span class="line">    <span class="keyword">return</span> unsafe.Pointer(<span class="type">uintptr</span>(base) + offset + <span class="type">uintptr</span>(n)*elemsz)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeByteSlice</span><span class="params">(base unsafe.Pointer, offset <span class="type">uintptr</span>, i, j <span class="type">int</span>)</span></span> []<span class="type">byte</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> (*[maxAllocSize]<span class="type">byte</span>)(unsafeAdd(base, offset))[i:j:j]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// unsafeSlice modifies the data, len, and cap of a slice variable pointed to by</span></span><br><span class="line"><span class="comment">// the slice parameter.  This helper should be used over other direct</span></span><br><span class="line"><span class="comment">// manipulation of reflect.SliceHeader to prevent misuse, namely, converting</span></span><br><span class="line"><span class="comment">// from reflect.SliceHeader to a Go slice type.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeSlice</span><span class="params">(slice, data unsafe.Pointer, <span class="built_in">len</span> <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">    s := (*reflect.SliceHeader)(slice)</span><br><span class="line">    s.Data = <span class="type">uintptr</span>(data)</span><br><span class="line">    s.Cap = <span class="built_in">len</span></span><br><span class="line">    s.Len = <span class="built_in">len</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该方法可以用来进行简单对象的转换，相当于进行了一次对象的引用，重建后的对象地址会发生改变，但对象内容中的各个子对象地址都不会发生改变；下面使用一个 demo 来演示该方法是如何工作的：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Foo <span class="keyword">struct</span> &#123;</span><br><span class="line">	content1 <span class="type">int32</span></span><br><span class="line">	content2 <span class="type">int32</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(d *Foo)</span></span> unsafeByteSlice() []<span class="type">byte</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> (*[unsafe.Sizeof(*d)]<span class="type">byte</span>)(unsafe.Pointer(d))[<span class="number">0</span>:unsafe.Sizeof(*d)]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">parseFromByteSlice</span><span class="params">(serialized []<span class="type">byte</span>)</span></span> *Foo &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> (*Foo)(unsafe.Pointer(&amp;serialized[<span class="number">0</span>]))</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">ObjectSerializedTest</span><span class="params">()</span></span> &#123;</span><br><span class="line">	d := Foo&#123;<span class="number">1</span>, <span class="number">2</span>&#125;</span><br><span class="line"></span><br><span class="line">	now := time.Now()</span><br><span class="line"></span><br><span class="line">	slice := d.unsafeByteSlice()</span><br><span class="line">	d.content2 = <span class="number">3</span></span><br><span class="line"></span><br><span class="line">	dd := parseFromByteSlice(slice)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;time cost:&quot;</span>, time.Since(now).Nanoseconds(), <span class="string">&quot;ns&quot;</span>)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd.content1:&quot;</span>, dd.content1)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd.content2:&quot;</span>, dd.content2)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;d address:&quot;</span>, &amp;d)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd address:&quot;</span>, &amp;dd)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;d content1 address:&quot;</span>, &amp;d.content1)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd content2 address:&quot;</span>, &amp;dd.content1)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>demo 先获取对象 d 的内存片段，然后修改对象 dd 的值，再使用该内存片段重建对象，程序输出结果为：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">time cost: <span class="number">162</span> ns</span><br><span class="line">dd.content1: <span class="number">1</span></span><br><span class="line">dd.content2: <span class="number">3</span></span><br><span class="line">d address: <span class="number">0xc000062f38</span></span><br><span class="line">dd address: <span class="number">0xc000062f50</span></span><br><span class="line">d content1 address: <span class="number">0xc000062f38</span></span><br><span class="line">dd content2 address: <span class="number">0xc000062f38</span></span><br></pre></td></tr></table></figure>
+
+<p>可以看到，dd 与 d 两个对象的地址是不同的，但是 dd.content1 与 d.content1 地址是相同的；因此即使在进行映射后更改 d 中的值，也会造成 dd 的改变。运用此方法进行 struct -&gt; slice -&gt; struct 耗时仅为 162ns，主要耗时集中在类型转换上。</p>
+<h2 id="接口设计"><a href="#接口设计" class="headerlink" title="接口设计"></a>接口设计</h2><p>由于 boltdb 内部使用了读写锁，为了对读写事务加以区分，并给予用户较高的自由度，boltdb 设计了如下接口：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 只读事务</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> View(fn <span class="function"><span class="keyword">func</span><span class="params">(*Tx)</span></span> <span class="type">error</span>) <span class="type">error</span></span><br><span class="line"><span class="comment">// 写事务</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> Update(fn <span class="function"><span class="keyword">func</span><span class="params">(*Tx)</span></span> <span class="type">error</span>) <span class="type">error</span></span><br><span class="line"><span class="comment">// 批处理事务</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> Batch(fn <span class="function"><span class="keyword">func</span><span class="params">(*Tx)</span></span> <span class="type">error</span>) <span class="type">error</span></span><br><span class="line"><span class="comment">// 原始事务接口</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> Begin(writable <span class="type">bool</span>) (*Tx, <span class="type">error</span>)</span><br></pre></td></tr></table></figure>
+
+<p>在事务的开启阶段，就可以简单地对事务进行区分，更好地处理读写并行关系。</p>
+<h2 id="写入性能"><a href="#写入性能" class="headerlink" title="写入性能"></a>写入性能</h2><p>归根结底，一个基于硬盘的数据库系统的性能瓶颈是硬盘的 IO 速度，在其他的数据库设计中，面对写入，都是先使用低成本的操作记录写入日志，然后再将写入内容搬运到具体的位置上，才能够获得较高的写入性能。而 boltdb 的设计中，并没有对写入操作进行任何的缓冲机制，而是直接将写入内容放入到硬盘中，这是其写入性能较低的根本原因。但是这种设计能够很简单地实现事务的串行，任何设计都有取舍，写入性能就是 boltdb 舍弃掉的东西。</p>
+
       
     </div>
 
@@ -347,7 +331,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/19/%E6%B5%85%E6%9E%90-CloudWeGOnetpoll/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/27/%E4%BB%A5freecachebigcache%E4%B8%BA%E4%BE%8B%E7%9C%8Bgo%E8%BF%9B%E7%A8%8B%E5%86%85%E7%BC%93%E5%AD%98/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -361,7 +345,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/01/19/%E6%B5%85%E6%9E%90-CloudWeGOnetpoll/" class="post-title-link" itemprop="url">浅析 CloudWeGo-Netpoll</a>
+            <a href="/2023/01/27/%E4%BB%A5freecachebigcache%E4%B8%BA%E4%BE%8B%E7%9C%8Bgo%E8%BF%9B%E7%A8%8B%E5%86%85%E7%BC%93%E5%AD%98/" class="post-title-link" itemprop="url">以freecache和bigcache为例看go进程内缓存</a>
         </h2>
 
         <div class="post-meta">
@@ -370,16 +354,10 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
+              
 
-              <time title="创建时间：2023-01-19 15:58:15" itemprop="dateCreated datePublished" datetime="2023-01-19T15:58:15+08:00">2023-01-19</time>
+              <time title="创建时间：2023-01-27 15:28:50 / 修改时间：23:00:49" itemprop="dateCreated datePublished" datetime="2023-01-27T15:28:50+08:00">2023-01-27</time>
             </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-02-08 16:50:45" itemprop="dateModified" datetime="2023-02-08T16:50:45+08:00">2023-02-08</time>
-              </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
                 <i class="far fa-folder"></i>
@@ -387,10 +365,6 @@
               <span class="post-meta-item-text">分类于</span>
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
                   <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">计算机网络</span></a>
                 </span>
                   ，
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
@@ -404,14 +378,14 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>7.4k</span>
+              <span>4.6k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
                 <i class="far fa-clock"></i>
               </span>
                 <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>7 分钟</span>
+              <span>4 分钟</span>
             </span>
 
         </div>
@@ -423,78 +397,45 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>CloudWeGo-Netpoll ，以下简称为 Netpoll，是由字节跳动开发的一款<strong>专注于 RPC 场景</strong>的高性能 NIO 网络库。大大多基于多路复用的网络库，基本框架都比较类似。但不同的网络库会针对不同的应用场景对基本框架进行修改，从而使其在固定场景下发挥出更好的性能。本文着重分析 Netpoll 与其他网络库不同的设计，以及这些设计是如何满足 RPC 场景的。</p>
-<h2 id="Netpoll-场景"><a href="#Netpoll-场景" class="headerlink" title="Netpoll 场景"></a>Netpoll 场景</h2><p>RPC 场景，在我的理解中，主要可以由以下几个特点来概括：</p>
-<ul>
-<li>较重的处理逻辑，事务处理中可能会有较长时间的阻塞；</li>
-<li>通常采用短连接或者长连接池的形式；</li>
-<li>具有超时机制，可能会产生较多的失效连接。</li>
-</ul>
-<p>在这种场景下，使用 go 标准网络库开发服务端比较方便，但无法达到较高的性能，这主要来源于 goroutine 的调度开销上。在微服务场景下，服务器之间的交互非常频繁，服务器 A 到服务器 B 之间可能会需要多条 rpc 逻辑连接，如果为这些逻辑连接全部开辟出一条物理连接，会对服务端和客户端都造成比较大的压力。通常，rpc 框架会选择使用多路复用的方式，避免开辟过多的物理连接。但又因为 rpc 依赖链路这种情景，串行处理 rpc 是性能非常低下的。当使用标准网络库时，虽然 rpc 的解析在阻塞 IO 下也可以实现多路复用，但是 rpc 的处理逻辑必须要开辟一个新的 goroutine 来防止队首阻塞。这是因为 rpc 可能是具有依赖链路的。通过分析，我们可以发现，使用 go 标准网络库进行开发，虽然可以避免开辟过多 goroutine 用于解析，但是仍然需要为每一条业务逻辑开辟出一个 goroutine。当 goroutine 过多时，调度器的压力会比较大，造成较大的延迟。</p>
-<p>而 go 语言的一些其他网络库如 gnet，底层会使用 ring_buffer 作为缓冲区（新版本中也可以作为 linked_list 作为缓冲区）来获取更高的性能。由于 ring_buffer 中内存地址是会被复用的，并且生命周期难以被管理，如果应用层的业务逻辑没有阻塞的情况下，可以直接在读事件中的 callback 中完成事件处理（如 redis 的 500us 左右的纯内存操作，HAProxy 的转发操作），那么这种网络框架性能是非常高的，<strong>核心点就是不需要分配内存</strong>。但是在 rpc 场景下，业务的处理逻辑非常重，仍然需要分配内存进行拷贝，防止 ring_buffer 被覆盖，这种框架的优势就没有那么明显了。（当然，可以在业务层自行实现内存池来解决这一问题，不过这相当于把问题抛给了用户）</p>
-<p>综上所述，Netpoll 所要做的，核心有两点：</p>
-<ul>
-<li>实现非阻塞读写，避免开辟过多 goroutine；</li>
-<li>实现生命周期可调控的内存复用，避免分配内存。</li>
-</ul>
-<h2 id="高性能网络库“三板斧”"><a href="#高性能网络库“三板斧”" class="headerlink" title="高性能网络库“三板斧”"></a>高性能网络库“三板斧”</h2><p>各种实现的 Reactor 模式，其高性能主要来自于避免了各种耗时操作，如内存分配、线程开辟、互斥量竞争，几乎所有的高性能网络库都做了以下几点优化：</p>
-<ul>
-<li>Multi-Reactors/Master-Workers 模型，避免 epoll 惊群效应；</li>
-<li>EventLoop 模型的高效运行机制；</li>
-<li>高效的内存管理机制，尽量避免内存分配；</li>
-<li>高性能线程/goroutine池，避免用户手动开辟处理异步逻辑。</li>
-</ul>
-<p>这几点在 Netpoll 中都有涉及，其中内存管理是借助 sync.Pool 和 link_buffer 实现的；高性能协程池则是使用了自家的 <a target="_blank" rel="noopener" href="https://github.com/bytedance/gopkg/tree/develop/util/gopool">gopool</a>。</p>
-<h2 id="Reactor-模式实现"><a href="#Reactor-模式实现" class="headerlink" title="Reactor 模式实现"></a>Reactor 模式实现</h2><p>Netpoll 中使用的是主从 Reactor 模式，能够有效地避免 epoll 惊群效应。主从 Reactor 模式实现上的一个细节问题是如何进行 fd 的传递，即系统调用 accept 获得的 fd 如何注册到 Worker Reactor 的 epoll 上。在 muduo 和 gnet 的实现中，都是以队列的形式进行传递；而在 Netpoll 实现中，则是直接在 Master Reactor 线程使用 epoll 系统调用将新到达连接的 fd 注册到 Worker Reactor 上。 </p>
-<p>Netpoll 中处理新连接到达的代码比较分散，这里简述一下调用链：<code>server.OnRead -&gt; connection.init -&gt; connection.onPrepare -&gt; connection.register -&gt; FDOperator.Control -&gt; poll.Control</code></p>
-<p>上述调用链是发生在 Master Reactor 线程中的，这是利用了 epoll 线程安全的特性，当使用 epoll 相关系统调用时会使用自旋锁来保证红黑树结构的线程安全。<code>poll.Control</code>函数会根据输入参数使用不同的系统调用来维护 epoll 的注册表。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Control implements Poll.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *defaultPoll)</span></span> Control(operator *FDOperator, event PollEvent) <span class="type">error</span> &#123;</span><br><span class="line">	<span class="keyword">var</span> op <span class="type">int</span></span><br><span class="line">	<span class="keyword">var</span> evt epollevent</span><br><span class="line">	*(**FDOperator)(unsafe.Pointer(&amp;evt.data)) = operator</span><br><span class="line">	<span class="keyword">switch</span> event &#123;</span><br><span class="line">	<span class="keyword">case</span> PollReadable: <span class="comment">// server accept a new connection and wait read</span></span><br><span class="line">		operator.inuse()</span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_ADD, syscall.EPOLLIN|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	<span class="keyword">case</span> PollWritable: <span class="comment">// client create a new connection and wait connect finished</span></span><br><span class="line">		operator.inuse()</span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_ADD, EPOLLET|syscall.EPOLLOUT|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	<span class="keyword">case</span> PollModReadable: <span class="comment">// client wait read/write</span></span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_MOD, syscall.EPOLLIN|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	<span class="keyword">case</span> PollDetach: <span class="comment">// deregister</span></span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_DEL, syscall.EPOLLIN|syscall.EPOLLOUT|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	<span class="keyword">case</span> PollR2RW: <span class="comment">// connection wait read/write</span></span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_MOD, syscall.EPOLLIN|syscall.EPOLLOUT|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	<span class="keyword">case</span> PollRW2R: <span class="comment">// connection wait read</span></span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_MOD, syscall.EPOLLIN|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> EpollCtl(p.fd, op, operator.FD, &amp;evt)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+          <p>应用缓存具有两种形式：缓存服务和进程内缓存。在大部分情景下，缓存服务已经可以解决应用缓存问题；但由于缓存服务需要经过网络通信，其性能一般是不如进程内缓存的。当性能要求较高时，就需要考虑采取进程内缓存的方案。并且，进程内缓存可以直接寻址，因此不仅可以缓存字符串，还可以缓存更加复杂的数据结构。不过同样地，进程内缓存也具有其缺点，诸如维护较为困难、缓存难以共享、影响进程内其他模块性能等。</p>
+<p>一般而言，设计进程内缓存主要需要考虑以下几个方面的问题：</p>
+<ol>
+<li>应用于高并发、高性能场景，需要较高的并发性能；</li>
+<li>内存管理策略，如缓存淘汰机制，防止占用过多资源；</li>
+<li>CPU 占用低，不影响进程内其他模块的性能；</li>
+<li>存储灵活多变的数据结构，如会话 token 等。</li>
+</ol>
+<p>freecache 和 bigcache 是两个比较出色的使用 go 语言的进程内缓存的开源项目；另外 bigcache 还有一个衍生类项目 fastcache。下文将从进程内缓存需要考虑的几个问题出发，对比着几个项目的异同点。</p>
+<h2 id="实现高并发"><a href="#实现高并发" class="headerlink" title="实现高并发"></a>实现高并发</h2><p>freecache 和 bigcache 中实现高并发的策略是相同的：哈希表分片来减小锁的粒度。</p>
+<p><img src="/images/map-slice.png" alt="map-slice.png"></p>
+<p>由于哈希表的时间复杂为 O(1)，因此进程内缓存应当首选哈希表为数据结构；但由于哈希表并不是一个线程安全的数据结构，必须加锁来保护，并发的线程数量较多时，直接对哈希表进行加锁性能会非常差。哈希表分片是通过哈希值的方式将大哈希表拆分为多个小哈希表，这样只需要对每一个小哈希表进行加锁保护即可，这种方式降低了锁粒度，可以大幅度提升并发性能。这种处理比较常见。</p>
+<h2 id="CPU-占用-GC"><a href="#CPU-占用-GC" class="headerlink" title="CPU 占用(GC)"></a>CPU 占用(GC)</h2><p>由于 go 是一种 GC 语言，进程内缓存就不得不考虑垃圾回收对性能的影响。在 go 中，使用指针、哈希表等非内存连续的结构会导致 GC 的时间大幅度增加，freecache 和 bigcache 中的设计都考虑到了这两点。虽然工程实现上有所区别，但是两者的核心思想都是相同的：使用线性数据结构来存储键值对，利用哈希表来存储地址偏移量，从而避免 GC 耗时。使用简单的代码就可以描述其原理：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">origin := <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="type">string</span>][]<span class="type">byte</span>)</span><br><span class="line"><span class="comment">// 写入方式</span></span><br><span class="line">value := origin[<span class="string">&quot;key&quot;</span>]</span><br><span class="line"></span><br><span class="line">better := <span class="built_in">make</span>(<span class="keyword">map</span>[<span class="type">int</span>]<span class="type">int</span>)</span><br><span class="line">slice := <span class="built_in">make</span>([][]<span class="type">byte</span>,<span class="number">100</span>)</span><br><span class="line"><span class="comment">// 写入方式</span></span><br><span class="line">value := slice[better[hash(<span class="string">&quot;key&quot;</span>)]]</span><br></pre></td></tr></table></figure>
 
-<p>当新连接到达时，<code>FDOperator.event == PollReadable</code> 或者 <code>FDOperator.event == PollModReadable</code>，因此该函数会将新到达的 fd 注册到对应的 poll 结构体上。</p>
-<h2 id="Nocopy-Buffer"><a href="#Nocopy-Buffer" class="headerlink" title="Nocopy Buffer"></a>Nocopy Buffer</h2><p>Nocopy Buffer 是 Netpoll 设计的核心内容，连接多路复用、ZeroCopy 优化都是基于 Nocopy Buffer 结构的。</p>
-<h3 id="linkBuffer-数据结构"><a href="#linkBuffer-数据结构" class="headerlink" title="linkBuffer 数据结构"></a>linkBuffer 数据结构</h3><p>Nocopy Buffer 本质上是一个基于链表的无锁读写结构，链表的节点是<code>linkBufferNode</code>数据结构。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> linkBufferNode <span class="keyword">struct</span> &#123;</span><br><span class="line">    buf      []<span class="type">byte</span>          <span class="comment">// buffer</span></span><br><span class="line">    off      <span class="type">int</span>             <span class="comment">// read-offset</span></span><br><span class="line">    malloc   <span class="type">int</span>             <span class="comment">// write-offset</span></span><br><span class="line">    refer    <span class="type">int32</span>           <span class="comment">// reference count</span></span><br><span class="line">    readonly <span class="type">bool</span>            <span class="comment">// read-only node</span></span><br><span class="line">    origin   *linkBufferNode <span class="comment">// the root node of the extends</span></span><br><span class="line">    next     *linkBufferNode <span class="comment">// the next node of the linked buffer</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>freecache 中并没有使用 go 自建的哈希表作为索引，而是使用哈希函数加 slice 的形式自行搭建了一个哈希表；bigcache 中则是直接使用了 go 自建的哈希表作为索引。不考虑哈希函数优劣的前提下，freecache 这里的设计更好，因为只需要计算一次哈希值即可，而 bigcache 中则需要计算两次哈希值。</p>
+<p>在线性存储结构方面的区别主要在于，bigcache 是支持自动扩容的（使用拷贝的方法）。</p>
+<h2 id="数据结构的支持"><a href="#数据结构的支持" class="headerlink" title="数据结构的支持"></a>数据结构的支持</h2><p>C++ 实现的进程内缓存通常都支持存储多种数据结构，不仅可以存储字符串、还可以存储更为复杂的数据结构；在网络服务器中，就可以使用本地缓存来存储 tcp 连接的描述符。而 go 实现的进程内缓存一般只支持存储字符串，复杂的数据结构只能够经过序列化后存储在缓冲中，这一方面是因为 go 在 1.18 版本前并不支持泛型，另一方面是因为 go GC 机制的存在。</p>
+<p>理论上，不使用泛型，只使用<code>interface&#123;&#125;</code>也是可以实现存储不同的数据类型的，并且不会给 GC 带来额外的压力；但是问题在于，如果存储的数据结构比较复杂的话（比如数据结构中存在指针），也会大幅度影响 GC 的性能。使用以下实验分别测试在 1000W 数据量情况下，go GC 的时间；以下几组测试分别在不同的进程中完成，不存在相互的影响：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 简单数据类型，不含指针</span></span><br><span class="line"><span class="keyword">type</span> simple <span class="keyword">struct</span>&#123;</span><br><span class="line">	a <span class="type">int</span></span><br><span class="line">	b <span class="type">int</span> </span><br><span class="line">	c <span class="type">int</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 复杂数据类型，含有指针</span></span><br><span class="line"><span class="keyword">type</span> <span class="built_in">complex</span> <span class="keyword">struct</span>&#123;</span><br><span class="line">	s1 *simple</span><br><span class="line">	s2 *simple</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 1000W int 数据类型</span></span><br><span class="line">s1 := <span class="built_in">make</span>([]<span class="type">int</span>,<span class="number">10000000</span>);</span><br><span class="line"><span class="comment">// 1000W 简单数据结构，接口存储</span></span><br><span class="line">s2 := <span class="built_in">make</span>([]any,<span class="number">10000000</span>);</span><br><span class="line"><span class="comment">// 1000W 简单数据结构，指针存储</span></span><br><span class="line">s3 := <span class="built_in">make</span>([]*simple,<span class="number">10000000</span>);</span><br><span class="line"><span class="comment">// 1000W 复杂数据结构，接口存储</span></span><br><span class="line">s4 := <span class="built_in">make</span>([]any,<span class="number">10000000</span>);</span><br></pre></td></tr></table></figure>
 
-<p><code>linkBufferNode</code>本质上是一个可引用、具有读写标识位的缓冲区，由于单独对读标识位和写标识位操作是可以并发的，所以其是一个单读写可并发的无锁结构。</p>
-<p><code>linkBuffer</code>则是<code>linkBufferNode</code>组成的链表，其数据结构如下：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> LinkBuffer <span class="keyword">struct</span> &#123;</span><br><span class="line">    length     <span class="type">int64</span>	<span class="comment">// 可读长度</span></span><br><span class="line">    mallocSize <span class="type">int</span>	<span class="comment">// 可写长度</span></span><br><span class="line"></span><br><span class="line">    head  *linkBufferNode <span class="comment">// 链表头部</span></span><br><span class="line">    read  *linkBufferNode <span class="comment">// 读取位置</span></span><br><span class="line">    flush *linkBufferNode <span class="comment">// 写入提交位置</span></span><br><span class="line">    write *linkBufferNode <span class="comment">// 链表尾部</span></span><br><span class="line"></span><br><span class="line">    caches [][]<span class="type">byte</span> <span class="comment">// 从内存池中获取的内存，用于跨 node 读取</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>四组的 GC 时间在 go 1.19 版本经过测试后，分别如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">s1 GC time: 328 us</span><br><span class="line">s2 GC time: 336 us</span><br><span class="line">s3 GC time: 5228 us</span><br><span class="line">s4 GC time: 19552 us</span><br></pre></td></tr></table></figure>
 
-<p><code>linkBuffer</code>中使用四个标识位来描述当前的读写状态。head 指向链表的头部，head 与 read 节点之间是可以被释放的节点，read 至 flush 节点是当前可读的区域，flush 至 write 节点是当前可以写入的区域。</p>
-<p><img src="/images/link_buffer.png" alt="/images/link_buffer.png"></p>
-<p>flush 节点指向的 node 是渐变的，代表其中一部分区域是可读的，一部分区域是不可读的。因为同一个节点可能会被同时写入和读取。虽然图中未指出，但是 head 与 read 节点也可能重合，可以被安全释放的范围是 [head,read) 。</p>
-<h3 id="Nocopy-体现在哪"><a href="#Nocopy-体现在哪" class="headerlink" title="Nocopy 体现在哪"></a>Nocopy 体现在哪</h3><p>linkBuffer 具有 nocopy 特性，但并非所有的接口都是 nocopy 的。</p>
-<p>linkBuffer 的所有读接口的处理逻辑都是类似的，这些读取操作是否为 nocopy 取决于读取的位置。以 <code>linkBuffer.Next</code>函数为例，分析什么情况读取是不需要拷贝的，代码只保留了用于分析的部分：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *LinkBuffer)</span></span> Next(n <span class="type">int</span>) (p []<span class="type">byte</span>, err <span class="type">error</span>) &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 检查长度并移动更新 length</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 读取长度小于一个节点</span></span><br><span class="line">    <span class="keyword">if</span> b.isSingleNode(n) &#123;</span><br><span class="line">        <span class="keyword">return</span> b.read.Next(n), <span class="literal">nil</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 大于 1k 的内存块进行内存池管理，避免分配大内存</span></span><br><span class="line">    <span class="keyword">if</span> block1k &lt; n &amp;&amp; n &lt;= mallocMax &#123;</span><br><span class="line">        p = malloc(n, n)</span><br><span class="line">        b.caches = <span class="built_in">append</span>(b.caches, p)</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        p = <span class="built_in">make</span>([]<span class="type">byte</span>, n)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">var</span> pIdx,l <span class="type">int</span></span><br><span class="line">    <span class="comment">// 循环读取不同节点，直到满足需求</span></span><br><span class="line">    <span class="keyword">for</span> ack := n; ack &gt; <span class="number">0</span>; ack = ack - l &#123;</span><br><span class="line">        l = b.read.Len()</span><br><span class="line">        <span class="keyword">if</span> l &gt;= ack &#123;</span><br><span class="line">            pIdx += <span class="built_in">copy</span>(p[pIdx:], b.read.Next(ack))</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> l &gt; <span class="number">0</span> &#123;</span><br><span class="line">            pIdx += <span class="built_in">copy</span>(p[pIdx:], b.read.Next(l))</span><br><span class="line">        &#125;</span><br><span class="line">        b.read = b.read.next</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    _ = pIdx</span><br><span class="line">    <span class="keyword">return</span> p, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>对比 s2 和 s4 可以看到，当数据量比较大时，内部含有指针的数据结构所需要耗费的 GC 时间甚至达到了约 20ms，相比于简单数据结构增长了 58 倍左右；这是一个比较可观的延迟。另外，对比 s1、s2 和 s3 三组实验，在切片中使用指针同样会导致全量的 GC 扫描，否则会导致 GC 时间大幅度增加。</p>
+<p>由以上的实验，我们可以得出两个结论，go 实现的进程内缓存，如果要存储复杂数据结构，就必须使用非指针形式存储，并且要求数据结构内部尽量不存在过多指针，否则会导致性能大幅度降低。但这会带来一个问题：复杂的数据结构本身占用的内存可能会较大，每次写入和读出缓存时都会涉及到一次全量复制，这是非常耗时的一个过程。</p>
+<p>针对这一点，我觉得可以结合<code>sync.Pool</code>的思路来实现零拷贝写入：在进程内缓存内部设置一个 hook 函数，用户可以通过设置 hook 来控制缓存所存储的数据类型，当用户需要时，直接将对象构造在缓存的内部，然后返回用户指针，这样就可以节约写入时的拷贝。并且，缓存内部失效的数据结构也可以被复用，可以节约对象构造的时间。</p>
+<h2 id="性能对比"><a href="#性能对比" class="headerlink" title="性能对比"></a>性能对比</h2><p>根据 bigcache README 中的 <a target="_blank" rel="noopener" href="https://github.com/allegro/bigcache">benchmark</a> 测试结果，freecache 在性能上会比 bigcache 略低，这里贴出 v3.1.0 版本，bigcache 主页的测试结果：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">go version</span><br><span class="line">go version go1.13 linux/amd64</span><br><span class="line"></span><br><span class="line">go test -bench=. -benchmem -benchtime=4s ./... -timeout 30m</span><br><span class="line">goos: linux</span><br><span class="line">goarch: amd64</span><br><span class="line">pkg: github.com/allegro/bigcache/v3/caches_bench</span><br><span class="line">BenchmarkMapSet-8                     	12999889	       376 ns/op	     199 B/op	       3 allocs/op</span><br><span class="line">BenchmarkConcurrentMapSet-8           	 4355726	      1275 ns/op	     337 B/op	       8 allocs/op</span><br><span class="line">BenchmarkFreeCacheSet-8               	11068976	       703 ns/op	     328 B/op	       2 allocs/op</span><br><span class="line">BenchmarkBigCacheSet-8                	10183717	       478 ns/op	     304 B/op	       2 allocs/op</span><br><span class="line">BenchmarkMapGet-8                     	16536015	       324 ns/op	      23 B/op	       1 allocs/op</span><br><span class="line">BenchmarkConcurrentMapGet-8           	13165708	       401 ns/op	      24 B/op	       2 allocs/op</span><br><span class="line">BenchmarkFreeCacheGet-8               	10137682	       690 ns/op	     136 B/op	       2 allocs/op</span><br><span class="line">BenchmarkBigCacheGet-8                	11423854	       450 ns/op	     152 B/op	       4 allocs/op</span><br><span class="line">BenchmarkBigCacheSetParallel-8        	34233472	       148 ns/op	     317 B/op	       3 allocs/op</span><br><span class="line">BenchmarkFreeCacheSetParallel-8       	34222654	       268 ns/op	     350 B/op	       3 allocs/op</span><br><span class="line">BenchmarkConcurrentMapSetParallel-8   	19635688	       240 ns/op	     200 B/op	       6 allocs/op</span><br><span class="line">BenchmarkBigCacheGetParallel-8        	60547064	        86.1 ns/op	     152 B/op	       4 allocs/op</span><br><span class="line">BenchmarkFreeCacheGetParallel-8       	50701280	       147 ns/op	     136 B/op	       3 allocs/op</span><br><span class="line">BenchmarkConcurrentMapGetParallel-8   	27353288	       175 ns/op	      24 B/op	       2 allocs/op</span><br><span class="line">PASS</span><br><span class="line">ok  	github.com/allegro/bigcache/v3/caches_bench	256.257s</span><br></pre></td></tr></table></figure>
 
-<p><code>linkBuffer.Next</code>函数中的读取一共具有两种情况。第一种情况是读取的长度小于 read node 的剩余可读取长度，在这种情况下并没有使用 copy 操作，而是复制了地址，这种情况下是 nocopy 的；另外一种情况是读取的长度大于 read node 的剩余可读取长度，这时候需要将分散在各个节点的数据拷贝到一起，如果要求的数据过长，甚至可能会发生多次拷贝。为了避免出现多次拷贝的情况，应该设置<code>linkBufferNode.buf</code>的长度大于用户需要读取数据的平均长度。</p>
-<p>另外值得注意的是，函数中还会根据用户要求的长度来决定不同的内存分配策略。当用户需要的长度过大时，会考虑从内存池中获取一块内存，并将这块内存保存在 caches 数组中，再选择合适的时机将内存归还内存池。</p>
-<p>linkBuffer 的写接口只有一部分是 nocopy 的，即<code>linkBuffer.Malloc</code>函数。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *LinkBuffer)</span></span> Malloc(n <span class="type">int</span>) (buf []<span class="type">byte</span>, err <span class="type">error</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> n &lt;= <span class="number">0</span> &#123;</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    &#125;</span><br><span class="line">    b.mallocSize += n</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 寻找写入位置，若无位置，则创建新节点</span></span><br><span class="line">    b.growth(n)</span><br><span class="line">    <span class="comment">// 更新标志位</span></span><br><span class="line">    <span class="keyword">return</span> b.write.Malloc(n), <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>两者的代码结构其实比较类似，差别之处主要在于过期键的清理、哈希表的实现方面；肉眼是无法观察出两者的优劣的，使用 pprof 工具来分析 benchmark 时 freecache 的 CPUProfile，得到以下的结果。</p>
+<p><img src="/images/QQ20230127-195003.png" alt="QQ20230127-195003.png"></p>
+<p>根据火焰图，可以看出 freecache 的写入流程中，函数<code>segment.lookup()</code>和<code>Timer.Now()</code>两个函数的耗时时间是比较长的。其中<code>segment.loopup()</code>函数的主要功能是处理哈希冲突，火焰图中大规模出现该函数证明了 freecache 中的哈希函数是略微欠缺打磨的，并且解决哈希冲突时，freecache 需要比较 slice 值，这也是一个性能比较差的地方，即火焰图中的 函数<code>freecache.(*RingBuf).EqualAt</code>。</p>
+<p>另一点，则是<code>Timer.Now()</code>函数的耗时，我们看一下 freecache 中的 Timer 实现：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Helper function that returns Unix time in seconds</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">getUnixTime</span><span class="params">()</span></span> <span class="type">uint32</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> <span class="type">uint32</span>(time.Now().Unix())</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// Default timer reads Unix time always when requested</span></span><br><span class="line"><span class="keyword">type</span> defaultTimer <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(timer defaultTimer)</span></span> Now() <span class="type">uint32</span> &#123;</span><br><span class="line">	<span class="keyword">return</span> getUnixTime()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-<p>函数的逻辑也非常简单，就是在链表中找到一个连续的内存区域，然后将该内存区域返回给用户。如果所有的内存区域都不足以写入，那么将分配一个新的节点，该节点大小正好为用户要求的区域。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *LinkBuffer)</span></span> growth(n <span class="type">int</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> n &lt;= <span class="number">0</span> &#123;</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 跳过只读节点，并且要求剩余可写入空间充足</span></span><br><span class="line">    <span class="keyword">for</span> b.write.readonly || <span class="built_in">cap</span>(b.write.buf)-b.write.malloc &lt; n &#123;</span><br><span class="line">        <span class="comment">// 寻找至最后一个节点后，分配新节点</span></span><br><span class="line">        <span class="keyword">if</span> b.write.next == <span class="literal">nil</span> &#123;</span><br><span class="line">            <span class="comment">// 新节点的大小正好为用户需求大小</span></span><br><span class="line">            b.write.next = newLinkBufferNode(n)</span><br><span class="line">            b.write = b.write.next</span><br><span class="line">            <span class="keyword">return</span></span><br><span class="line">        &#125;</span><br><span class="line">        b.write = b.write.next</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>linkBuffer.growth</code>函数很好地封装了分配新节点和寻找内存区域的功能，这个函数还是比较好的。注意到，函数中有一段逻辑是跳过了所有的只读节点，那么什么情况下会出现只读节点呢？linkBuffer 中只读节点只来源于用户的接口函数<code>linkBuffer.WriteDirect</code>。该函数可能会导致用户方的乱序写入，因此可能会出现下图中的情况。</p>
-<p><img src="/images/link_buffer_read_only_area.png" alt="/images/link_buffer_read_only_area"></p>
-<p>用户在获取内存后，首先写入了 node2 中的部分，而 node1 中虽然仍有空白内存，但该内存已经被用户 hold。此时，如果用户又调用了一次写入操作，必须将数据写入到“未写入部分”，因为“待写入部分”后续会被其他写操作覆盖。linkBuffer 实现中的做法是直接将 node1 设置未 readonly 状态，这里的 readonly 并不是完全禁止写入，而是禁止再从该节点上获取位置进行写入，已经获取位置的区域仍然是可以写入的。</p>
-<h3 id="为什么是无锁的"><a href="#为什么是无锁的" class="headerlink" title="为什么是无锁的"></a>为什么是无锁的</h3><p>linkBuffer 可以用作读缓冲或写缓冲，由于每一个 connection 都会被分配到一个 poller 上，在读缓冲区时，poller 底层只会对 poller 进行写入（接收数据），在写缓冲时，只会对 poller 进行读取（发送数据）。所以无论哪种情况下，Netpoller 都保证框架对缓冲区的读写是单线程的，由于读与写操作使用了不同的标志位，因此只要用户可以保证也使用单线程进行读写，就能够保证 linkBuffer 的无锁并发访问。</p>
-<h2 id="连接多路复用"><a href="#连接多路复用" class="headerlink" title="连接多路复用"></a>连接多路复用</h2><p>连接多路复用这个概念是存在于客户端的，服务端中不需要连接多路复用。Netpoll 在客户端实现连接多路复用的基础是非阻塞 IO，而 linkBuffer 则是实现高性能的多路复用手段。同时，由于连接多路复用是协议依赖的，NetPoll 只是提供了多路复用的支持，并在官方 blog 中给出了可行的方案。</p>
-<p><img src="/images/netpoll_multiplexing.png" alt="/images/link_buffer_read_only_area"></p>
-<p>连接多路复用方案包含以下几个要素：</p>
-<ul>
-<li>Virtual Connection：建立在真实连接之上的虚拟连接，具有一个 uuid 用于区分；</li>
-<li>Shared Map：根据 uuid-virtual conn 的方式来存储虚拟连接；</li>
-<li>Dispatcher：用于读取并解析数据包，根据数据包中的 id 选择对应的 Virtual Connection；</li>
-<li>Rpc Protocol：一个支持多路复用的通信协议。</li>
-</ul>
-<p>方案中，一个真实连接能够承载多个虚拟连接。这些虚拟连接都通过一个分发器来间接与读写缓冲区交互，虽然多个虚拟连接可能运行在不同的 goroutine 中，但是读写操作最终只能够由 Dispatcher 来处理，因此 linkBuffer 之上依然是一读或一写，能够保持无锁并发的特性。Dispatcher 在读取数据后，可以不拷贝数据，而是直接返回对应的切片位置，不同虚拟客户端之间操作不同的切片位置，仍然能够保证无锁并发。</p>
-<h2 id="ZeroCopy"><a href="#ZeroCopy" class="headerlink" title="ZeroCopy"></a>ZeroCopy</h2><p>Netpoll 目前并不提供 zero copy 的支持。如果要使用 zero copy 的系统调用，就必须要保证需要发送的数据在被内核拷贝掉网卡没有被释放掉。这对于 Netpoll 的框架来说会比较麻烦，因为 linkBuffer 每一次在进行写入时，会根据写入的字节长度来对内存区域进行释放。被释放的内存会进入可 GC 状态或进入内存池，这两种状态下都不能够保证内存的存活周期。如果想要在解决这个问题，可能需要大幅度修改代码框架。</p>
-<p>NetPoll 的官方博客中有这样一段介绍，我不太能够理解：</p>
-<blockquote>
-<p>于是，字节跳动框架组和字节跳动内核组合作，由内核组提供了同步的接口：当调用 sendmsg 的时候，内核会监听并拦截内核原先给业务的回调，并且在回调完成后才会让 sendmsg 返回。 这使得我们无需更改原有模型，可以很方便地接入 ZeroCopy send。同时，字节跳动内核组还实现了基于 unix domain socket 的 ZeroCopy，可以使得业务进程与 Mesh sidecar 之间的通信也达到零拷贝。</p>
-</blockquote>
-<p>这样是让 <code>sendmsg</code>阻塞直到将内核将内存写入，如果在写入速度比较频繁的情况下，这样会不会导致写入操作被阻塞过长时间。</p>
-
+<p>由于每一次 Write 都会使用一次时间戳，所以使用<code>defaultTimer</code>会带来非常严重的性能问题；经过查看源码，作者这里提供了另外一个 <code>cachedTimer</code>，它会缓存一个时间戳，并使用一个 goroutine 维护，每秒钟更新一次；但是并没有将该定时器作为 benchmark 代码中的默认定时器。将定时器修改后，该部分耗时可以忽略不计，这里不再放测试结果。</p>
+<h2 id="用户接口"><a href="#用户接口" class="headerlink" title="用户接口"></a>用户接口</h2><p>freecache 提供了几个较高性能的用户接口：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 查询后将值作为输入调用函数 fn</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(cache *Cache)</span></span> GetFn(key []<span class="type">byte</span>, fn <span class="function"><span class="keyword">func</span><span class="params">([]<span class="type">byte</span>)</span></span> <span class="type">error</span>) (err <span class="type">error</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 不进行拷贝，返回切片在 cache 中的地址</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(cache *Cache)</span></span> GetWithBuf(key, buf []<span class="type">byte</span>) (value []<span class="type">byte</span>, err <span class="type">error</span>) </span><br></pre></td></tr></table></figure>
       
     </div>
 
@@ -512,7 +453,7 @@
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/19/">19</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -580,7 +521,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">37</span>
+          <span class="site-state-item-count">39</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
@@ -593,7 +534,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-count">18</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
