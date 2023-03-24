@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-mac-osx.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Lua 和 Go 都是具有 GC 机制的语言，两者在标记阶段都采用了三色标记法，但是由于两种语言的类型、特性等方面不同，它们的 GC 机制在实现上具有很大的差别。本文主要概括性地描述两种语言的 GC 实现思路，不讨论具体的实现。 Lua 的 GC 实现Lua 中的 GC 实现是比较简单的，这主要来自于 Lua 不支持用户自定义类型、不支持指针类型，这两个特性决定了 Lua 中的对象引用机制是比较简">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Lua 与 Go GC 机制的一些记录">
+<meta property="og:url" content="https://tangrc99.com/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/index.html">
+<meta property="og:site_name" content="Sepk">
+<meta property="og:description" content="Lua 和 Go 都是具有 GC 机制的语言，两者在标记阶段都采用了三色标记法，但是由于两种语言的类型、特性等方面不同，它们的 GC 机制在实现上具有很大的差别。本文主要概括性地描述两种语言的 GC 实现思路，不讨论具体的实现。 Lua 的 GC 实现Lua 中的 GC 实现是比较简单的，这主要来自于 Lua 不支持用户自定义类型、不支持指针类型，这两个特性决定了 Lua 中的对象引用机制是比较简">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-03-23T15:24:21.400Z">
+<meta property="article:modified_time" content="2023-03-24T10:55:10.917Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="go">
+<meta property="article:tag" content="Lua">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://tangrc99.com/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Lua 与 Go GC 机制的一些记录 | Sepk</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<style>.darkmode--activated{--body-bg-color:#282828;--content-bg-color:#333;--card-bg-color:#555;--text-color:#ccc;--blockquote-color:#bbb;--link-color:#ccc;--link-hover-color:#eee;--brand-color:#ddd;--brand-hover-color:#ddd;--table-row-odd-bg-color:#282828;--table-row-hover-bg-color:#363636;--menu-item-bg-color:#555;--btn-default-bg:#222;--btn-default-color:#ccc;--btn-default-border-color:#555;--btn-default-hover-bg:#666;--btn-default-hover-color:#ccc;--btn-default-hover-border-color:#666;--highlight-background:#282b2e;--highlight-foreground:#a9b7c6;--highlight-gutter-background:#34393d;--highlight-gutter-foreground:#9ca9b6}.darkmode--activated img{opacity:.75}.darkmode--activated img:hover{opacity:.9}.darkmode--activated code{color:#69dbdc;background:0 0}button.darkmode-toggle{z-index:9999}.darkmode-ignore,img{display:flex!important}.beian img{display:inline-block!important}</style></head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Sepk</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">个人博客</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Lua 与 Go GC 机制的一些记录
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-03-23 23:24:21" itemprop="dateCreated datePublished" datetime="2023-03-23T23:24:21+08:00">2023-03-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-03-24 18:55:10" itemprop="dateModified" datetime="2023-03-24T18:55:10+08:00">2023-03-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/Lua/" itemprop="url" rel="index"><span itemprop="name">Lua</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>3.8k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Lua 和 Go 都是具有 GC 机制的语言，两者在标记阶段都采用了三色标记法，但是由于两种语言的类型、特性等方面不同，它们的 GC 机制在实现上具有很大的差别。本文主要概括性地描述两种语言的 GC 实现思路，不讨论具体的实现。</p>
+<h2 id="Lua-的-GC-实现"><a href="#Lua-的-GC-实现" class="headerlink" title="Lua 的 GC 实现"></a>Lua 的 GC 实现</h2><p>Lua 中的 GC 实现是比较简单的，这主要来自于 Lua 不支持用户自定义类型、不支持指针类型，这两个特性决定了 Lua 中的对象引用机制是比较简单的。同时，Lua 是一门脚本语言，但是同样具有编译机制，从 Lua 虚拟机的角度来看，每一个 TValue 都是高度抽象化的，在 GC 的过程中可以将这些分配处的 TValue 当做一个普通的 C 对象来处理。</p>
+<p>在 Lua 的基本对象中，并不是所有的对象都会被 GC 扫描，有一些对象是分配在栈上的，一些对象的生命周期则是由 C 程序来控制的。这些对象是不需要进行 GC 的。而其他需要 GC 的对象，则具有一个统一的 struct 头<code>GCObject</code>，该 struct 的定义如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> CommonHeader	struct GCObject *next; lu_byte tt; lu_byte marked</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* Common type for all collectable objects */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">GCObject</span> &#123;</span></span><br><span class="line">    CommonHeader;</span><br><span class="line">&#125; GCObject;</span><br></pre></td></tr></table></figure>
+
+<p><code>GCObject</code>是一个非侵入式链表，所有可以被 GC 的对象都会被放入这个链表中，这是为了方便后续的扫描。Lua 这里的实现得益于它的运行环境是搭建在 C 语言之上的一个虚拟机，而非真实的物理机环境。Lua 栈上的每一个对象都是一个<code>GCObject</code>，而 C 语言中则只能看得到内存段。这里的实现有一些空间换时间的意味，每一个被分配出的 TValue 都加入这个头，就意味着在进行 GC 的时候就不需要再对整个 Lua 栈进行扫描了，因此在 GC 的标记起始阶段就会快很多。不过 Lua 脚本的规模并不大，一段程序需要分配出的对象并不多，所以这里的额外内存消耗的可控的。</p>
+<p>Lua 脚本的运行起点是函数，如果脚本未定义外部函数，那么编译器会为其自动生成 main 函数。除去一些存储在 _ENV 表中的全局变量，其余对象的生命周期都是随着当前函数栈的切换而结束的。Lua 中的函数会被编译为一个<code>Proto</code>类型：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">** Function Prototypes</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Proto</span> &#123;</span></span><br><span class="line">    CommonHeader;</span><br><span class="line">    ...</span><br><span class="line">    GCObject *gclist;</span><br><span class="line">&#125; Proto;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>可以看到，该类型中具有一个字段<code>gclist</code>，该字段会链接所有分配出的 <code>GCObject</code>。</p>
+<h2 id="Go-的-GC-实现"><a href="#Go-的-GC-实现" class="headerlink" title="Go 的 GC 实现"></a>Go 的 GC 实现</h2><p>有关 Go 中 GC 机制的详细探讨，可以参考<a target="_blank" rel="noopener" href="https://www.jianshu.com/p/ebd8b012572e#">博客文章</a>。以下内容参考了该文章。</p>
+<p>Go 中的 GC 实现比 Lua 要更为复杂，复杂度主要来自于：指针类型、struct 类型、物理机环境。指针类型和 struct 类型使得 GC 扫描更加复杂，并且在物理机环境下对象的视图是内存段。另外， Go 主要用来编写大型的程序，如果使用类似 Lua 的 Header，可能会耗费比较多的内存，是不现实的。</p>
+<p>在 Go 语言中，编译器会在编译期为每一个 struct 类型生成一个<code>_type</code>类型的对象，并且记录在 runtime 中。该类型的定义如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> _type <span class="keyword">struct</span> &#123;</span><br><span class="line">    size       <span class="type">uintptr</span></span><br><span class="line">    ptrdata    <span class="type">uintptr</span> <span class="comment">// size of memory prefix holding all pointers</span></span><br><span class="line">    hash       <span class="type">uint32</span></span><br><span class="line">    tflag      tflag</span><br><span class="line">    align      <span class="type">uint8</span></span><br><span class="line">    fieldalign <span class="type">uint8</span></span><br><span class="line">    kind       <span class="type">uint8</span></span><br><span class="line">    alg        *typeAlg</span><br><span class="line">    <span class="comment">// gcdata stores the GC type data for the garbage collector.</span></span><br><span class="line">    <span class="comment">// If the KindGCProg bit is set in kind, gcdata is a GC program.</span></span><br><span class="line">    <span class="comment">// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.</span></span><br><span class="line">    gcdata    *<span class="type">byte</span></span><br><span class="line">    str       nameOff</span><br><span class="line">    ptrToThis typeOff</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该类型中的<code>gcdate</code>字段与 GC 机制密切相关，该字段主要用于保存 struct 中指针的位置。在 GC 扫描中，指针指向的对象地址与当前地址并非连续的，需要做一些额外的处理——因为在内存中，并不能直接去确认某一段存储的是否是一个指针值。在编译期，编译器将会确认一个 struct 中所包含的指针个数以及位置，以 bitmap 的形式存储在<code>gcdata</code>字段中。这种实现的思路将指针的确定在编译期完成，能够避免在程序的运行阶段大幅度地对内存段进行扫描，能够有助于提升效率。</p>
+<p>为了进行 GC，必须为分配出的 Go 对象建立起标识位，从而判断内存段中的对象类型。在生成对象时，go 语言不仅仅会开辟出对象所需要的内存，同样也会开辟出一片内存区域来存储<code>_type</code>类型的指针。可以类比使用<code>malloc</code>函数时，会多出 20 字节的大小来分配空间的相关信息。当需要进行 GC 扫描时，会先读取出<code>_type</code>类型，将当前对象设置为已经标记，然后根据<code>gcdata</code>字段来确定是否含有指针以及下一次扫描的范围。Go 进行对象创建的函数是<code>runtime/malloc.go</code>中的<code>newobject</code>，该函数在内部仅仅调用了<code>mallocgc</code>函数。<code>mallocgc</code>函数较长，但是其中大部分内容与 GC 无关，该函数中与 GC 相关的部分是判别<code>type</code>类型是否需要 GC 扫描，如果对象需要 GC 扫描，会使用<code>heapBitsSetType</code>函数来进行一些工作。</p>
+<p>Go 中 GC 扫描是从 goroutine 栈上开始的，当 GC 开始时，程序将会从栈的起始位置开始，按照已经预留好的类型信息逐个进行扫描和确认。对象的内存区域使用的是<code>scanblock</code>函数，这个函数会以 8 字节为步进值，对一个对象所在的内存空间进行扫描，判断内存空间中是否有指针存在，并且判断指针的有效性。若指针有效会将指针指向的对象加入到灰色标记对象中。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">scanblock</span><span class="params">(b0, n0 <span class="type">uintptr</span>, ptrmask *<span class="type">uint8</span>, gcw *gcWork, stk *stackScanState)</span></span> &#123;</span><br><span class="line">  b := b0</span><br><span class="line">  n := n0</span><br><span class="line">  <span class="comment">// 本次扫描达到地址 n 后结束</span></span><br><span class="line">  <span class="keyword">for</span> i := <span class="type">uintptr</span>(<span class="number">0</span>); i &lt; n; &#123;</span><br><span class="line">    <span class="comment">// 计算当前地址偏移量上是否是指针，如果不是指针则地址 +8 </span></span><br><span class="line">    bits := <span class="type">uint32</span>(*addb(ptrmask, i/(sys.PtrSize*<span class="number">8</span>)))</span><br><span class="line">    <span class="keyword">if</span> bits == <span class="number">0</span> &#123;</span><br><span class="line">      i += sys.PtrSize * <span class="number">8</span></span><br><span class="line">      <span class="keyword">continue</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 当前位置上有指针</span></span><br><span class="line">    <span class="keyword">for</span> j := <span class="number">0</span>; j &lt; <span class="number">8</span> &amp;&amp; i &lt; n; j++ &#123;</span><br><span class="line">      <span class="comment">// 指针类型？只有标识了指针类型的，才有可能走到下面的逻辑去；</span></span><br><span class="line">      <span class="keyword">if</span> bits&amp;<span class="number">1</span> != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="comment">// 类型转换，获取当前内存地址存储的指针值</span></span><br><span class="line">        p := *(*<span class="type">uintptr</span>)(unsafe.Pointer(b + i))</span><br><span class="line">        <span class="keyword">if</span> p != <span class="number">0</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> obj, span, objIndex := findObject(p, b, i); obj != <span class="number">0</span> &#123;</span><br><span class="line">            <span class="comment">// 将指针指向的对象标记为灰色</span></span><br><span class="line">            greyobject(obj, b, i, span, gcw, objIndex)</span><br><span class="line">          &#125; <span class="keyword">else</span> <span class="keyword">if</span> stk != <span class="literal">nil</span> &amp;&amp; p &gt;= stk.stack.lo &amp;&amp; p &lt; stk.stack.hi &#123;</span><br><span class="line">            stk.putPtr(p)</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      bits &gt;&gt;= <span class="number">1</span></span><br><span class="line">      i += sys.PtrSize</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="简单对比分析"><a href="#简单对比分析" class="headerlink" title="简单对比分析"></a>简单对比分析</h2><p>本质上来说，Lua 和 Go 中的 GC 思想都是类似的，核心要点就是要记录下每一个内存段上所存储的类型，然后再根据一定的方式来依次访问分配出的每一个对象。Lua 中的 tt 和 Go 中的 _type 都是为了记录类型的相关内容，但由于 Go 的复杂度更高，因此需要实现更多的功能。</p>
+<p>由于 Lua 语言是比较简单的，对象的分配和回收都建立在 C 语言层面之上，天然具有较高的抽象性；Lua 中的 GC 实现使用了链表头的形式，这一组织形式意味着 Lua 中可以更快地寻找到需要 GC 的对象，但是这种实现方式对空间的浪费比较严重。Lua 的 GC 扫描也是较为简单的，这主要还是因为 Lua 中每一段都被包裹在一个函数中，比较容易找到对象的分配位置，只需要在函数中记录每一个分配的对象即可。整体来说，Lua 的 GC 实现比较浪费空间，但是 GC 的性能可能会较好一点，这主要来自于 Lua 独特的对象管理机制。</p>
+<p>Go 中的 GC 机制重点在于指针位置的确认上，借助 struct 的内存对齐机制和 bitmap 存储机制可以简单高效地记录 struct 中的每一个指针。在扫描方面，虽然 Go 程序的运行是以 goroutine 为起点的，但由于 Go 程序一般规模较大，直接记录每一个可 GC 的对象需要耗费大量的内存空间，这是不太现实的。使用栈扫描虽然会在一定程度上降低起始标记阶段的性能，但是会极大地降低因为 GC 而使用的内存空间，这是一个更加合理的做法。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/go/" rel="tag"><i class="fa fa-tag"></i> go</a>
+              <a href="/tags/Lua/" rel="tag"><i class="fa fa-tag"></i> Lua</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/03/01/%E4%BB%8Eunsafe.Pointer%E5%87%BA%E5%8F%91%EF%BC%8C%E6%B5%85%E6%9E%90Go%E5%8F%8D%E5%B0%84%E5%8E%9F%E7%90%86/" rel="prev" title="从unsafe.Pointer出发，浅析Go反射原理">
+      <i class="fa fa-chevron-left"></i> 从unsafe.Pointer出发，浅析Go反射原理
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Lua-%E7%9A%84-GC-%E5%AE%9E%E7%8E%B0"><span class="nav-number">1.</span> <span class="nav-text">Lua 的 GC 实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Go-%E7%9A%84-GC-%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.</span> <span class="nav-text">Go 的 GC 实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%AE%80%E5%8D%95%E5%AF%B9%E6%AF%94%E5%88%86%E6%9E%90"><span class="nav-number">3.</span> <span class="nav-text">简单对比分析</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description">技术爱好者</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">41</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="sidebar-button motion-element">
+    lol welcome!
+  </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.zhihu.com/people/tangrc99" title="知乎 → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fa fa-link fa-fw"></i>知乎</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Tangrc99</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+<script src="https://unpkg.com/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+
+<script>
+var options = {
+  bottom: '64px',
+  right: '32px',
+  left: 'unset',
+  time: '0.5s',
+  mixColor: 'transparent',
+  backgroundColor: 'transparent',
+  buttonColorDark: '#100f2c',
+  buttonColorLight: '#fff',
+  saveInCookies: true,
+  label: '🌓',
+  autoMatchOsTheme: true
+}
+const darkmode = new Darkmode(options);
+window.darkmode = darkmode;
+darkmode.showWidget();
+</script>
+
+</body>
+</html>

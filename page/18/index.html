@@ -193,6 +193,125 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/05/12/MongoDB%20%E4%B8%8E%20MySQL/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/05/12/MongoDB%20%E4%B8%8E%20MySQL/" class="post-title-link" itemprop="url">MongoDB 与 MySQL 的一些读写优化</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-05-12 00:00:00" itemprop="dateCreated datePublished" datetime="2022-05-12T00:00:00+08:00">2022-05-12</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-01-31 20:17:34" itemprop="dateModified" datetime="2023-01-31T20:17:34+08:00">2023-01-31</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MySQL/" itemprop="url" rel="index"><span itemprop="name">MySQL</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2.9k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>本篇文章简述了 MongoDB 与 MySQL 设计中的一些读写优化，更加偏向随笔记录。</p>
+<p>由于 MongoDB 与 MySQL 的设计年代不同，因此设计思路也有所不同。从整体上看，MongoDB 的优化更加偏向于写入性能，而 MySQL 的优化更加偏向于读取性能。</p>
+<h2 id="读取链路的优化"><a href="#读取链路的优化" class="headerlink" title="读取链路的优化"></a>读取链路的优化</h2><p>​    由于 MongoDB 大量数据和索引是常驻内存的，所以读取性能是会比 MySQL 高很多的，通常来说 MongoDB 的写入性能更容易达到瓶颈。MongoDB 的设计中牺牲了一定的读取性能来换取更高的写入性能。而 MySQL 大量数据是常驻在硬盘中的，读性能的可优化之处更多也更加具有性价比，因此做了较多的优化来换取更高的读取性能。</p>
+<h3 id="MySQL-读取链路优化"><a href="#MySQL-读取链路优化" class="headerlink" title="MySQL 读取链路优化"></a>MySQL 读取链路优化</h3><p>​    MySQL 在读取链路的优化主要有查询缓存、页缓存、自适应哈希索引、CheckPoint、覆盖索引、MRR 优化、ICP 优化</p>
+<h4 id="MRR-优化"><a href="#MRR-优化" class="headerlink" title="MRR 优化"></a>MRR 优化</h4><p>​    需要查询时，先根据辅助索引将 WHERE 语句中所有符合条件的主键值放入缓冲区，在缓冲区进行排序后查询。这样可以将随机 IO 转化为顺序 IO。</p>
+<h4 id="ICP-优化"><a href="#ICP-优化" class="headerlink" title="ICP 优化"></a>ICP 优化</h4><p>​    当索引取出时，会根据 WHERE 语句条件进行判断，这一优化是适用于联合索引，或者 WHERE 语句中包含主键值的情况。</p>
+<h2 id="写入链路的优化"><a href="#写入链路的优化" class="headerlink" title="写入链路的优化"></a>写入链路的优化</h2><h3 id="MongoDB-写入链路优化"><a href="#MongoDB-写入链路优化" class="headerlink" title="MongoDB 写入链路优化"></a>MongoDB 写入链路优化</h3><p>​    MongoDB 的写入链路主要做了以下几点优化：Check Point、Copy On Write、无锁 B+ 树、Insert List、事务组提交。</p>
+<h4 id="Check-Point"><a href="#Check-Point" class="headerlink" title="Check Point"></a>Check Point</h4><p>​    Check Point 技术允许 MongoDB 按照每一秒的频率对整个 B+ 树进行刷盘操作，这使得大量的写入操作在写入日志后不需要立刻进行刷盘，只需要写入到内存当中。结合Copy On Write可以使得 B+ 树在正常刷脏的过程中也不会阻塞写入。</p>
+<h4 id="Copy-On-Write"><a href="#Copy-On-Write" class="headerlink" title="Copy On Write"></a>Copy On Write</h4><p>​    Copy On Write 技术是在上一 Check Point 的基础上在内存中新开辟内存区域进行写入，这样做的好处主要有两点：第一是很好地区分了脏页，在刷脏的过程中减小了遍历的范围，提高了刷脏的效率，第二是能够减少刷脏过程中的阻塞时间，如果一页在刷脏过程中被写入，那么将会立刻开辟出一个新的缓冲区，写入操作将会写入到该缓冲区的跳跃表中，并不会造成写入的阻塞（但并不意味着不会增加写入的时间，事实上，在刷脏时写入将会等待缓冲区的分配，这会稍微延长写入时间）。</p>
+<h4 id="Insert-List"><a href="#Insert-List" class="headerlink" title="Insert List"></a>Insert List</h4><p>​    MongoDB 中所有的写入操作并不是在原有的位置上更新。每一个页表中都有多个跳跃表，插入操作会将值插入到统一的缓冲区内，并且在跳跃表中增加指向该值的指针，并且跳跃表是可以做到无锁并发的，可以大大提高写入的性能。但是这同时会造成读取链路变长，在读取时需要首先查找原有的值数组，然后再对跳跃表进行遍历。</p>
+<h4 id="无锁-B-树"><a href="#无锁-B-树" class="headerlink" title="无锁 B+ 树"></a>无锁 B+ 树</h4><p>​    这里主要是针对 B+ 树节点的分裂优化，由于 B+ 树节点的分裂会造成写入的阻塞，在 MongoDB 中只有单个节点短时间内插入过多数据时，才会允许 B+树节点的分裂，其余情况下，只有在 Check Point 或者冷淘汰过程中才会进行节点的分裂。所以 MongoDB 中内存中页面的大小可能与硬盘中的页面大小不相同，在刷入硬盘中时，会将内存中的页面分为几个较小的页面写入到硬盘中。</p>
+<p>​    单个节点插入过多数据时，会将最后一个插入跳跃表放入到新的节点中，这一过程是可以做到不阻塞的（先将剩下的插入操作引导至新的页面中，随后再将旧节点拷贝到新的页面上）。但是这种设计会对热点数据的读取性能造成一定的影响，最新插入的数据需要更多的查询次数，降低了读取性能。</p>
+<h4 id="事务组提交"><a href="#事务组提交" class="headerlink" title="事务组提交"></a>事务组提交</h4><p>​    事务组提交是数据库系统中比较常见的优化，但 MongoDB 与MySQL的组提交有所不同。MongoDB 中组提交的缓冲区很小，并且每次组提交后都会进行刷盘，而 MySQL 中时以文件的形式来进行刷盘的。MongoDB 中，一次组提交中线程会将 log 拷贝到缓冲区中，拷贝完成按照 log 的序列号进行提交，不会造成不同组的乱序提交。</p>
+<h3 id="MySQL-的写入链路优化"><a href="#MySQL-的写入链路优化" class="headerlink" title="MySQL 的写入链路优化"></a>MySQL 的写入链路优化</h3><p>MySQL 写入的优化主要集中在如何将随机 IO 转化为顺序 IO 上，这是因为在设计时 MySQL 的 B+树索引主要是存储在硬盘上的。</p>
+<h4 id="插入缓冲区"><a href="#插入缓冲区" class="headerlink" title="插入缓冲区"></a>插入缓冲区</h4><p>辅助索引的写入是统一写入到缓冲区后，再进行刷盘操作。这一优化是因为辅助索引通常并不是聚集的，直接写入会造成随机 IO，通常引入这样一个缓冲区，可以结合异步 IO 机制将随机 IO 转换为顺序 IO，提高刷盘时的性能。</p>
+<h4 id="Check-Point-技术"><a href="#Check-Point-技术" class="headerlink" title="Check Point 技术"></a>Check Point 技术</h4><p>MySQL 中同样是采取了该技术，当数据需要写入时会将对应的页读取到内存中，然后在内存中进行修改，随后该页并不会被立刻刷入到硬盘中，而是会由 master 线程进行刷盘。MySQL 中的该设计其实主要是考虑到热数据的问题，刚刚写入的数据被再次修改和读取的概率是比较大的，这一举措不仅优化了写入性能，还能够优化读取性能。</p>
+<h4 id="事务组提交-1"><a href="#事务组提交-1" class="headerlink" title="事务组提交"></a>事务组提交</h4><p>bin log 的组提交机制类似于 MongoDB。redo log 则是采用多个文件缓冲和双指针的机制，一个指针指向当前写入的文件缓冲区，另外一个指针指向需要刷盘的缓冲区，实现无锁写入。MySQL 的bin log组提交被 wiredtiger 中的 journal 组提交所借鉴，这确实是一个比较巧妙的设计，但是 MongoDB 中将应用层的日志也当做数据库中的记录，这一设计了避免了bin log 需要和 redo log 分开进行提交的缺陷。</p>
+<h4 id="异步-IO"><a href="#异步-IO" class="headerlink" title="异步 IO"></a>异步 IO</h4><p>异步 IO 是 MySQL 其他许多优化的基础，异步 IO 允许操作系统将多个 IO 操作合并并且重新排列顺序，使之更加符合硬盘的写入顺序。 </p>
+<h4 id="刷新邻接页"><a href="#刷新邻接页" class="headerlink" title="刷新邻接页"></a>刷新邻接页</h4><p>这一操作在固态硬盘时代好像是一个负优化，一般会关闭。</p>
+<h3 id="对比"><a href="#对比" class="headerlink" title="对比"></a>对比</h3><p>​    MongoDB 的写入链路是比读取链路要短的，这一点与 MySQL 正好相反。对于单独的事务来看，由于应用层日志是不需要单独提交的，所以 MongoDB 的 WAL 写入理论上是要比 MySQL 快的，（事务在写入 WAL 后就可以返回）。</p>
+<p>​    在大量事务写入的情况下，很容易会造成热点页刷脏的问题。由于 MongoDB 允许内存与硬盘中 B+树大小不相同，并且针对内存中的 B+ 树做了写入优化，大量写入的情况下会优先写入到内存缓冲区中，并且优先在内存中进行分裂。在处理这种瞬时写入压力时，MongoDB 的设计会更加好，这主要是 MongoDB 的设计考虑到了大量的内存缓冲，并且牺牲了一部分读取性能换来的。</p>
+<p>​    最主要的是，MySQL 作为关系型数据库，其事务隔离等级要求较高，这同样会造成较大的性能损耗，例如外键约束、间隙锁等。</p>
+<p>​    但是，MongoDB 在指定主键插入时，由于插入的位置可能并不是页面内最后一个跳跃表，这样就可能会导致创建出多个新页面才能够将插入位置放入到新页面中，或者来不及进行内存节点分裂，导致页面被锁住禁止写入，这样会造成较大的性能毛刺。因为要插入一个非常大的跳跃表，并且还要完成多个页面的持久化。此外，指定主键时，如果数据库体量较大，导致大部分数据不能够常驻内存，MongoDB 可能还需要从硬盘中读取数据来确保主键是唯一的，这样就导致数据量较大时指定主键的插入性能非常低。</p>
+<p>​    所以，MongoDB 并不适合存储那些由用户指定，并且需要保证唯一性的数据，例如用户名称等，而订单编号这种情况可以直接使用 uuid 进行插入。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/04/17/2022-04-17-%E4%BF%9D%E6%8C%81%E5%90%8E%E5%8F%B0%E7%BA%BF%E7%A8%8B%E4%B8%8D%E9%9A%8F%E4%B8%BB%E7%BA%BF%E7%A8%8B%E9%80%80%E5%87%BA/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -282,119 +401,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/04/12/%E8%AE%B0%E5%BD%95-MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E8%B8%A9%E5%9D%91/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/04/12/%E8%AE%B0%E5%BD%95-MongoDB-%E5%A4%8D%E5%88%B6%E9%9B%86%E8%B8%A9%E5%9D%91/" class="post-title-link" itemprop="url">记录 MongoDB 复制集踩坑</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2022-04-12 00:00:00" itemprop="dateCreated datePublished" datetime="2022-04-12T00:00:00+08:00">2022-04-12</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-01-13 15:19:10" itemprop="dateModified" datetime="2023-01-13T15:19:10+08:00">2023-01-13</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MongoDB/" itemprop="url" rel="index"><span itemprop="name">MongoDB</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>2.2k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>2 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>本文记录在部署 MongoDB 复制集时遇到的一些小坑和解决方法。</p>
-<h2 id="docker-环境下-ip-设置错误导致无法访问"><a href="#docker-环境下-ip-设置错误导致无法访问" class="headerlink" title="docker 环境下 ip 设置错误导致无法访问"></a>docker 环境下 ip 设置错误导致无法访问</h2><p>在第一次部署 MongoDB 时，为了方便而选择了使用 docker 容器进行部署。部署过程中完全依照<a target="_blank" rel="noopener" href="https://www.mongodb.com/docs/manual/tutorial/deploy-replica-set/">官方的教程</a>，但是最终部署的集群却无法在 docker 网络外以副本集模式访问。在调试过程中发现在 docker 网络内部可以进行访问，因此猜测可能是 DNS 或者监听的问题。</p>
-<p>最终定位到问题在于初始化时选择的 host 错误。官方教程在初始化时，使用的命令如下：</p>
-<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 使用 container name 初始化</span></span><br><span class="line"><span class="comment">// 只能够在 docker 网络内部访问</span></span><br><span class="line">rs.<span class="title function_">initiate</span>( &#123;</span><br><span class="line">   _id : <span class="string">&quot;rs0&quot;</span>,</span><br><span class="line">   <span class="attr">members</span>: [</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">0</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb0.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">1</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb1.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">2</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb2.example.net:27017&quot;</span> &#125;</span><br><span class="line">   ]</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-
-<p>官方的教程在部署过程中直接使用了 container name 作为 MongoDB 实例的 HostName，由于所有的副本集是部署在同一个 docker 网络中，所以可以通过 docker DNS 功能来实现服务发现。而在 docker 网络外部，无法使用 docker DNS 服务，因此不能够正确地访问集群。</p>
-<p>经过修改后，将集群初始化命令修改为以下形式，可以正常访问：</p>
-<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 容器使用 publish 端口</span></span><br><span class="line"><span class="comment">// 集群使用宿主机 ip 初始化</span></span><br><span class="line"><span class="comment">// 使其可以接受容器外部访问</span></span><br><span class="line">rs.<span class="title function_">initiate</span>( &#123;</span><br><span class="line">   _id : <span class="string">&quot;rs0&quot;</span>,</span><br><span class="line">   <span class="attr">members</span>: [</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">0</span>, <span class="attr">host</span>: <span class="string">&quot;宿主机ip:port&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">1</span>, <span class="attr">host</span>: <span class="string">&quot;宿主机ip:port&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">2</span>, <span class="attr">host</span>: <span class="string">&quot;宿主机ip:port&quot;</span> &#125;</span><br><span class="line">   ]</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
-
-<h2 id="宿主机-ip-变更，集群失效"><a href="#宿主机-ip-变更，集群失效" class="headerlink" title="宿主机 ip 变更，集群失效"></a>宿主机 ip 变更，集群失效</h2><p>上述部署方式，虽然解决了容器外部访问的问题，但是在一次网关配置的修改后，集群所在的宿主机 ip 发生了变化，导致之前部署的 ip 无法访问，需要修改集群的配置。</p>
-<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 部分容器 ip 改变，集群中仍有 master</span></span><br><span class="line">rs.<span class="title function_">reconfig</span>( &#123;</span><br><span class="line">   _id : <span class="string">&quot;rs0&quot;</span>,</span><br><span class="line">   <span class="attr">members</span>: [</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">0</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb0.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">1</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb1.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">2</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb2.example.net:27017&quot;</span> &#125;</span><br><span class="line">   ]</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment">// 全部容器 ip 改变</span></span><br><span class="line"><span class="comment">// 部分容器 ip 改变，集群中仍有 master</span></span><br><span class="line">rs.<span class="title function_">reconfig</span>( &#123;</span><br><span class="line">   _id : <span class="string">&quot;rs0&quot;</span>,</span><br><span class="line">   <span class="attr">members</span>: [</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">0</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb0.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">1</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb1.example.net:27017&quot;</span> &#125;,</span><br><span class="line">      &#123; <span class="attr">_id</span>: <span class="number">2</span>, <span class="attr">host</span>: <span class="string">&quot;mongodb2.example.net:27017&quot;</span> &#125;</span><br><span class="line">   ]</span><br><span class="line">&#125;，&#123;<span class="attr">force</span>:<span class="literal">true</span>&#125;)</span><br></pre></td></tr></table></figure>
-
-<p>最好的部署方式还是在网关处部署一个 DNS 服务，用于集群的域名管理。</p>
-<h2 id="网络吞吐量过大，查询不稳定"><a href="#网络吞吐量过大，查询不稳定" class="headerlink" title="网络吞吐量过大，查询不稳定"></a>网络吞吐量过大，查询不稳定</h2><p>由于在部署中利用了 MongoDB Gridfs 功能作为基础架构作为深度学习的标记、训练、测试的数据集来源，在我们的使用场景中，经常会需要从 MongoDB 集群中批量访问 500 张以上 15M 左右的图像。在最初的本地测试中，我测试了批量从 MongoDB 中读取 1000 张图像，所以运行速度一直非常稳定，保持在一张图像 150ms 左右的速度，这对我们来说是比较满意的性能。</p>
-<p>但是将 MongoDB 集群投入到使用中，我们发现对图像的获取速度非常不稳定，有时获取一张图像只需要 200ms 左右，有时获取一张图像却需要 3~4 s。大部分情况下获取一张图像需要 1s 左右，而且 MongoDB 性能的波动非常严重，不符合我们最初的测试效果。</p>
-<p>最初猜测是由于 MongoDB 中数据存储不合理，导致数据集查询较慢。但查询 MongoDB 的慢查询日志后，发现所有的查询操作均不是慢查询操作。通过 top 命令查询 MongoDB 部署的主机进行监控，发现在查询过程中，CPU 的占用率一直在 20%左右。正在一筹莫展时，突然发现主机的网卡占用率非常高，猜测是网络的问题。</p>
-<p>利用 wireshark 抓包后，发现在查询过程中有大量 TCP 重传，可能是由于网络阻塞比较严重。经过排查后，发现是实验室的网关性能过差。</p>
-<p>最终，更换了实验室网关，并且将需要批量查询图像的主机通过网线直接与 MongoDB 部署主机相连，最终批量查询的时间稳定在 200ms 左右。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/17/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/17/">17</a><span class="page-number current">18</span><a class="page-number" href="/page/19/">19</a><a class="page-number" href="/page/20/">20</a><a class="extend next" rel="next" href="/page/19/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/17/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/17/">17</a><span class="page-number current">18</span><a class="page-number" href="/page/19/">19</a><span class="space">&hellip;</span><a class="page-number" href="/page/21/">21</a><a class="extend next" rel="next" href="/page/19/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -462,7 +472,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">39</span>
+          <span class="site-state-item-count">41</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

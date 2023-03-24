@@ -193,6 +193,124 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">Lua 与 Go GC 机制的一些记录</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-03-23 23:24:21" itemprop="dateCreated datePublished" datetime="2023-03-23T23:24:21+08:00">2023-03-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-03-24 18:55:10" itemprop="dateModified" datetime="2023-03-24T18:55:10+08:00">2023-03-24</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/Lua/" itemprop="url" rel="index"><span itemprop="name">Lua</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>3.8k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>Lua 和 Go 都是具有 GC 机制的语言，两者在标记阶段都采用了三色标记法，但是由于两种语言的类型、特性等方面不同，它们的 GC 机制在实现上具有很大的差别。本文主要概括性地描述两种语言的 GC 实现思路，不讨论具体的实现。</p>
+<h2 id="Lua-的-GC-实现"><a href="#Lua-的-GC-实现" class="headerlink" title="Lua 的 GC 实现"></a>Lua 的 GC 实现</h2><p>Lua 中的 GC 实现是比较简单的，这主要来自于 Lua 不支持用户自定义类型、不支持指针类型，这两个特性决定了 Lua 中的对象引用机制是比较简单的。同时，Lua 是一门脚本语言，但是同样具有编译机制，从 Lua 虚拟机的角度来看，每一个 TValue 都是高度抽象化的，在 GC 的过程中可以将这些分配处的 TValue 当做一个普通的 C 对象来处理。</p>
+<p>在 Lua 的基本对象中，并不是所有的对象都会被 GC 扫描，有一些对象是分配在栈上的，一些对象的生命周期则是由 C 程序来控制的。这些对象是不需要进行 GC 的。而其他需要 GC 的对象，则具有一个统一的 struct 头<code>GCObject</code>，该 struct 的定义如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> CommonHeader	struct GCObject *next; lu_byte tt; lu_byte marked</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* Common type for all collectable objects */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">GCObject</span> &#123;</span></span><br><span class="line">    CommonHeader;</span><br><span class="line">&#125; GCObject;</span><br></pre></td></tr></table></figure>
+
+<p><code>GCObject</code>是一个非侵入式链表，所有可以被 GC 的对象都会被放入这个链表中，这是为了方便后续的扫描。Lua 这里的实现得益于它的运行环境是搭建在 C 语言之上的一个虚拟机，而非真实的物理机环境。Lua 栈上的每一个对象都是一个<code>GCObject</code>，而 C 语言中则只能看得到内存段。这里的实现有一些空间换时间的意味，每一个被分配出的 TValue 都加入这个头，就意味着在进行 GC 的时候就不需要再对整个 Lua 栈进行扫描了，因此在 GC 的标记起始阶段就会快很多。不过 Lua 脚本的规模并不大，一段程序需要分配出的对象并不多，所以这里的额外内存消耗的可控的。</p>
+<p>Lua 脚本的运行起点是函数，如果脚本未定义外部函数，那么编译器会为其自动生成 main 函数。除去一些存储在 _ENV 表中的全局变量，其余对象的生命周期都是随着当前函数栈的切换而结束的。Lua 中的函数会被编译为一个<code>Proto</code>类型：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">** Function Prototypes</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Proto</span> &#123;</span></span><br><span class="line">    CommonHeader;</span><br><span class="line">    ...</span><br><span class="line">    GCObject *gclist;</span><br><span class="line">&#125; Proto;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>可以看到，该类型中具有一个字段<code>gclist</code>，该字段会链接所有分配出的 <code>GCObject</code>。</p>
+<h2 id="Go-的-GC-实现"><a href="#Go-的-GC-实现" class="headerlink" title="Go 的 GC 实现"></a>Go 的 GC 实现</h2><p>有关 Go 中 GC 机制的详细探讨，可以参考<a target="_blank" rel="noopener" href="https://www.jianshu.com/p/ebd8b012572e#">博客文章</a>。以下内容参考了该文章。</p>
+<p>Go 中的 GC 实现比 Lua 要更为复杂，复杂度主要来自于：指针类型、struct 类型、物理机环境。指针类型和 struct 类型使得 GC 扫描更加复杂，并且在物理机环境下对象的视图是内存段。另外， Go 主要用来编写大型的程序，如果使用类似 Lua 的 Header，可能会耗费比较多的内存，是不现实的。</p>
+<p>在 Go 语言中，编译器会在编译期为每一个 struct 类型生成一个<code>_type</code>类型的对象，并且记录在 runtime 中。该类型的定义如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> _type <span class="keyword">struct</span> &#123;</span><br><span class="line">    size       <span class="type">uintptr</span></span><br><span class="line">    ptrdata    <span class="type">uintptr</span> <span class="comment">// size of memory prefix holding all pointers</span></span><br><span class="line">    hash       <span class="type">uint32</span></span><br><span class="line">    tflag      tflag</span><br><span class="line">    align      <span class="type">uint8</span></span><br><span class="line">    fieldalign <span class="type">uint8</span></span><br><span class="line">    kind       <span class="type">uint8</span></span><br><span class="line">    alg        *typeAlg</span><br><span class="line">    <span class="comment">// gcdata stores the GC type data for the garbage collector.</span></span><br><span class="line">    <span class="comment">// If the KindGCProg bit is set in kind, gcdata is a GC program.</span></span><br><span class="line">    <span class="comment">// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.</span></span><br><span class="line">    gcdata    *<span class="type">byte</span></span><br><span class="line">    str       nameOff</span><br><span class="line">    ptrToThis typeOff</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该类型中的<code>gcdate</code>字段与 GC 机制密切相关，该字段主要用于保存 struct 中指针的位置。在 GC 扫描中，指针指向的对象地址与当前地址并非连续的，需要做一些额外的处理——因为在内存中，并不能直接去确认某一段存储的是否是一个指针值。在编译期，编译器将会确认一个 struct 中所包含的指针个数以及位置，以 bitmap 的形式存储在<code>gcdata</code>字段中。这种实现的思路将指针的确定在编译期完成，能够避免在程序的运行阶段大幅度地对内存段进行扫描，能够有助于提升效率。</p>
+<p>为了进行 GC，必须为分配出的 Go 对象建立起标识位，从而判断内存段中的对象类型。在生成对象时，go 语言不仅仅会开辟出对象所需要的内存，同样也会开辟出一片内存区域来存储<code>_type</code>类型的指针。可以类比使用<code>malloc</code>函数时，会多出 20 字节的大小来分配空间的相关信息。当需要进行 GC 扫描时，会先读取出<code>_type</code>类型，将当前对象设置为已经标记，然后根据<code>gcdata</code>字段来确定是否含有指针以及下一次扫描的范围。Go 进行对象创建的函数是<code>runtime/malloc.go</code>中的<code>newobject</code>，该函数在内部仅仅调用了<code>mallocgc</code>函数。<code>mallocgc</code>函数较长，但是其中大部分内容与 GC 无关，该函数中与 GC 相关的部分是判别<code>type</code>类型是否需要 GC 扫描，如果对象需要 GC 扫描，会使用<code>heapBitsSetType</code>函数来进行一些工作。</p>
+<p>Go 中 GC 扫描是从 goroutine 栈上开始的，当 GC 开始时，程序将会从栈的起始位置开始，按照已经预留好的类型信息逐个进行扫描和确认。对象的内存区域使用的是<code>scanblock</code>函数，这个函数会以 8 字节为步进值，对一个对象所在的内存空间进行扫描，判断内存空间中是否有指针存在，并且判断指针的有效性。若指针有效会将指针指向的对象加入到灰色标记对象中。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">scanblock</span><span class="params">(b0, n0 <span class="type">uintptr</span>, ptrmask *<span class="type">uint8</span>, gcw *gcWork, stk *stackScanState)</span></span> &#123;</span><br><span class="line">  b := b0</span><br><span class="line">  n := n0</span><br><span class="line">  <span class="comment">// 本次扫描达到地址 n 后结束</span></span><br><span class="line">  <span class="keyword">for</span> i := <span class="type">uintptr</span>(<span class="number">0</span>); i &lt; n; &#123;</span><br><span class="line">    <span class="comment">// 计算当前地址偏移量上是否是指针，如果不是指针则地址 +8 </span></span><br><span class="line">    bits := <span class="type">uint32</span>(*addb(ptrmask, i/(sys.PtrSize*<span class="number">8</span>)))</span><br><span class="line">    <span class="keyword">if</span> bits == <span class="number">0</span> &#123;</span><br><span class="line">      i += sys.PtrSize * <span class="number">8</span></span><br><span class="line">      <span class="keyword">continue</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 当前位置上有指针</span></span><br><span class="line">    <span class="keyword">for</span> j := <span class="number">0</span>; j &lt; <span class="number">8</span> &amp;&amp; i &lt; n; j++ &#123;</span><br><span class="line">      <span class="comment">// 指针类型？只有标识了指针类型的，才有可能走到下面的逻辑去；</span></span><br><span class="line">      <span class="keyword">if</span> bits&amp;<span class="number">1</span> != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="comment">// 类型转换，获取当前内存地址存储的指针值</span></span><br><span class="line">        p := *(*<span class="type">uintptr</span>)(unsafe.Pointer(b + i))</span><br><span class="line">        <span class="keyword">if</span> p != <span class="number">0</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> obj, span, objIndex := findObject(p, b, i); obj != <span class="number">0</span> &#123;</span><br><span class="line">            <span class="comment">// 将指针指向的对象标记为灰色</span></span><br><span class="line">            greyobject(obj, b, i, span, gcw, objIndex)</span><br><span class="line">          &#125; <span class="keyword">else</span> <span class="keyword">if</span> stk != <span class="literal">nil</span> &amp;&amp; p &gt;= stk.stack.lo &amp;&amp; p &lt; stk.stack.hi &#123;</span><br><span class="line">            stk.putPtr(p)</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      bits &gt;&gt;= <span class="number">1</span></span><br><span class="line">      i += sys.PtrSize</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="简单对比分析"><a href="#简单对比分析" class="headerlink" title="简单对比分析"></a>简单对比分析</h2><p>本质上来说，Lua 和 Go 中的 GC 思想都是类似的，核心要点就是要记录下每一个内存段上所存储的类型，然后再根据一定的方式来依次访问分配出的每一个对象。Lua 中的 tt 和 Go 中的 _type 都是为了记录类型的相关内容，但由于 Go 的复杂度更高，因此需要实现更多的功能。</p>
+<p>由于 Lua 语言是比较简单的，对象的分配和回收都建立在 C 语言层面之上，天然具有较高的抽象性；Lua 中的 GC 实现使用了链表头的形式，这一组织形式意味着 Lua 中可以更快地寻找到需要 GC 的对象，但是这种实现方式对空间的浪费比较严重。Lua 的 GC 扫描也是较为简单的，这主要还是因为 Lua 中每一段都被包裹在一个函数中，比较容易找到对象的分配位置，只需要在函数中记录每一个分配的对象即可。整体来说，Lua 的 GC 实现比较浪费空间，但是 GC 的性能可能会较好一点，这主要来自于 Lua 独特的对象管理机制。</p>
+<p>Go 中的 GC 机制重点在于指针位置的确认上，借助 struct 的内存对齐机制和 bitmap 存储机制可以简单高效地记录 struct 中的每一个指针。在扫描方面，虽然 Go 程序的运行是以 goroutine 为起点的，但由于 Go 程序一般规模较大，直接记录每一个可 GC 的对象需要耗费大量的内存空间，这是不太现实的。使用栈扫描虽然会在一定程度上降低起始标记阶段的性能，但是会极大地降低因为 GC 而使用的内存空间，这是一个更加合理的做法。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/01/%E4%BB%8Eunsafe.Pointer%E5%87%BA%E5%8F%91%EF%BC%8C%E6%B5%85%E6%9E%90Go%E5%8F%8D%E5%B0%84%E5%8E%9F%E7%90%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -340,162 +458,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/02/25/Ristretto-%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/02/25/Ristretto-%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0/" class="post-title-link" itemprop="url">Ristretto 源码阅读笔记</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2023-02-25 22:02:44" itemprop="dateCreated datePublished" datetime="2023-02-25T22:02:44+08:00">2023-02-25</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-02-26 14:22:10" itemprop="dateModified" datetime="2023-02-26T14:22:10+08:00">2023-02-26</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>9.5k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>9 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>Ristretto 是一个基于 Go 语言的、可并发访问的、可设置内存存储上限的高性能进程内缓存库。Ristretto 的含义为“超浓缩咖啡”，该命名是因为该项目的目标是与知名 JAVA 缓存库 Caffeine 竞争。</p>
-<p>相比其他 Go 语言的进程内缓存项目，Ristretto 的设计与实现上具有以下几个显著特点：</p>
-<ul>
-<li>基于<strong>近似</strong> LFU 算法实现缓存逐出；</li>
-<li>支持多种 key 与 value 类型，能够在进程内缓存较为复杂的结构体；</li>
-<li><strong>写入门限</strong>（DoorKeeper）设计，过滤写入键值对，提高缓存命中率；</li>
-<li>Key Cost 设计，能够更好地描述一个键值对对缓存的负载量；</li>
-<li>利用<code>sync.Pool</code>实现类似 thread_local 缓存，减少并发竞争。</li>
-</ul>
-<h2 id="Ristretto-软件框架"><a href="#Ristretto-软件框架" class="headerlink" title="Ristretto 软件框架"></a>Ristretto 软件框架</h2><p>Ristretto 的实现并不复杂，从功能上可以将 Ristretto 划分为几个模块：存储模块、操作缓冲模块、缓存控制模块、缓存计数模块，几个模块分别由不同的数据结构来负责。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Cache <span class="keyword">struct</span> &#123;</span><br><span class="line">    <span class="comment">// 存储模块</span></span><br><span class="line">    store store</span><br><span class="line">    <span class="comment">// 缓存控制模块</span></span><br><span class="line">    policy policy</span><br><span class="line">    <span class="comment">// 读写操作缓冲</span></span><br><span class="line">    getBuf *ringBuffer</span><br><span class="line">    setBuf <span class="keyword">chan</span> *Item</span><br><span class="line">    <span class="comment">// 缓存计数</span></span><br><span class="line">    Metrics *Metrics</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>操作缓冲模块可以分为读操作缓冲与写操作缓冲，两者会采取不同的策略来减少对缓存控制模块的访问。缓存控制模块具有 tinyLFU 和 sampledLFU，分别负责缓存的准入和逐出。缓存计数模块则是用于读取 Ristretto 的缓存命中率等日志信息。</p>
-<h2 id="store"><a href="#store" class="headerlink" title="store"></a>store</h2><p>存储模块使用了 Go 语言中非常经典的分片哈希表设计，目前的实践已经证明这是在 Go 中综合并发性能最好的并发哈希表设计，其他的一些同类型项目也都采用了类似的设计。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 缓存 metadata</span></span><br><span class="line"><span class="keyword">type</span> storeItem <span class="keyword">struct</span> &#123;</span><br><span class="line">    key        <span class="type">uint64</span>	<span class="comment">// 键</span></span><br><span class="line">    conflict   <span class="type">uint64</span>	<span class="comment">// 用于解决哈希冲突</span></span><br><span class="line">    value      <span class="keyword">interface</span>&#123;&#125;	<span class="comment">// 值</span></span><br><span class="line">    expiration time.Time	<span class="comment">// 过期时间，0 代表无</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 缓存大表</span></span><br><span class="line"><span class="keyword">type</span> shardedMap <span class="keyword">struct</span> &#123;</span><br><span class="line">    shards    []*lockedMap	<span class="comment">// 分片表</span></span><br><span class="line">    expiryMap *expirationMap	<span class="comment">// 过期时间表</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 缓存分片表</span></span><br><span class="line"><span class="keyword">type</span> lockedMap <span class="keyword">struct</span> &#123;</span><br><span class="line">    sync.RWMutex</span><br><span class="line">    data <span class="keyword">map</span>[<span class="type">uint64</span>]storeItem</span><br><span class="line">    em   *expirationMap</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>在 Ristretto 中，哈希表的分片和存储都使用了同一个哈希值，为了解决哈希冲突的问题，每一个键值对都带有使用另一个哈希算法计算出的 conflict 值，避免冲突的策略是不允许覆盖。当键值对时为数字类型时，哈希值会使用转化后的 uint64 类型；当键值对为<code>string</code>或<code>[]byte</code>类型时会使用 Go runtime 中的<code>runtime.memhash</code>函数来计算哈希值。由于使用了汇编代码来实现哈希值计算，该哈希算法相比其他常见类型的哈希算法计算速度更快。</p>
-<h2 id="getBuf"><a href="#getBuf" class="headerlink" title="getBuf"></a>getBuf</h2><p><code>getBuf</code>用于控制“用户读取缓存”这一行为传递到 tinyLFU 的速度和方式，具象化来说就是记录下每一次读取操作需要访问的键值对，在 Ristretto 中的实现中使用了键的哈希值。相比于 LRU 和近似 LRU 算法，实现一个 LFU 或近似 LFU 算法需要记录更多的数据。而进程内缓存这一应用场景，通常都要求较高的并发读写性能，会有较多的线程访问。一个进程内共享的缓存意味着记录 LFU 相关信息的数据结构同样会被高并发地访问，因此有必要降低 LFU 数据结构的竞争来提高缓存的整体性能。</p>
-<p>降低并发度，常用的方法就是队列和分片这两种模式，Ristretto 中选择的是队列方式。其核心思想是将 stream 转化为 batch stream，具体做法是在每一个协程栈上使用一个thread local 数据结构来缓存该协程读取的键值对，当协程本地的数据聚合到一定规模时再批量写入缓存控制模块中。由于 Go 中并不存在<code>thread_local</code>关键字，Ristretto 利用了<code>sync.Pool</code>的特性来实现了一个近似的 thread local。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *ringBuffer)</span></span> Push(item <span class="type">uint64</span>) &#123;</span><br><span class="line">    <span class="comment">// 从 Pool 中取出一个对象，将数据放入后归还</span></span><br><span class="line">    stripe := b.pool.Get().(*ringStripe)</span><br><span class="line">    stripe.Push(item)</span><br><span class="line">    <span class="comment">// 对象归还时，内部信息并不会清楚</span></span><br><span class="line">    b.pool.Put(stripe)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s *ringStripe)</span></span> Push(item <span class="type">uint64</span>) &#123;</span><br><span class="line">    <span class="comment">// 将读取的键值对放入切片中</span></span><br><span class="line">    s.data = <span class="built_in">append</span>(s.data, item)</span><br><span class="line">    <span class="comment">// 切片满了之后，通过 channel 无阻塞地发送</span></span><br><span class="line">    <span class="comment">// 若 channel 已满，丢弃消息</span></span><br><span class="line">    <span class="keyword">if</span> <span class="built_in">len</span>(s.data) &gt;= s.capa &#123;</span><br><span class="line">        <span class="keyword">if</span> s.cons.Push(s.data) &#123;</span><br><span class="line">            s.data = <span class="built_in">make</span>([]<span class="type">uint64</span>, <span class="number">0</span>, s.capa)</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            s.data = s.data[:<span class="number">0</span>]</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>当一个协程需要读取键值对时，会首先从<code>sync.Pool</code>中取出一个<code>ringStripe</code>对象，这里获取对象会优先考虑从 P 的本地栈来获取。<code>ringStripe</code>对象内具有一个切片，用来暂时存储该键值对，只有当切片存满之后，才会非阻塞地通过 channel 发送给缓存控制模块。在官方博客中提到，该 channel 的长度设置得比较小，并且当 channel 满时会选择丢弃<code>ringStripe</code>中的数据（使用 select实现）。由于缓存控制模块中收到的是 batch stream，因此在获取锁的过程中能够连续处理更多信息，降低了需要获取锁的次数，因此能够大大降低此处的并发冲突。另一点则是利用了<code>sync.Pool</code>的 thread local 特性，避免在聚合的过程中需要访问一个进程内全局可见的数据结构，这也是常用的优化手段。最后，经过聚合后的读取信息将会被<code>defaultPolicy</code>接收，用于调控缓存的准入门限。</p>
-<p>当<code>sync.Pool</code>发生 GC、channel 满时，都会导致读取缓存的信息丢失，但是这对 LFU 算法的影响是比较小的。因为在理想情况下，用户在某一时刻对缓存的读取是均匀的，丢弃少部分读取信息相当于是一个抽样。这种处理有助于限制分析用户读取信息时的 CPU 利用率，虽然牺牲了一部分 LFU 的准确性，但是能使得软件整体性能提升。</p>
-<p>这里的设计综合了 thread local 降低并发以及批处理降低并发的思想，之所以能够采取这种设计是因为缓存控制模块是允许有延迟的，只需要保持最终一致性即可。</p>
-<h2 id="setbuf"><a href="#setbuf" class="headerlink" title="setbuf"></a>setbuf</h2><p><code>setbuf</code>用于调节用户的写入流，不同于<code>getbuf</code>，<code>setbuf</code>的设计出发点是提升缓存的写入性能，其核心思想通过保证最终一致性来减少写入链的长度，与数据库中的 WAL 思想有些类似。</p>
-<p>Ristretto 的设计中对 UPDATE 操作和 WRITE、DELETE 操作进行了分流，UPDATE 的写入链比其余两个更短。可以使用以下伪代码来表示三个操作的写入链。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">Operation</span><span class="params">(key,value any)</span></span> &#123;</span><br><span class="line">	</span><br><span class="line">    <span class="keyword">if</span> isUpdateOrWrite &#123;</span><br><span class="line">        CreateObjectToInsert()</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span> isUpdate &#123;</span><br><span class="line">        <span class="keyword">return</span> Update()</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">select</span> &#123;</span><br><span class="line">        <span class="keyword">case</span> setBuf &lt;- op:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">true</span></span><br><span class="line">        <span class="keyword">default</span>:</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">false</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>Update 操作由于不涉及到键的变更，因此与缓存控制模块中的<strong>写入门限</strong>无关，可以直接在缓存表中更新。而 Write 操作因为涉及到了键的变更，需要额外检查是否满足缓存的写入门限，而检查是否满足写入门限又涉及到了并发访问的问题。考虑到写入操作还涉及到键值对的过期，具有较高的时限性，这里再使用 batch 优化就不太合适了。在比较典型的进程缓存场景下，其实写入的并发量是不高的，因此这里只简单地使用了 channel，channel 内部的锁较为特殊比<code>sync.Mutex</code>速度更快。</p>
-<p>Delete 操作的设计与 Write 操作的设计是密切相关的。Write 操作由于 channel 缓冲的存在被串行执行，这是一个慢速通道，如果某一时刻中积压的 Write 操作过多，可能会导致用户同时发起的 Delete 操作先于 Write 操作完成。即并发中的快慢路径问题。删除操作对于进程内缓存是及其重要的，如果操作发生乱序，可能会导致用户读取到过期数据，这是不能容忍的——缓存中允许少数据但不能容许多数据，否则缓存就失去了存在的意义。因此在 Ristretto 的设计中， Delete 操作同样也使用 channel 来执行。</p>
-<p>使用 channel 还有另外一点考虑。如果进程中某一时刻突然有较多的写入，缓存的压力将会骤增，Ristretto 中使用了非阻塞的 channel 来丢弃过多的写入操作，这将会有助于缓解缓存压力。要知道，并不是每一次缓存写入都是极其重要的，但是我们可以确认如果一次缓存及其重要，那么它将会在未来一段时间内再次被写入。因此，丢弃一部分写操作有助于让缓存的写入性能变得更加平滑。</p>
-<p>经 channel 发送出的数据会被一个后台 goroutine 处理，该 goroutine 负责检查该操作能否最终应用到缓存中，若被缓存拒绝，则操作会被丢弃并且不会通知用户。该 goroutine 的核心逻辑如下：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 所有被延迟的操作都会在这里被处理</span></span><br><span class="line"><span class="keyword">for</span> &#123;</span><br><span class="line">   <span class="keyword">select</span> &#123;</span><br><span class="line">   <span class="keyword">case</span> i := &lt;-c.setBuf:</span><br><span class="line">      <span class="comment">// 如果没有指定 cost，根据指定策略计算 cost</span></span><br><span class="line">      <span class="keyword">if</span> i.Cost == <span class="number">0</span> &amp;&amp; c.cost != <span class="literal">nil</span> &amp;&amp; i.flag != itemDelete &#123;</span><br><span class="line">         i.Cost = c.cost(i.Value)</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> !c.ignoreInternalCost &#123;</span><br><span class="line">         i.Cost += itemSize</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="comment">// 根据不同的操作类型采取不同操作</span></span><br><span class="line">      <span class="keyword">switch</span> i.flag &#123;</span><br><span class="line">      <span class="keyword">case</span> itemNew:</span><br><span class="line">         <span class="comment">// 根据策略判断能否写入</span></span><br><span class="line">         victims, added := c.policy.Add(i.Key, i.Cost)</span><br><span class="line">         <span class="keyword">if</span> added &#123;</span><br><span class="line">            c.store.Set(i)</span><br><span class="line">            c.Metrics.add(keyAdd, i.Key, <span class="number">1</span>)</span><br><span class="line">            trackAdmission(i.Key)</span><br><span class="line">         &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            c.onReject(i)</span><br><span class="line">         &#125;</span><br><span class="line">         <span class="comment">// 驱逐失效的缓存</span></span><br><span class="line">         <span class="keyword">for</span> _, victim := <span class="keyword">range</span> victims &#123;</span><br><span class="line">            victim.Conflict, victim.Value = c.store.Del(victim.Key, <span class="number">0</span>)</span><br><span class="line">            onEvict(victim)</span><br><span class="line">         &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> itemUpdate:</span><br><span class="line">         c.policy.Update(i.Key, i.Cost)</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> itemDelete:</span><br><span class="line">         c.policy.Del(i.Key) <span class="comment">// Deals with metrics updates.</span></span><br><span class="line">         _, val := c.store.Del(i.Key, i.Conflict)</span><br><span class="line">         c.onExit(val)</span><br><span class="line">      &#125;</span><br><span class="line">   <span class="comment">// 清理和退出逻辑</span></span><br><span class="line">   <span class="keyword">case</span> &lt;-c.cleanupTicker.C:</span><br><span class="line">      c.store.Cleanup(c.policy, onEvict)</span><br><span class="line">   <span class="keyword">case</span> &lt;-c.stop:</span><br><span class="line">      <span class="keyword">return</span></span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>该代码片段的逻辑非常简单，不过多描述。</p>
-<h2 id="写入与逐出策略"><a href="#写入与逐出策略" class="headerlink" title="写入与逐出策略"></a>写入与逐出策略</h2><p>当 Ristretto 并没有达到缓存使用的内存上限时，所有的键值对都可以自由地写入缓存中；当缓存使用的内存达到上限时，则会根据写入门限和逐出策略来决定哪些键值对需要保留，哪些键值对需要被逐出。<code>defaultPolicy</code>结构体中包括了使用的写入门限实现与逐出策略实现，该结构体使用互斥锁进行保护，其中<code>admit</code>字段实现了写入控制策略，<code>evict</code>字段实现了逐出策略。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> defaultPolicy <span class="keyword">struct</span> &#123;</span><br><span class="line">    sync.Mutex</span><br><span class="line">    admit    *tinyLFU    <span class="comment">// 写入策略实现</span></span><br><span class="line">    evict    *sampledLFU <span class="comment">// 逐出策略实现</span></span><br><span class="line">    itemsCh  <span class="keyword">chan</span> []<span class="type">uint64</span></span><br><span class="line">    stop     <span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">    isClosed <span class="type">bool</span></span><br><span class="line">    metrics  *Metrics</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>当进程内缓存达到上限时，一个 key 能否写入取决于自身准入值和 Cost 以及缓存中存储的其余键的准入值和 Cost。一个键的准入值描述了它在<strong>当前的采样周期内</strong>被读取操作所需求的程度高低，在不同的采样周期内，一个键的准入值是不同的。这种定义方式不仅有助于更好地描述缓存使用者在最近一段时间内的需求，也有助于降低计算准入值所需要的数据量。在这种定义方式下，准入值是与时间相关的，每次获得准入值都需要计算，因此对 LFU 算法的效率有一定要求。</p>
-<p>为了更好地衡量一个键值对带来的影响，Ristretto 还引入了 Cost 来描述键值对的体量。一个键值对的 Cost 越大，就意味着它需要逐出缓存中更多的键来满足空间需求。而 Ristretto 在一轮比较中只会逐出一个键值对。这代表了 Cost 较大的键值对在写入时会经历更多轮的比较，这意味着更多的键值对会被抽样和比较，如果 newKey 的准入值并不够高，那么它很有可能会在多轮比较中被淘汰。这种逐出算法有利于筛选出准入值和 Cost 都较为适中的键值对，保证缓存在<strong>有限的空间内</strong>保留更多更有价值的键值对。</p>
-<p>当缓存已写满时，Ristretto 会使用 tinyLFU 算法计算出需要新写入的 newKey 的准入值，然后在缓存已有的键值对中随机抽样一组，并选出其中准入值最小的键 minKey。如果 minKey 的准入值大于 newKey，那么会拒绝写入 newKey；否则会将 minKey 从缓存中逐出，更新缓存中的剩余空间并判断是否有足够空间写入。如果空间仍不足够，会重复上述过程，直至 newKey 被拒绝或被接受。该过程在 Ristretto 中的实现如下：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 函数会尝试将键插入缓存中，如果判别过程中发生了键的逐出，被逐出的键会被记录在返回值evicted中</span></span><br><span class="line"><span class="comment">// 返回值accepted代表键是否允许写入</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *defaultPolicy)</span></span> Add(key <span class="type">uint64</span>, cost <span class="type">int64</span>) (evicted []*Item,accepted <span class="type">bool</span>) &#123;</span><br><span class="line">    p.Lock()</span><br><span class="line">    <span class="keyword">defer</span> p.Unlock()</span><br><span class="line">    <span class="comment">// Cannot add an item bigger than entire cache.</span></span><br><span class="line">    <span class="keyword">if</span> cost &gt; p.evict.getMaxCost() &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// Double Check，由于写操作的延迟，本应该是更新操作</span></span><br><span class="line">    <span class="keyword">if</span> has := p.evict.updateIfHas(key, cost); has &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">false</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 计算剩余空间</span></span><br><span class="line">    room := p.evict.roomLeft(cost) </span><br><span class="line">    <span class="comment">// 还有剩余空间就直接插入</span></span><br><span class="line">    <span class="keyword">if</span> room &gt;= <span class="number">0</span> &#123;</span><br><span class="line">        p.evict.add(key, cost)</span><br><span class="line">        p.metrics.add(costAdd, key, <span class="type">uint64</span>(cost))</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">nil</span>, <span class="literal">true</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 计算将要插入键的准入值</span></span><br><span class="line">    incHits := p.admit.Estimate(key)</span><br><span class="line">    sample := <span class="built_in">make</span>([]*policyPair, <span class="number">0</span>, lfuSample)</span><br><span class="line">    victims := <span class="built_in">make</span>([]*Item, <span class="number">0</span>)</span><br><span class="line">    <span class="comment">// 重复逐出键直至有足够空间</span></span><br><span class="line">    <span class="keyword">for</span> ; room &lt; <span class="number">0</span>; room = p.evict.roomLeft(cost) &#123;</span><br><span class="line">        <span class="comment">// 随机采样几个键，并计算其中的最小准入值</span></span><br><span class="line">        sample = p.evict.fillSample(sample)</span><br><span class="line">        minKey, minHits, minId, minCost := <span class="type">uint64</span>(<span class="number">0</span>), <span class="type">int64</span>(math.MaxInt64), <span class="number">0</span>, <span class="type">int64</span>(<span class="number">0</span>)</span><br><span class="line">        <span class="keyword">for</span> i, pair := <span class="keyword">range</span> sample &#123;</span><br><span class="line">            <span class="keyword">if</span> hits := p.admit.Estimate(pair.key); hits &lt; minHits &#123;</span><br><span class="line">                minKey, minHits, minId, minCost = pair.key, hits, i, pair.cost</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 如果最小准入值大于要插入键的准入值，拒绝进入缓存</span></span><br><span class="line">        <span class="keyword">if</span> incHits &lt; minHits &#123;</span><br><span class="line">            p.metrics.add(rejectSets, key, <span class="number">1</span>)</span><br><span class="line">            <span class="keyword">return</span> victims, <span class="literal">false</span></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 逐出准入值最小的键</span></span><br><span class="line">        p.evict.del(minKey)</span><br><span class="line">        sample[minId] = sample[<span class="built_in">len</span>(sample)<span class="number">-1</span>]</span><br><span class="line">        sample = sample[:<span class="built_in">len</span>(sample)<span class="number">-1</span>]</span><br><span class="line">        victims = <span class="built_in">append</span>(victims, &amp;Item&#123;</span><br><span class="line">            Key:      minKey,</span><br><span class="line">            Conflict: <span class="number">0</span>,</span><br><span class="line">            Cost:     minCost,</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;</span><br><span class="line">    p.evict.add(key, cost)</span><br><span class="line">    p.metrics.add(costAdd, key, <span class="type">uint64</span>(cost))</span><br><span class="line">    <span class="keyword">return</span> victims, <span class="literal">true</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>当尝试插入一个 newKey 时，可能会出现 newKey 并没有写入，但是仍有一部分键被逐出的情况。</p>
-<h2 id="tinyLFU-准入门限"><a href="#tinyLFU-准入门限" class="headerlink" title="tinyLFU 准入门限"></a>tinyLFU 准入门限</h2><p>写入策略主要实现在<code>tinyLFU</code>结构体中，该结构体及其算法实现了 tinyLFU 算法，它包含四个字段。其中，freq 字段是一个 Count-Min sketch（cmSketch is a Count-Min sketch implementation with 4-bit counters, heavily based on Damian Gryski’s <a target="_blank" rel="noopener" href="https://github.com/dgryski/go-tinylfu/blob/master/cm4.go">CM4</a>），door 字段是一个布隆过滤器。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> tinyLFU <span class="keyword">struct</span> &#123;</span><br><span class="line">    freq    *cmSketch	<span class="comment">// Count-Min sketch</span></span><br><span class="line">    door    *z.Bloom 	<span class="comment">// 布隆过滤器</span></span><br><span class="line">    incrs   <span class="type">int64</span>		<span class="comment">// 当前记录的键值对数量</span></span><br><span class="line">    resetAt <span class="type">int64</span>		<span class="comment">// 重置门限</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>在 tinyLFU 算法中，一个 Key 的准入门限是由 freq 和 door 两者共同决定的，先简要介绍一下 Count-Min sketch 算法。</p>
-<p>Count-Min sketch 是一个类似于 HyperLogLog 的计数算法，在数据量较大时通过牺牲一定的准确度来提升运算效率。但 HyperLogLog 算法目的是估算数据量的多少，而 Count-Min sketch 则为了估算一个数出现的频率。该算法内部包含了 n 个哈希算法和一个 n*m 大小的数组，当一个 key 需要被记录时，会使用不同的哈希算法计算出哈希值并对 m 取模后存入到数组对应位置。当需要统计时，使用同样的方法得到一个 n 大小的数组，被统计数的出现频率被视为该数组中的最小值。</p>
-<p>Count-Min sketch 算法的准确率与数据规模是密切相关的，该算法需要设置一个阈值以初始化，当数据规模超出阈值后，估算频率的准确度会有较大的偏离。在 tinyLFU 中会只保留一定规模的键值对，当键值对超出规模时会被重置。这种设计不仅保证了 Count-Min sketch 算法的准确度维持在一个相对合理的范围内，还能保证只统计过去一段时间内的读取操作，实践证明不仅取得了较好的缓存命中率，还有助于限制需要记录的数据规模。</p>
-<p>当需要评估一个键的准入值时，tinyLFU 主要考虑了两个维度的问题：该键被需要的频率、是否有相似的键值被需要。该键被需要的频率，即该键被读取的次数是需要考虑的主要因素，tinyLFU 中是使用Count-Min sketch 算法实现的。而另外一个因素，是否有相似的键值被需要，则体现了该键在未来一段时间内被读取的可能性。缓存中的键值对在大多数时间内都是具有关联性的，因为这些键很有可能是通过某些算法来实现的。一个键在过去一段时间内曾被读取就意味着一个与之相似的键很有可能在未来的一段时间内被读取，但这种因果关系并不是强因果关系，因此这一因素被作为次要因素来考虑。tinyLFU 中使用布隆过滤器来描述键的相似性问题，在布隆过滤器中相似的键更有可能被写入到相同的哈希槽中。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *tinyLFU)</span></span> Estimate(key <span class="type">uint64</span>) <span class="type">int64</span> &#123;</span><br><span class="line">   <span class="comment">// 评估键在过去被读取的频率</span></span><br><span class="line">   hits := p.freq.Estimate(key)</span><br><span class="line">   <span class="comment">// 评估是否有相似键被读取</span></span><br><span class="line">   <span class="keyword">if</span> p.door.Has(key) &#123;</span><br><span class="line">      hits++</span><br><span class="line">   &#125;</span><br><span class="line">   <span class="keyword">return</span> hits</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>另一方面，布隆过滤器还会限制什么样的键能够进入到 Count-Min sketch。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *tinyLFU)</span></span> Increment(key <span class="type">uint64</span>) &#123;</span><br><span class="line">   <span class="comment">// 过滤布隆过滤器中不存在的key</span></span><br><span class="line">   <span class="keyword">if</span> added := p.door.AddIfNotHas(key); !added &#123;</span><br><span class="line">      p.freq.Increment(key)</span><br><span class="line">   &#125;</span><br><span class="line">   p.incrs++</span><br><span class="line">   <span class="comment">// 超过上限，重置</span></span><br><span class="line">   <span class="keyword">if</span> p.incrs &gt;= p.resetAt &#123;</span><br><span class="line">      p.reset()</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>根据官方的说法，这是为了防止长尾键污染缓存。</p>
-<blockquote>
-<p>Before we place a new key in TinyLFU, <a target="_blank" rel="noopener" href="https://github.com/dgraph-io/ristretto">Ristretto</a> uses a bloom filter to first check if the key has been seen before. Only if the key is already present in the bloom filter, is it inserted into the TinyLFU. This is to avoid <em>polluting</em> TinyLFU with a long tail of keys that are not seen more than once.</p>
-</blockquote>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>Ristretto 与其他缓存最大的不同之处是其使用了 LFU 算法。在高并发情景下，为了降低 LFU 计数器这一全局资源所带来的竞争，Ristretto 采用了<strong>本地缓存</strong>、<strong>批处理</strong>、<strong>采样</strong>的思想来改变访问 LFU 计数器的方式，取得了非常好的效果。在工程实现上，最值得学习的是采用<code>sync.Pool</code>搭配 ring_buffer 的模式，实现了一个近似的 thread local 缓存。在允许一定数据丢失的场景下，如采样，使用这种思路可以巧妙地将流处理转换为批处理模式，大大提升系统的吞吐量。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/20/">20</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/21/">21</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -563,7 +529,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">39</span>
+          <span class="site-state-item-count">41</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
