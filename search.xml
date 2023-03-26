@@ -4,6 +4,33 @@
   
     
     <entry>
+      <title>Percolator 的一些记录</title>
+      <link href="/2023/03/25/Percolator-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/"/>
+      <url>/2023/03/25/Percolator-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/</url>
+      
+        <content type="html"><![CDATA[<p>Percolator 是一种分布式事务的实现方式，它是一种较为特殊的 2PC 事务提交方式。Percolator 能够提供 Snapshot Isolation 级别的事务隔离，能够解决除 write skew 之外的并发问题。</p><h2 id="前置知识"><a href="#前置知识" class="headerlink" title="前置知识"></a>前置知识</h2><p>这里介绍一下 Percolator 需要了解的前置知识。</p><h3 id="2PC-存在的问题"><a href="#2PC-存在的问题" class="headerlink" title="2PC 存在的问题"></a>2PC 存在的问题</h3><p>2PC 是一种中心化的分布式事务提交方式，所有事务的正常提交都需要依赖于 Coordinator，如果 Coordinator 发生异常，整个系统将无法处理当前事务的状态，必须要等待 Coordinator 进行恢复，整个系统的当前状态才能够确定。因此，在 2PC 的场景下，一般要使用共识算法来保证 Coordinator 的自动恢复，这可能会带来一些性能的问题，并且在恢复阶段系统同样是不可用的。</p><h3 id="Snapshot-Isolation"><a href="#Snapshot-Isolation" class="headerlink" title="Snapshot Isolation"></a>Snapshot Isolation</h3><p>Snapshot Isolation 是一个较为特殊的数据库隔离等级，它能够解决不可重复读和幻读问题，隔离等级位于 Repeatable Read 和 Serialization 之间。Snapshot Isolation 的实现也比较简单，核心思想是使用一个时间戳来对事务的开始和结束时间进行标记，任何一个事务都只能看到在自身开始前就已经提交的事务，相当于每一个事务都只能看到数据库的一个“快照”。相比于 Repeatalbe Read 等级，它能够保证一次事务中的所有行都使用相同的版本，前者则是会读到不同的版本；因此能够解决掉幻读的问题。</p><p>Snapshot Isolation 与 Serialization 隔离之间的区别在于：Serialization 可以解决 write skew 的问题。这是数据库事务并发中的环路问题。以一个简单的例子：考虑两个事务P和Q，两个值 x 和 y，P 将 x 复制到 y 而 Q 将 y 复制到 x，这两个事务存在环路问题。在Serialization 隔离级别下，这两者必须要串行执行，即 P -&gt; Q 或 Q -&gt; P。而在 Snapshot Isolation 下，则会发生以下的序列：</p><ul><li>事务P读取x</li><li>事务Q读取y</li><li>事务P将其读取的值写入y</li><li>事务Q将其读取的值写入x</li></ul><p>这样就会导致 x 和 y 的值最终不相等。核心来说就是 Snapshot Isolation 无法解决环路事务的问题。</p><h2 id="Percolator-的实现思路"><a href="#Percolator-的实现思路" class="headerlink" title="Percolator 的实现思路"></a>Percolator 的实现思路</h2><p>Percolator 的实现主要可以分为两个部分：去中心化的 2PC 和 MVCC 实现 Snapshot Isolation。我们先讨论一下这两个设计目标需要解决的问题。</p><h3 id="去中心化的-2PC"><a href="#去中心化的-2PC" class="headerlink" title="去中心化的 2PC"></a>去中心化的 2PC</h3><p>去中心化的 2PC 意味着两个问题：</p><ol><li>事务的并发问题会从 Coordinator 转移到数据库分片上；</li><li>原有的 Coordinator 节点并不能够自动恢复。</li></ol><p>对于问题一，原因是并没有一个全局统一的事务协调器来进行 MVCC 并发控制，并不能够在事务发起阶段来判定事务是否存在并发冲突。Percolator 的解决思路与传统的数据库事务解决思路是一样的，使用 lock 来解决事务的冲突。为了确保事务能够确认当前 lock 是否是由自己获得，每一个 lock 都需要带有一个 timestamp 来标明自身的所属权。</p><p>问题二比较好理解，解决思路其实也比较清晰：要使用一定的机制来发现客户端遗留的中间事务并进行恢复。Percolator 中选择了让另一个与该事务互斥的客户端来去解决中间事务的问题，这样就能够惰性地去发现中间态事务。而判断一个事务是否处于中间态的依据是 lock 是否已经过期，如果 lock 过期则代表事务已经处于中间态，需要被处理。</p><p>顺着问题二的解决思路，其实又催生出了两个子问题：</p><ul><li>如何判断事务的状态；</li><li>慢事务应该如何处理。</li></ul><p>因为存在慢事务这种情况，所以 Percolator 中事务的提交/回滚阶段是会有竞争的。在这一前提下，Percolator 使用了 Primary Key 来确定一个事务的状态。当 Primary Key 被提交后，整个事务需要被提交，否则事务被回滚。这样 Primary Key 就相当于一个管程的作用，将不同客户端的互斥限定在了 Primary Key 上，这样并发就集中在数据库的一个分片上，就能够使用 latch 来保护临界区。在进入临界区之间，一个事务有必须要去检查当前 lock 状态是否符合自身的预期，这样能够降低临界区的竞争（检查 lock 并不是互斥的）。</p><p>综上所述，在“去中心化的 2PC”这一部分中，Percolator 需要做的就是对写事务加上一个带有过期时间以及事务标识的锁，并且在事务的提交阶段或回滚阶段优先操作 Primary Key 并使用 latch 来保护该操作。而事务中间态的检查则是当客户端发现加锁失败后，检查锁状态，并且依据 Primary Key 来处理遗留事务。</p><h3 id="Snapshot-Isolation-1"><a href="#Snapshot-Isolation-1" class="headerlink" title="Snapshot Isolation"></a>Snapshot Isolation</h3><p>写与写之间是一定冲突的，MVCC 的目的主要是控制读事务。因此，读事务必须要能够看到当前数据库当中所有写事务的视图，才能够实现 MVCC。很显然，不同的数据库分片之间天然是可串行的，因此只需要检查本地分片的写事务视图即可。</p><p>Percolator 中采取的实现是将所有的 write 操作持久化，并且使用 start timestamp 和 commit timestamp 这两个参数对其进行描述。一个读事务同样也具有一个 start timestamp，它只能够看到 commit timestamp 早于自身 start timestamp 的写事务。这就要求一个事务在最终的提交阶段必须再获取一次时间戳。</p><h3 id="Percolator-的实现"><a href="#Percolator-的实现" class="headerlink" title="Percolator 的实现"></a>Percolator 的实现</h3><p>围绕着上述的两个思路，Percolator 的基础框架已经可以被构建起来，但是这距离实际的实现还有一定的差距，因为尚有一些问题还没有被纳入考虑。</p><p>Percolator 的写流程实现可以描述如下：</p><ul><li>Prepare 阶段：客户端将所有数据写入到不同分片的缓冲区中；</li><li>Prewrite 阶段：获取 start timestamp，尝试获取所有行锁，若获取失败进行检查阶段，若获取成功则全部加锁并写入事务；</li><li>Commit 阶段：获取 commit timestamp，检查锁状态，获取 latch，先提交/回滚 Primary Key，后提交/回滚其他数据。</li></ul><p>Percolator 的读流程实现可以描述如下：</p><ul><li>Prepare 阶段：获取 start timestamp；</li><li>Read 阶段：<strong>检查锁状态，若不符合条件则等待/放弃</strong>，否则正常读取。</li></ul><p>可以看到在实际实现中还是有一些细节与之前分析得到的框架是不同的，即读操作在读取之间必须要检查一次锁状态，这主要来自于分布式系统的复杂性。为什么采取这种实现，将会在后面讨论。</p><h2 id="实现的一些细节问题"><a href="#实现的一些细节问题" class="headerlink" title="实现的一些细节问题"></a>实现的一些细节问题</h2><p>Percolator 的实际实现与之前分析的实现思路是有一些不同的细节的。这些细节主要来自于一些 corner case，接下来会讨论这些设计是要解决哪些问题。</p><h3 id="逻辑顺序与物理顺序"><a href="#逻辑顺序与物理顺序" class="headerlink" title="逻辑顺序与物理顺序"></a>逻辑顺序与物理顺序</h3><p>前面提到，Percolator 中事务的起始和结束会通过 timestamp 来记录，这一功能是通过分布式授时中心来实现的。这意味着事务时间的标识位的获取其实是要早于事务到达数据库分片的。我们假设有两个事务 A 和 B，事务 A 先从授时中心获取了时间戳 T1，事务 B 后从授时中心获取时间戳 T2，T1 &lt; T2。这并不代表着事务 A 操作是早于事务 B 操作的，事务 A 完全有可能因为网络延迟等问题晚于事务 B 到达数据库。<strong>Percolator 的实现下，逻辑顺序与物理顺序并不能够保证一致性。</strong></p><p>这种不一致性并不会影响到写-写操作，因为它们本身就是互斥的，但是对于读写操作，就会受到影响。在读事务开始读取前，必须要先检查锁的状态，而并不能直接去读一个已经提交的历史事务，正是因为这种乱序。因为在一个读事务正在读取的过程中，完全有可能有一个 commit timestamp 较小的写事务完成写入，这会造成不可重复读的风险，无法保证 Snapshot Isolation 隔离级别。</p><p>因此，在 Percolator 中一个写事务不仅会造成另一个写事务的阻塞，还会造成另一个读事务的阻塞。这种 lock 机制类似于读写锁，这是与传统单机数据库中的 MVCC 机制有所区别的——传统单机数据库中读写是不会产生互斥的。</p><h3 id="写写不能采用等待的方式"><a href="#写写不能采用等待的方式" class="headerlink" title="写写不能采用等待的方式"></a>写写不能采用等待的方式</h3><p>Percolator 中不能采用等待的方式来进行写并发控制，因为多数情况下事务都是读写混合的，一个写操作很可能依赖于一个读操作。考虑如下一种情况：事务 A 需要读取 k1 来更新 k2 和 k3，而 B 则是读取 k2 来更新 k3，如果 B 先读取了k2，但是并没有来得及获取k3的锁，而 A 立刻获得了 k2 和 k3 的锁，那么 B 需要 等待 A，而 A 写完后，B 需要更新的 k3 数据就错误了。正确的做法必须是 B 放弃当前读取到的所有数据，并且重新开启本次事务，因此不能够采取写写等待的方式来进行写操作的互斥处理。</p><h2 id="Percolator-的缺点"><a href="#Percolator-的缺点" class="headerlink" title="Percolator 的缺点"></a>Percolator 的缺点</h2><h3 id="读写互斥"><a href="#读写互斥" class="headerlink" title="读写互斥"></a>读写互斥</h3><p>经过上述的讨论，Percolator 的实现中由于获取时间戳与操作数据库这两个操作之间是可能会发生重排的，因为 MVCC 相当于退化成为了读写锁的形式，对比传统单机数据库中读写不互斥的实现，性能会比较低。不过分布式事务更重要的是维护事务的正确性，这一些性能牺牲是可以理解的。如果要引入分布式事务，本身就意味着较低的性能，所有的分布式事务性能都会较低。</p><h3 id="两次时间戳的获取"><a href="#两次时间戳的获取" class="headerlink" title="两次时间戳的获取"></a>两次时间戳的获取</h3><p>为了保证 Snapshot Isolation，Percolator 中引入了两个时间戳来描述一次事务。为了维护全局时间戳的一致性，必须要使用分布式时间服务器，这意味着在更多的网络通信，会带来更多的延时问题。但是这一问题是有优化方案的，tikv 中的解决策略是在 prewrite 阶段计算出每一个 region 中读事务的时间戳，求出这些时间戳的最大值作为本次事务的 commit timestamp。这一优化的思路是确保当前写入操作的提交时间发生在所有当前读操作之后。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 数据库 </category>
+          
+          <category> tinykv </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> 数据库 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>Lua 与 Go GC 机制的一些记录</title>
       <link href="/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/"/>
       <url>/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/</url>
@@ -158,9 +185,9 @@
           
           <category> 数据库 </category>
           
-          <category> go </category>
+          <category> etcd </category>
           
-          <category> boltdb </category>
+          <category> go </category>
           
       </categories>
       

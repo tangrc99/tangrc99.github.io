@@ -22,30 +22,33 @@
     var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="技术爱好者">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Sepk">
-<meta property="og:url" content="https://tangrc99.com/page/2/index.html">
+  <meta name="description" content="Percolator 是一种分布式事务的实现方式，它是一种较为特殊的 2PC 事务提交方式。Percolator 能够提供 Snapshot Isolation 级别的事务隔离，能够解决除 write skew 之外的并发问题。 前置知识这里介绍一下 Percolator 需要了解的前置知识。 2PC 存在的问题2PC 是一种中心化的分布式事务提交方式，所有事务的正常提交都需要依赖于 Coordi">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Percolator 的一些记录">
+<meta property="og:url" content="https://tangrc99.com/2023/03/25/Percolator-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/index.html">
 <meta property="og:site_name" content="Sepk">
-<meta property="og:description" content="技术爱好者">
+<meta property="og:description" content="Percolator 是一种分布式事务的实现方式，它是一种较为特殊的 2PC 事务提交方式。Percolator 能够提供 Snapshot Isolation 级别的事务隔离，能够解决除 write skew 之外的并发问题。 前置知识这里介绍一下 Percolator 需要了解的前置知识。 2PC 存在的问题2PC 是一种中心化的分布式事务提交方式，所有事务的正常提交都需要依赖于 Coordi">
 <meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-03-25T12:14:25.312Z">
+<meta property="article:modified_time" content="2023-03-26T06:25:33.423Z">
 <meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="数据库">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="https://tangrc99.com/page/2/">
+<link rel="canonical" href="https://tangrc99.com/2023/03/25/Percolator-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : true,
-    isPost : false,
+    isHome : false,
+    isPost : true,
     lang   : 'zh-CN'
   };
 </script>
 
-  <title>Sepk</title>
+  <title>Percolator 的一些记录 | Sepk</title>
   
 
 
@@ -187,9 +190,10 @@
         <div class="content-wrap">
           
 
-          <div class="content index posts-expand">
+          <div class="content post posts-expand">
             
-      
+
+    
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
@@ -205,10 +209,9 @@
       <meta itemprop="name" content="Sepk">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/25/Percolator-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">Percolator 的一些记录</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          Percolator 的一些记录
+        </h1>
 
         <div class="post-meta">
             <span class="post-meta-item">
@@ -265,7 +268,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>Percolator 是一种分布式事务的实现方式，它是一种较为特殊的 2PC 事务提交方式。Percolator 能够提供 Snapshot Isolation 级别的事务隔离，能够解决除 write skew 之外的并发问题。</p>
+        <p>Percolator 是一种分布式事务的实现方式，它是一种较为特殊的 2PC 事务提交方式。Percolator 能够提供 Snapshot Isolation 级别的事务隔离，能够解决除 write skew 之外的并发问题。</p>
 <h2 id="前置知识"><a href="#前置知识" class="headerlink" title="前置知识"></a>前置知识</h2><p>这里介绍一下 Percolator 需要了解的前置知识。</p>
 <h3 id="2PC-存在的问题"><a href="#2PC-存在的问题" class="headerlink" title="2PC 存在的问题"></a>2PC 存在的问题</h3><p>2PC 是一种中心化的分布式事务提交方式，所有事务的正常提交都需要依赖于 Coordinator，如果 Coordinator 发生异常，整个系统将无法处理当前事务的状态，必须要等待 Coordinator 进行恢复，整个系统的当前状态才能够确定。因此，在 2PC 的场景下，一般要使用共识算法来保证 Coordinator 的自动恢复，这可能会带来一些性能的问题，并且在恢复阶段系统同样是不可用的。</p>
 <h3 id="Snapshot-Isolation"><a href="#Snapshot-Isolation" class="headerlink" title="Snapshot Isolation"></a>Snapshot Isolation</h3><p>Snapshot Isolation 是一个较为特殊的数据库隔离等级，它能够解决不可重复读和幻读问题，隔离等级位于 Repeatable Read 和 Serialization 之间。Snapshot Isolation 的实现也比较简单，核心思想是使用一个时间戳来对事务的开始和结束时间进行标记，任何一个事务都只能看到在自身开始前就已经提交的事务，相当于每一个事务都只能看到数据库的一个“快照”。相比于 Repeatalbe Read 等级，它能够保证一次事务中的所有行都使用相同的版本，前者则是会读到不同的版本；因此能够解决掉幻读的问题。</p>
@@ -315,143 +318,35 @@
 <h2 id="Percolator-的缺点"><a href="#Percolator-的缺点" class="headerlink" title="Percolator 的缺点"></a>Percolator 的缺点</h2><h3 id="读写互斥"><a href="#读写互斥" class="headerlink" title="读写互斥"></a>读写互斥</h3><p>经过上述的讨论，Percolator 的实现中由于获取时间戳与操作数据库这两个操作之间是可能会发生重排的，因为 MVCC 相当于退化成为了读写锁的形式，对比传统单机数据库中读写不互斥的实现，性能会比较低。不过分布式事务更重要的是维护事务的正确性，这一些性能牺牲是可以理解的。如果要引入分布式事务，本身就意味着较低的性能，所有的分布式事务性能都会较低。</p>
 <h3 id="两次时间戳的获取"><a href="#两次时间戳的获取" class="headerlink" title="两次时间戳的获取"></a>两次时间戳的获取</h3><p>为了保证 Snapshot Isolation，Percolator 中引入了两个时间戳来描述一次事务。为了维护全局时间戳的一致性，必须要使用分布式时间服务器，这意味着在更多的网络通信，会带来更多的延时问题。但是这一问题是有优化方案的，tikv 中的解决策略是在 prewrite 阶段计算出每一个 region 中读事务的时间戳，求出这些时间戳的最大值作为本次事务的 commit timestamp。这一优化的思路是确保当前写入操作的提交时间发生在所有当前读操作之后。</p>
 
-      
     </div>
 
     
     
     
+
       <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">Lua 与 Go GC 机制的一些记录</a>
-        </h2>
+          <div class="post-tags">
+              <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          </div>
 
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
+        
 
-              <time title="创建时间：2023-03-23 23:24:21" itemprop="dateCreated datePublished" datetime="2023-03-23T23:24:21+08:00">2023-03-23</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-03-24 18:55:10" itemprop="dateModified" datetime="2023-03-24T18:55:10+08:00">2023-03-24</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/Lua/" itemprop="url" rel="index"><span itemprop="name">Lua</span></a>
-                </span>
-            </span>
 
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>3.8k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>3 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>Lua 和 Go 都是具有 GC 机制的语言，两者在标记阶段都采用了三色标记法，但是由于两种语言的类型、特性等方面不同，它们的 GC 机制在实现上具有很大的差别。本文主要概括性地描述两种语言的 GC 实现思路，不讨论具体的实现。</p>
-<h2 id="Lua-的-GC-实现"><a href="#Lua-的-GC-实现" class="headerlink" title="Lua 的 GC 实现"></a>Lua 的 GC 实现</h2><p>Lua 中的 GC 实现是比较简单的，这主要来自于 Lua 不支持用户自定义类型、不支持指针类型，这两个特性决定了 Lua 中的对象引用机制是比较简单的。同时，Lua 是一门脚本语言，但是同样具有编译机制，从 Lua 虚拟机的角度来看，每一个 TValue 都是高度抽象化的，在 GC 的过程中可以将这些分配处的 TValue 当做一个普通的 C 对象来处理。</p>
-<p>在 Lua 的基本对象中，并不是所有的对象都会被 GC 扫描，有一些对象是分配在栈上的，一些对象的生命周期则是由 C 程序来控制的。这些对象是不需要进行 GC 的。而其他需要 GC 的对象，则具有一个统一的 struct 头<code>GCObject</code>，该 struct 的定义如下：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> CommonHeader	struct GCObject *next; lu_byte tt; lu_byte marked</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* Common type for all collectable objects */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">GCObject</span> &#123;</span></span><br><span class="line">    CommonHeader;</span><br><span class="line">&#125; GCObject;</span><br></pre></td></tr></table></figure>
-
-<p><code>GCObject</code>是一个非侵入式链表，所有可以被 GC 的对象都会被放入这个链表中，这是为了方便后续的扫描。Lua 这里的实现得益于它的运行环境是搭建在 C 语言之上的一个虚拟机，而非真实的物理机环境。Lua 栈上的每一个对象都是一个<code>GCObject</code>，而 C 语言中则只能看得到内存段。这里的实现有一些空间换时间的意味，每一个被分配出的 TValue 都加入这个头，就意味着在进行 GC 的时候就不需要再对整个 Lua 栈进行扫描了，因此在 GC 的标记起始阶段就会快很多。不过 Lua 脚本的规模并不大，一段程序需要分配出的对象并不多，所以这里的额外内存消耗的可控的。</p>
-<p>Lua 脚本的运行起点是函数，如果脚本未定义外部函数，那么编译器会为其自动生成 main 函数。除去一些存储在 _ENV 表中的全局变量，其余对象的生命周期都是随着当前函数栈的切换而结束的。Lua 中的函数会被编译为一个<code>Proto</code>类型：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">** Function Prototypes</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Proto</span> &#123;</span></span><br><span class="line">    CommonHeader;</span><br><span class="line">    ...</span><br><span class="line">    GCObject *gclist;</span><br><span class="line">&#125; Proto;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-<p>可以看到，该类型中具有一个字段<code>gclist</code>，该字段会链接所有分配出的 <code>GCObject</code>。</p>
-<h2 id="Go-的-GC-实现"><a href="#Go-的-GC-实现" class="headerlink" title="Go 的 GC 实现"></a>Go 的 GC 实现</h2><p>有关 Go 中 GC 机制的详细探讨，可以参考<a target="_blank" rel="noopener" href="https://www.jianshu.com/p/ebd8b012572e#">博客文章</a>。以下内容参考了该文章。</p>
-<p>Go 中的 GC 实现比 Lua 要更为复杂，复杂度主要来自于：指针类型、struct 类型、物理机环境。指针类型和 struct 类型使得 GC 扫描更加复杂，并且在物理机环境下对象的视图是内存段。另外， Go 主要用来编写大型的程序，如果使用类似 Lua 的 Header，可能会耗费比较多的内存，是不现实的。</p>
-<p>在 Go 语言中，编译器会在编译期为每一个 struct 类型生成一个<code>_type</code>类型的对象，并且记录在 runtime 中。该类型的定义如下：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> _type <span class="keyword">struct</span> &#123;</span><br><span class="line">    size       <span class="type">uintptr</span></span><br><span class="line">    ptrdata    <span class="type">uintptr</span> <span class="comment">// size of memory prefix holding all pointers</span></span><br><span class="line">    hash       <span class="type">uint32</span></span><br><span class="line">    tflag      tflag</span><br><span class="line">    align      <span class="type">uint8</span></span><br><span class="line">    fieldalign <span class="type">uint8</span></span><br><span class="line">    kind       <span class="type">uint8</span></span><br><span class="line">    alg        *typeAlg</span><br><span class="line">    <span class="comment">// gcdata stores the GC type data for the garbage collector.</span></span><br><span class="line">    <span class="comment">// If the KindGCProg bit is set in kind, gcdata is a GC program.</span></span><br><span class="line">    <span class="comment">// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.</span></span><br><span class="line">    gcdata    *<span class="type">byte</span></span><br><span class="line">    str       nameOff</span><br><span class="line">    ptrToThis typeOff</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>该类型中的<code>gcdate</code>字段与 GC 机制密切相关，该字段主要用于保存 struct 中指针的位置。在 GC 扫描中，指针指向的对象地址与当前地址并非连续的，需要做一些额外的处理——因为在内存中，并不能直接去确认某一段存储的是否是一个指针值。在编译期，编译器将会确认一个 struct 中所包含的指针个数以及位置，以 bitmap 的形式存储在<code>gcdata</code>字段中。这种实现的思路将指针的确定在编译期完成，能够避免在程序的运行阶段大幅度地对内存段进行扫描，能够有助于提升效率。</p>
-<p>为了进行 GC，必须为分配出的 Go 对象建立起标识位，从而判断内存段中的对象类型。在生成对象时，go 语言不仅仅会开辟出对象所需要的内存，同样也会开辟出一片内存区域来存储<code>_type</code>类型的指针。可以类比使用<code>malloc</code>函数时，会多出 20 字节的大小来分配空间的相关信息。当需要进行 GC 扫描时，会先读取出<code>_type</code>类型，将当前对象设置为已经标记，然后根据<code>gcdata</code>字段来确定是否含有指针以及下一次扫描的范围。Go 进行对象创建的函数是<code>runtime/malloc.go</code>中的<code>newobject</code>，该函数在内部仅仅调用了<code>mallocgc</code>函数。<code>mallocgc</code>函数较长，但是其中大部分内容与 GC 无关，该函数中与 GC 相关的部分是判别<code>type</code>类型是否需要 GC 扫描，如果对象需要 GC 扫描，会使用<code>heapBitsSetType</code>函数来进行一些工作。</p>
-<p>Go 中 GC 扫描是从 goroutine 栈上开始的，当 GC 开始时，程序将会从栈的起始位置开始，按照已经预留好的类型信息逐个进行扫描和确认。对象的内存区域使用的是<code>scanblock</code>函数，这个函数会以 8 字节为步进值，对一个对象所在的内存空间进行扫描，判断内存空间中是否有指针存在，并且判断指针的有效性。若指针有效会将指针指向的对象加入到灰色标记对象中。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">scanblock</span><span class="params">(b0, n0 <span class="type">uintptr</span>, ptrmask *<span class="type">uint8</span>, gcw *gcWork, stk *stackScanState)</span></span> &#123;</span><br><span class="line">  b := b0</span><br><span class="line">  n := n0</span><br><span class="line">  <span class="comment">// 本次扫描达到地址 n 后结束</span></span><br><span class="line">  <span class="keyword">for</span> i := <span class="type">uintptr</span>(<span class="number">0</span>); i &lt; n; &#123;</span><br><span class="line">    <span class="comment">// 计算当前地址偏移量上是否是指针，如果不是指针则地址 +8 </span></span><br><span class="line">    bits := <span class="type">uint32</span>(*addb(ptrmask, i/(sys.PtrSize*<span class="number">8</span>)))</span><br><span class="line">    <span class="keyword">if</span> bits == <span class="number">0</span> &#123;</span><br><span class="line">      i += sys.PtrSize * <span class="number">8</span></span><br><span class="line">      <span class="keyword">continue</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 当前位置上有指针</span></span><br><span class="line">    <span class="keyword">for</span> j := <span class="number">0</span>; j &lt; <span class="number">8</span> &amp;&amp; i &lt; n; j++ &#123;</span><br><span class="line">      <span class="comment">// 指针类型？只有标识了指针类型的，才有可能走到下面的逻辑去；</span></span><br><span class="line">      <span class="keyword">if</span> bits&amp;<span class="number">1</span> != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="comment">// 类型转换，获取当前内存地址存储的指针值</span></span><br><span class="line">        p := *(*<span class="type">uintptr</span>)(unsafe.Pointer(b + i))</span><br><span class="line">        <span class="keyword">if</span> p != <span class="number">0</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> obj, span, objIndex := findObject(p, b, i); obj != <span class="number">0</span> &#123;</span><br><span class="line">            <span class="comment">// 将指针指向的对象标记为灰色</span></span><br><span class="line">            greyobject(obj, b, i, span, gcw, objIndex)</span><br><span class="line">          &#125; <span class="keyword">else</span> <span class="keyword">if</span> stk != <span class="literal">nil</span> &amp;&amp; p &gt;= stk.stack.lo &amp;&amp; p &lt; stk.stack.hi &#123;</span><br><span class="line">            stk.putPtr(p)</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      bits &gt;&gt;= <span class="number">1</span></span><br><span class="line">      i += sys.PtrSize</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="简单对比分析"><a href="#简单对比分析" class="headerlink" title="简单对比分析"></a>简单对比分析</h2><p>本质上来说，Lua 和 Go 中的 GC 思想都是类似的，核心要点就是要记录下每一个内存段上所存储的类型，然后再根据一定的方式来依次访问分配出的每一个对象。Lua 中的 tt 和 Go 中的 _type 都是为了记录类型的相关内容，但由于 Go 的复杂度更高，因此需要实现更多的功能。</p>
-<p>由于 Lua 语言是比较简单的，对象的分配和回收都建立在 C 语言层面之上，天然具有较高的抽象性；Lua 中的 GC 实现使用了链表头的形式，这一组织形式意味着 Lua 中可以更快地寻找到需要 GC 的对象，但是这种实现方式对空间的浪费比较严重。Lua 的 GC 扫描也是较为简单的，这主要还是因为 Lua 中每一段都被包裹在一个函数中，比较容易找到对象的分配位置，只需要在函数中记录每一个分配的对象即可。整体来说，Lua 的 GC 实现比较浪费空间，但是 GC 的性能可能会较好一点，这主要来自于 Lua 独特的对象管理机制。</p>
-<p>Go 中的 GC 机制重点在于指针位置的确认上，借助 struct 的内存对齐机制和 bitmap 存储机制可以简单高效地记录 struct 中的每一个指针。在扫描方面，虽然 Go 程序的运行是以 goroutine 为起点的，但由于 Go 程序一般规模较大，直接记录每一个可 GC 的对象需要耗费大量的内存空间，这是不太现实的。使用栈扫描虽然会在一定程度上降低起始标记阶段的性能，但是会极大地降低因为 GC 而使用的内存空间，这是一个更加合理的做法。</p>
-
-      
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/" rel="prev" title="Lua 与 Go GC 机制的一些记录">
+      <i class="fa fa-chevron-left"></i> Lua 与 Go GC 机制的一些记录
+    </a></div>
+      <div class="post-nav-item"></div>
     </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
       </footer>
+    
   </article>
   
   
   
-
-
-  
-  <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/21/">21</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
-  </nav>
 
 
 
@@ -503,6 +398,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%89%8D%E7%BD%AE%E7%9F%A5%E8%AF%86"><span class="nav-number">1.</span> <span class="nav-text">前置知识</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2PC-%E5%AD%98%E5%9C%A8%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">1.1.</span> <span class="nav-text">2PC 存在的问题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Snapshot-Isolation"><span class="nav-number">1.2.</span> <span class="nav-text">Snapshot Isolation</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Percolator-%E7%9A%84%E5%AE%9E%E7%8E%B0%E6%80%9D%E8%B7%AF"><span class="nav-number">2.</span> <span class="nav-text">Percolator 的实现思路</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8E%BB%E4%B8%AD%E5%BF%83%E5%8C%96%E7%9A%84-2PC"><span class="nav-number">2.1.</span> <span class="nav-text">去中心化的 2PC</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Snapshot-Isolation-1"><span class="nav-number">2.2.</span> <span class="nav-text">Snapshot Isolation</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Percolator-%E7%9A%84%E5%AE%9E%E7%8E%B0"><span class="nav-number">2.3.</span> <span class="nav-text">Percolator 的实现</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%9E%E7%8E%B0%E7%9A%84%E4%B8%80%E4%BA%9B%E7%BB%86%E8%8A%82%E9%97%AE%E9%A2%98"><span class="nav-number">3.</span> <span class="nav-text">实现的一些细节问题</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%80%BB%E8%BE%91%E9%A1%BA%E5%BA%8F%E4%B8%8E%E7%89%A9%E7%90%86%E9%A1%BA%E5%BA%8F"><span class="nav-number">3.1.</span> <span class="nav-text">逻辑顺序与物理顺序</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%99%E5%86%99%E4%B8%8D%E8%83%BD%E9%87%87%E7%94%A8%E7%AD%89%E5%BE%85%E7%9A%84%E6%96%B9%E5%BC%8F"><span class="nav-number">3.2.</span> <span class="nav-text">写写不能采用等待的方式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Percolator-%E7%9A%84%E7%BC%BA%E7%82%B9"><span class="nav-number">4.</span> <span class="nav-text">Percolator 的缺点</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%AF%BB%E5%86%99%E4%BA%92%E6%96%A5"><span class="nav-number">4.1.</span> <span class="nav-text">读写互斥</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%A4%E6%AC%A1%E6%97%B6%E9%97%B4%E6%88%B3%E7%9A%84%E8%8E%B7%E5%8F%96"><span class="nav-number">4.2.</span> <span class="nav-text">两次时间戳的获取</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 
