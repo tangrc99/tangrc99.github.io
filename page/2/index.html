@@ -193,6 +193,117 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/04/06/Go-%E4%BB%BF%E5%86%99-Redis-%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/04/06/Go-%E4%BB%BF%E5%86%99-Redis-%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/" class="post-title-link" itemprop="url">Go 仿写 Redis 的一些思考</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-04-06 10:23:17 / 修改时间：11:02:01" itemprop="dateCreated datePublished" datetime="2023-04-06T10:23:17+08:00">2023-04-06</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/redis/" itemprop="url" rel="index"><span itemprop="name">redis</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>3.1k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>出于学习 Golang 和 Redis 的目的，我自己尝试着写了一个开源项目 <a target="_blank" rel="noopener" href="https://github.com/tangrc99/MemTable">MemTable</a>，依照 Redis 的架构和思路来实现一个内存 KV 存储服务。在基本上完成这个项目中，通过性能测试我发现了项目中的一些不足之处，在此记录。</p>
+<h2 id="内存用量统计与接口性能"><a href="#内存用量统计与接口性能" class="headerlink" title="内存用量统计与接口性能"></a>内存用量统计与接口性能</h2><p>Redis 中有一个重要的特性是利用 LRU 与 LFU 算法进行键值对的淘汰，这对数据库模块提出了两个要求：所有的键值对必须具有淘汰字段、所有的键值对必须能够统计内存用量。在设计这一功能的时候，我直接使用了 interface 来定义数据库中存储的 Value，这听上去是非常简洁的，只需要在每一个 structure 当中都实现一个内存统计的接口即可。但是这却带来了比较严重的性能问题——在加入该功能后，数据库的 QPS 下降了约 2%左右，而当发生键值对淘汰时，QPS 约下降了 7%左右。这一问题来源于 go 接口的语言特性，参考博客文章<a target="_blank" rel="noopener" href="https://juejin.cn/post/6844904148446478344#heading-10">探索 Go 中接口的性能</a>。</p>
+<p>该文章中提到，不对接口进行断言，直接调用接口中声明的函数时，会导致内存逃逸以及内联失效。最终的结果就是这种调用方式的时间开销大约在几纳秒的量级，是一个较大的开销。以下测试代码来自上文中的博客文章。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;testing&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> D <span class="keyword">interface</span> &#123;</span><br><span class="line">    Append(D)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Strings []<span class="type">string</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s Strings)</span></span> Append(d D) &#123;&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">BenchmarkInterface</span><span class="params">(b *testing.B)</span></span> &#123;</span><br><span class="line">    s := D(Strings&#123;&#125;)</span><br><span class="line">    <span class="keyword">for</span> i := <span class="number">0</span> ; i &lt; b.N ; i += <span class="number">1</span> &#123;</span><br><span class="line">        s.Append(Strings&#123;<span class="string">&quot;&quot;</span>&#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">BenchmarkConcrete</span><span class="params">(b *testing.B)</span></span> &#123;</span><br><span class="line">    s := Strings&#123;&#125; <span class="comment">// only difference is that I&#x27;m not casting it to the generic interface</span></span><br><span class="line">    <span class="keyword">for</span> i := <span class="number">0</span> ; i &lt; b.N ; i += <span class="number">1</span> &#123;</span><br><span class="line">        s.Append(Strings&#123;<span class="string">&quot;&quot;</span>&#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">BenchmarkInterfaceTypeAssert</span><span class="params">(b *testing.B)</span></span> &#123;</span><br><span class="line">    s := D(Strings&#123;&#125;)</span><br><span class="line">    <span class="keyword">for</span> i := <span class="number">0</span> ; i &lt; b.N ; i += <span class="number">1</span> &#123;</span><br><span class="line">        s.(Strings).Append(Strings&#123;<span class="string">&quot;&quot;</span>&#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最终的测试结果如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">goos: darwin</span><br><span class="line">goarch: amd64</span><br><span class="line">pkg: github.com/tangrc99/MemTable/utils</span><br><span class="line">cpu: Intel(R) Core(TM) i5-7267U CPU @ 3.10GHz</span><br><span class="line">BenchmarkInterface</span><br><span class="line">BenchmarkInterface-4             	453919813	         2.607 ns/op</span><br><span class="line">BenchmarkConcrete</span><br><span class="line">BenchmarkConcrete-4              	1000000000	         0.2945 ns/op</span><br><span class="line">BenchmarkInterfaceTypeAssert</span><br><span class="line">BenchmarkInterfaceTypeAssert-4   	1000000000	         0.2950 ns/op</span><br><span class="line">PASS</span><br></pre></td></tr></table></figure>
+
+<p>在高版本的 go 中，接口的性能开销降低了，但是其开销相比于类型转换仍然是比较高的。为了取得比较高的性能，一个更好的做法是定义一个通用 Value 字段，所有的非取值操作都直接从 Value 中完成。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Value <span class="keyword">struct</span> &#123;</span><br><span class="line">	eviction <span class="type">int64</span> <span class="comment">// 驱逐字段</span></span><br><span class="line">	cost <span class="type">uint64</span>	<span class="comment">// 内存开销</span></span><br><span class="line">	value Value	<span class="comment">// 真实 value 字段</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>数据库中哈希表直接存储 Value struct，只有在必要时才拿出 value 值。这样能够避免使用接口的开销，是一个更好的选择。</p>
+<h2 id="指针结构与-GC-问题"><a href="#指针结构与-GC-问题" class="headerlink" title="指针结构与 GC 问题"></a>指针结构与 GC 问题</h2><p>另外一个比较严峻的问题则是 GC 问题。内存数据库其一个重要优点就是支持灵活多变的数据结构，这些数据结构大量使用了指针，会给 go 的 GC 带来比较严峻的挑战。在数据量较大时，go 仿写的 redis 项目 GC 时间可以达到 0.5s 以上，这是不可以接受的。C/C++ 中的内存释放开销时被均摊的，但是在 go/JAVA 这种 GC 语言上内存释放不会被均摊，而是一个瞬时消耗。提高吞吐量的一个很好的思路就是去均摊每一个开销，这样能够使得服务的响应比提升。</p>
+<p>实际上，是有办法去避免 go 的 GC 开销的，那就是使用 mmap 来进行内存分配，并将所有的指针代替为 uintptr 类型。uintptr 中的地址不会被GC 扫描到，并且 GC 不会去主动释放 mmap 分配出的内存，这种做法是绝对安全的。同时，直接计算 mmap 的内存大小，能够更好地去估计当前进程使用的内存量，是一个一举两得的措施。但是这样做会对数据结构的设计有更高的要求。在 go 中避免 GC 的代价实在是太大了，在一些进程内缓存的场景，可以说使用这种方式能够减少调用开销，但是作为 KV 存储服务，显然使用无 GC 语言是一个更好的选择。</p>
+<h2 id="网络库与-goroutine-调度"><a href="#网络库与-goroutine-调度" class="headerlink" title="网络库与 goroutine 调度"></a>网络库与 goroutine 调度</h2><p>为了实现用户态线程的调度，go 网络库中只可能提供阻塞的网络读写，这就要求一个 goroutine 只能够处理一个 client 的请求。这能够降低复杂应用场景下的开发难度。但是对于 Redis 这种业务简单，客户端数量极多的情况，是不太适合的。首先，Redis 中的请求处理是无阻塞的，所以不存在事务执行中的暂停与切换问题，所以 goroutine 的这种模式对于 Redis 事务处理的帮助的微乎其微的。而在另一方面，这种模式甚至有一定的劣势。由于 Redis 中是单事务线程，即使有 10W 个 goroutine，那么也只有少数能够是活跃的。这就会给 goroutine 调度器造成压力。在 pprof 测试中，MemTable 有 60% ~ 70%的时间花费在寻找可运行 goroutine 上。并且 goroutine 在运行10ms 后会被强制调度出去，这就会导致事务线程被无意义的中断，造成一定的切换开销。</p>
+<p>如果将单事务线程切换为多事务线程，那么性能会提升吗？我测试过 github 中的一些类型项目，这些项目是使用多事务线程来构建的，数据库采用读写锁来进行保护。当只读操作很多的时候，这种设计当然会提升性能，但是写操作增多时，这种设计并不能够提升性能，反而会造成一定的性能下降。在 redis-benchmark 中，多事务线程的设计会造成 QPS 下降约 6%。</p>
+<p>从功能上进行考虑，使用多线程其实也是不太适合的。例如事务操作、多键值对操作、持久化操作，这些处理起来都是比较棘手的。要实现这些功能，数据库内部是一定需要大量加锁的，这会提升开发的难度，并且内存数据库的性能瓶颈是在网络 IO 上，这种付出与回报其实是不成正比的。</p>
+<h2 id="go-的优势"><a href="#go-的优势" class="headerlink" title="go 的优势"></a>go 的优势</h2><p>如果只是作为学习的话，使用 go 来仿写 redis 是有自身的优势的。其一在于，Redis 用到的功能比较多，使用 C/C++ 时会用到很多第三方依赖库，这些依赖库的风格可能有很大不同，这会增加开发难度。而 go 基本上提供了所有需要的依赖库。其二在于，使用 goroutine 加 channel 可以很轻松地模拟出多线程解析这一特性，在数据量较小时，性能甚至会高于 Redis。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/28/%E4%B8%8D%E5%8F%AF%E9%87%8D%E5%A4%8D%E8%AF%BB%E4%B8%8E%E5%B9%BB%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -281,146 +392,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/25/Percolator-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/25/Percolator-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">Percolator 的一些记录</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2023-03-25 20:14:25" itemprop="dateCreated datePublished" datetime="2023-03-25T20:14:25+08:00">2023-03-25</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-03-26 14:25:33" itemprop="dateModified" datetime="2023-03-26T14:25:33+08:00">2023-03-26</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/tinykv/" itemprop="url" rel="index"><span itemprop="name">tinykv</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>3.9k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>4 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>Percolator 是一种分布式事务的实现方式，它是一种较为特殊的 2PC 事务提交方式。Percolator 能够提供 Snapshot Isolation 级别的事务隔离，能够解决除 write skew 之外的并发问题。</p>
-<h2 id="前置知识"><a href="#前置知识" class="headerlink" title="前置知识"></a>前置知识</h2><p>这里介绍一下 Percolator 需要了解的前置知识。</p>
-<h3 id="2PC-存在的问题"><a href="#2PC-存在的问题" class="headerlink" title="2PC 存在的问题"></a>2PC 存在的问题</h3><p>2PC 是一种中心化的分布式事务提交方式，所有事务的正常提交都需要依赖于 Coordinator，如果 Coordinator 发生异常，整个系统将无法处理当前事务的状态，必须要等待 Coordinator 进行恢复，整个系统的当前状态才能够确定。因此，在 2PC 的场景下，一般要使用共识算法来保证 Coordinator 的自动恢复，这可能会带来一些性能的问题，并且在恢复阶段系统同样是不可用的。</p>
-<h3 id="Snapshot-Isolation"><a href="#Snapshot-Isolation" class="headerlink" title="Snapshot Isolation"></a>Snapshot Isolation</h3><p>Snapshot Isolation 是一个较为特殊的数据库隔离等级，它能够解决不可重复读和幻读问题，隔离等级位于 Repeatable Read 和 Serialization 之间。Snapshot Isolation 的实现也比较简单，核心思想是使用一个时间戳来对事务的开始和结束时间进行标记，任何一个事务都只能看到在自身开始前就已经提交的事务，相当于每一个事务都只能看到数据库的一个“快照”。相比于 Repeatalbe Read 等级，它能够保证一次事务中的所有行都使用相同的版本，前者则是会读到不同的版本；因此能够解决掉幻读的问题。</p>
-<p>Snapshot Isolation 与 Serialization 隔离之间的区别在于：Serialization 可以解决 write skew 的问题。这是数据库事务并发中的环路问题。以一个简单的例子：考虑两个事务P和Q，两个值 x 和 y，P 将 x 复制到 y 而 Q 将 y 复制到 x，这两个事务存在环路问题。在Serialization 隔离级别下，这两者必须要串行执行，即 P -&gt; Q 或 Q -&gt; P。而在 Snapshot Isolation 下，则会发生以下的序列：</p>
-<ul>
-<li>事务P读取x</li>
-<li>事务Q读取y</li>
-<li>事务P将其读取的值写入y</li>
-<li>事务Q将其读取的值写入x</li>
-</ul>
-<p>这样就会导致 x 和 y 的值最终不相等。核心来说就是 Snapshot Isolation 无法解决环路事务的问题。</p>
-<h2 id="Percolator-的实现思路"><a href="#Percolator-的实现思路" class="headerlink" title="Percolator 的实现思路"></a>Percolator 的实现思路</h2><p>Percolator 的实现主要可以分为两个部分：去中心化的 2PC 和 MVCC 实现 Snapshot Isolation。我们先讨论一下这两个设计目标需要解决的问题。</p>
-<h3 id="去中心化的-2PC"><a href="#去中心化的-2PC" class="headerlink" title="去中心化的 2PC"></a>去中心化的 2PC</h3><p>去中心化的 2PC 意味着两个问题：</p>
-<ol>
-<li>事务的并发问题会从 Coordinator 转移到数据库分片上；</li>
-<li>原有的 Coordinator 节点并不能够自动恢复。</li>
-</ol>
-<p>对于问题一，原因是并没有一个全局统一的事务协调器来进行 MVCC 并发控制，并不能够在事务发起阶段来判定事务是否存在并发冲突。Percolator 的解决思路与传统的数据库事务解决思路是一样的，使用 lock 来解决事务的冲突。为了确保事务能够确认当前 lock 是否是由自己获得，每一个 lock 都需要带有一个 timestamp 来标明自身的所属权。</p>
-<p>问题二比较好理解，解决思路其实也比较清晰：要使用一定的机制来发现客户端遗留的中间事务并进行恢复。Percolator 中选择了让另一个与该事务互斥的客户端来去解决中间事务的问题，这样就能够惰性地去发现中间态事务。而判断一个事务是否处于中间态的依据是 lock 是否已经过期，如果 lock 过期则代表事务已经处于中间态，需要被处理。</p>
-<p>顺着问题二的解决思路，其实又催生出了两个子问题：</p>
-<ul>
-<li>如何判断事务的状态；</li>
-<li>慢事务应该如何处理。</li>
-</ul>
-<p>因为存在慢事务这种情况，所以 Percolator 中事务的提交/回滚阶段是会有竞争的。在这一前提下，Percolator 使用了 Primary Key 来确定一个事务的状态。当 Primary Key 被提交后，整个事务需要被提交，否则事务被回滚。这样 Primary Key 就相当于一个管程的作用，将不同客户端的互斥限定在了 Primary Key 上，这样并发就集中在数据库的一个分片上，就能够使用 latch 来保护临界区。在进入临界区之间，一个事务有必须要去检查当前 lock 状态是否符合自身的预期，这样能够降低临界区的竞争（检查 lock 并不是互斥的）。</p>
-<p>综上所述，在“去中心化的 2PC”这一部分中，Percolator 需要做的就是对写事务加上一个带有过期时间以及事务标识的锁，并且在事务的提交阶段或回滚阶段优先操作 Primary Key 并使用 latch 来保护该操作。而事务中间态的检查则是当客户端发现加锁失败后，检查锁状态，并且依据 Primary Key 来处理遗留事务。</p>
-<h3 id="Snapshot-Isolation-1"><a href="#Snapshot-Isolation-1" class="headerlink" title="Snapshot Isolation"></a>Snapshot Isolation</h3><p>写与写之间是一定冲突的，MVCC 的目的主要是控制读事务。因此，读事务必须要能够看到当前数据库当中所有写事务的视图，才能够实现 MVCC。很显然，不同的数据库分片之间天然是可串行的，因此只需要检查本地分片的写事务视图即可。</p>
-<p>Percolator 中采取的实现是将所有的 write 操作持久化，并且使用 start timestamp 和 commit timestamp 这两个参数对其进行描述。一个读事务同样也具有一个 start timestamp，它只能够看到 commit timestamp 早于自身 start timestamp 的写事务。这就要求一个事务在最终的提交阶段必须再获取一次时间戳。</p>
-<h3 id="Percolator-的实现"><a href="#Percolator-的实现" class="headerlink" title="Percolator 的实现"></a>Percolator 的实现</h3><p>围绕着上述的两个思路，Percolator 的基础框架已经可以被构建起来，但是这距离实际的实现还有一定的差距，因为尚有一些问题还没有被纳入考虑。</p>
-<p>Percolator 的写流程实现可以描述如下：</p>
-<ul>
-<li>Prepare 阶段：客户端将所有数据写入到不同分片的缓冲区中；</li>
-<li>Prewrite 阶段：获取 start timestamp，尝试获取所有行锁，若获取失败进行检查阶段，若获取成功则全部加锁并写入事务；</li>
-<li>Commit 阶段：获取 commit timestamp，检查锁状态，获取 latch，先提交/回滚 Primary Key，后提交/回滚其他数据。</li>
-</ul>
-<p>Percolator 的读流程实现可以描述如下：</p>
-<ul>
-<li>Prepare 阶段：获取 start timestamp；</li>
-<li>Read 阶段：<strong>检查锁状态，若不符合条件则等待/放弃</strong>，否则正常读取。</li>
-</ul>
-<p>可以看到在实际实现中还是有一些细节与之前分析得到的框架是不同的，即读操作在读取之间必须要检查一次锁状态，这主要来自于分布式系统的复杂性。为什么采取这种实现，将会在后面讨论。</p>
-<h2 id="实现的一些细节问题"><a href="#实现的一些细节问题" class="headerlink" title="实现的一些细节问题"></a>实现的一些细节问题</h2><p>Percolator 的实际实现与之前分析的实现思路是有一些不同的细节的。这些细节主要来自于一些 corner case，接下来会讨论这些设计是要解决哪些问题。</p>
-<h3 id="逻辑顺序与物理顺序"><a href="#逻辑顺序与物理顺序" class="headerlink" title="逻辑顺序与物理顺序"></a>逻辑顺序与物理顺序</h3><p>前面提到，Percolator 中事务的起始和结束会通过 timestamp 来记录，这一功能是通过分布式授时中心来实现的。这意味着事务时间的标识位的获取其实是要早于事务到达数据库分片的。我们假设有两个事务 A 和 B，事务 A 先从授时中心获取了时间戳 T1，事务 B 后从授时中心获取时间戳 T2，T1 &lt; T2。这并不代表着事务 A 操作是早于事务 B 操作的，事务 A 完全有可能因为网络延迟等问题晚于事务 B 到达数据库。<strong>Percolator 的实现下，逻辑顺序与物理顺序并不能够保证一致性。</strong></p>
-<p>这种不一致性并不会影响到写-写操作，因为它们本身就是互斥的，但是对于读写操作，就会受到影响。在读事务开始读取前，必须要先检查锁的状态，而并不能直接去读一个已经提交的历史事务，正是因为这种乱序。因为在一个读事务正在读取的过程中，完全有可能有一个 commit timestamp 较小的写事务完成写入，这会造成不可重复读的风险，无法保证 Snapshot Isolation 隔离级别。</p>
-<p>因此，在 Percolator 中一个写事务不仅会造成另一个写事务的阻塞，还会造成另一个读事务的阻塞。这种 lock 机制类似于读写锁，这是与传统单机数据库中的 MVCC 机制有所区别的——传统单机数据库中读写是不会产生互斥的。</p>
-<h3 id="写写不能采用等待的方式"><a href="#写写不能采用等待的方式" class="headerlink" title="写写不能采用等待的方式"></a>写写不能采用等待的方式</h3><p>Percolator 中不能采用等待的方式来进行写并发控制，因为多数情况下事务都是读写混合的，一个写操作很可能依赖于一个读操作。考虑如下一种情况：事务 A 需要读取 k1 来更新 k2 和 k3，而 B 则是读取 k2 来更新 k3，如果 B 先读取了k2，但是并没有来得及获取k3的锁，而 A 立刻获得了 k2 和 k3 的锁，那么 B 需要 等待 A，而 A 写完后，B 需要更新的 k3 数据就错误了。正确的做法必须是 B 放弃当前读取到的所有数据，并且重新开启本次事务，因此不能够采取写写等待的方式来进行写操作的互斥处理。</p>
-<h2 id="Percolator-的缺点"><a href="#Percolator-的缺点" class="headerlink" title="Percolator 的缺点"></a>Percolator 的缺点</h2><h3 id="读写互斥"><a href="#读写互斥" class="headerlink" title="读写互斥"></a>读写互斥</h3><p>经过上述的讨论，Percolator 的实现中由于获取时间戳与操作数据库这两个操作之间是可能会发生重排的，因为 MVCC 相当于退化成为了读写锁的形式，对比传统单机数据库中读写不互斥的实现，性能会比较低。不过分布式事务更重要的是维护事务的正确性，这一些性能牺牲是可以理解的。如果要引入分布式事务，本身就意味着较低的性能，所有的分布式事务性能都会较低。</p>
-<h3 id="两次时间戳的获取"><a href="#两次时间戳的获取" class="headerlink" title="两次时间戳的获取"></a>两次时间戳的获取</h3><p>为了保证 Snapshot Isolation，Percolator 中引入了两个时间戳来描述一次事务。为了维护全局时间戳的一致性，必须要使用分布式时间服务器，这意味着在更多的网络通信，会带来更多的延时问题。但是这一问题是有优化方案的，tikv 中的解决策略是在 prewrite 阶段计算出每一个 region 中读事务的时间戳，求出这些时间戳的最大值作为本次事务的 commit timestamp。这一优化的思路是确保当前写入操作的提交时间发生在所有当前读操作之后。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -492,7 +463,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">43</span>
+          <span class="site-state-item-count">44</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

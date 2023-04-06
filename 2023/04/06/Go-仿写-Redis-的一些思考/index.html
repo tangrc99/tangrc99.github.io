@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.2">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+  <link rel="stylesheet" href="/lib/pace/pace-theme-mac-osx.min.css">
+  <script src="/lib/pace/pace.min.js"></script>
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="出于学习 Golang 和 Redis 的目的，我自己尝试着写了一个开源项目 MemTable，依照 Redis 的架构和思路来实现一个内存 KV 存储服务。在基本上完成这个项目中，通过性能测试我发现了项目中的一些不足之处，在此记录。 内存用量统计与接口性能Redis 中有一个重要的特性是利用 LRU 与 LFU 算法进行键值对的淘汰，这对数据库模块提出了两个要求：所有的键值对必须具有淘汰字段、所">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Go 仿写 Redis 的一些思考">
+<meta property="og:url" content="https://tangrc99.com/2023/04/06/Go-%E4%BB%BF%E5%86%99-Redis-%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/index.html">
+<meta property="og:site_name" content="Sepk">
+<meta property="og:description" content="出于学习 Golang 和 Redis 的目的，我自己尝试着写了一个开源项目 MemTable，依照 Redis 的架构和思路来实现一个内存 KV 存储服务。在基本上完成这个项目中，通过性能测试我发现了项目中的一些不足之处，在此记录。 内存用量统计与接口性能Redis 中有一个重要的特性是利用 LRU 与 LFU 算法进行键值对的淘汰，这对数据库模块提出了两个要求：所有的键值对必须具有淘汰字段、所">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-04-06T02:23:17.468Z">
+<meta property="article:modified_time" content="2023-04-06T03:02:01.357Z">
+<meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="go">
+<meta property="article:tag" content="数据库">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://tangrc99.com/2023/04/06/Go-%E4%BB%BF%E5%86%99-Redis-%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Go 仿写 Redis 的一些思考 | Sepk</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<style>.darkmode--activated{--body-bg-color:#282828;--content-bg-color:#333;--card-bg-color:#555;--text-color:#ccc;--blockquote-color:#bbb;--link-color:#ccc;--link-hover-color:#eee;--brand-color:#ddd;--brand-hover-color:#ddd;--table-row-odd-bg-color:#282828;--table-row-hover-bg-color:#363636;--menu-item-bg-color:#555;--btn-default-bg:#222;--btn-default-color:#ccc;--btn-default-border-color:#555;--btn-default-hover-bg:#666;--btn-default-hover-color:#ccc;--btn-default-hover-border-color:#666;--highlight-background:#282b2e;--highlight-foreground:#a9b7c6;--highlight-gutter-background:#34393d;--highlight-gutter-foreground:#9ca9b6}.darkmode--activated img{opacity:.75}.darkmode--activated img:hover{opacity:.9}.darkmode--activated code{color:#69dbdc;background:0 0}button.darkmode-toggle{z-index:9999}.darkmode-ignore,img{display:flex!important}.beian img{display:inline-block!important}</style></head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Sepk</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">个人博客</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/04/06/Go-%E4%BB%BF%E5%86%99-Redis-%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Go 仿写 Redis 的一些思考
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-04-06 10:23:17 / 修改时间：11:02:01" itemprop="dateCreated datePublished" datetime="2023-04-06T10:23:17+08:00">2023-04-06</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/redis/" itemprop="url" rel="index"><span itemprop="name">redis</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>3.1k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>出于学习 Golang 和 Redis 的目的，我自己尝试着写了一个开源项目 <a target="_blank" rel="noopener" href="https://github.com/tangrc99/MemTable">MemTable</a>，依照 Redis 的架构和思路来实现一个内存 KV 存储服务。在基本上完成这个项目中，通过性能测试我发现了项目中的一些不足之处，在此记录。</p>
+<h2 id="内存用量统计与接口性能"><a href="#内存用量统计与接口性能" class="headerlink" title="内存用量统计与接口性能"></a>内存用量统计与接口性能</h2><p>Redis 中有一个重要的特性是利用 LRU 与 LFU 算法进行键值对的淘汰，这对数据库模块提出了两个要求：所有的键值对必须具有淘汰字段、所有的键值对必须能够统计内存用量。在设计这一功能的时候，我直接使用了 interface 来定义数据库中存储的 Value，这听上去是非常简洁的，只需要在每一个 structure 当中都实现一个内存统计的接口即可。但是这却带来了比较严重的性能问题——在加入该功能后，数据库的 QPS 下降了约 2%左右，而当发生键值对淘汰时，QPS 约下降了 7%左右。这一问题来源于 go 接口的语言特性，参考博客文章<a target="_blank" rel="noopener" href="https://juejin.cn/post/6844904148446478344#heading-10">探索 Go 中接口的性能</a>。</p>
+<p>该文章中提到，不对接口进行断言，直接调用接口中声明的函数时，会导致内存逃逸以及内联失效。最终的结果就是这种调用方式的时间开销大约在几纳秒的量级，是一个较大的开销。以下测试代码来自上文中的博客文章。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> (</span><br><span class="line">    <span class="string">&quot;testing&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> D <span class="keyword">interface</span> &#123;</span><br><span class="line">    Append(D)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Strings []<span class="type">string</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(s Strings)</span></span> Append(d D) &#123;&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">BenchmarkInterface</span><span class="params">(b *testing.B)</span></span> &#123;</span><br><span class="line">    s := D(Strings&#123;&#125;)</span><br><span class="line">    <span class="keyword">for</span> i := <span class="number">0</span> ; i &lt; b.N ; i += <span class="number">1</span> &#123;</span><br><span class="line">        s.Append(Strings&#123;<span class="string">&quot;&quot;</span>&#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">BenchmarkConcrete</span><span class="params">(b *testing.B)</span></span> &#123;</span><br><span class="line">    s := Strings&#123;&#125; <span class="comment">// only difference is that I&#x27;m not casting it to the generic interface</span></span><br><span class="line">    <span class="keyword">for</span> i := <span class="number">0</span> ; i &lt; b.N ; i += <span class="number">1</span> &#123;</span><br><span class="line">        s.Append(Strings&#123;<span class="string">&quot;&quot;</span>&#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">BenchmarkInterfaceTypeAssert</span><span class="params">(b *testing.B)</span></span> &#123;</span><br><span class="line">    s := D(Strings&#123;&#125;)</span><br><span class="line">    <span class="keyword">for</span> i := <span class="number">0</span> ; i &lt; b.N ; i += <span class="number">1</span> &#123;</span><br><span class="line">        s.(Strings).Append(Strings&#123;<span class="string">&quot;&quot;</span>&#125;)</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最终的测试结果如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">goos: darwin</span><br><span class="line">goarch: amd64</span><br><span class="line">pkg: github.com/tangrc99/MemTable/utils</span><br><span class="line">cpu: Intel(R) Core(TM) i5-7267U CPU @ 3.10GHz</span><br><span class="line">BenchmarkInterface</span><br><span class="line">BenchmarkInterface-4             	453919813	         2.607 ns/op</span><br><span class="line">BenchmarkConcrete</span><br><span class="line">BenchmarkConcrete-4              	1000000000	         0.2945 ns/op</span><br><span class="line">BenchmarkInterfaceTypeAssert</span><br><span class="line">BenchmarkInterfaceTypeAssert-4   	1000000000	         0.2950 ns/op</span><br><span class="line">PASS</span><br></pre></td></tr></table></figure>
+
+<p>在高版本的 go 中，接口的性能开销降低了，但是其开销相比于类型转换仍然是比较高的。为了取得比较高的性能，一个更好的做法是定义一个通用 Value 字段，所有的非取值操作都直接从 Value 中完成。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Value <span class="keyword">struct</span> &#123;</span><br><span class="line">	eviction <span class="type">int64</span> <span class="comment">// 驱逐字段</span></span><br><span class="line">	cost <span class="type">uint64</span>	<span class="comment">// 内存开销</span></span><br><span class="line">	value Value	<span class="comment">// 真实 value 字段</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>数据库中哈希表直接存储 Value struct，只有在必要时才拿出 value 值。这样能够避免使用接口的开销，是一个更好的选择。</p>
+<h2 id="指针结构与-GC-问题"><a href="#指针结构与-GC-问题" class="headerlink" title="指针结构与 GC 问题"></a>指针结构与 GC 问题</h2><p>另外一个比较严峻的问题则是 GC 问题。内存数据库其一个重要优点就是支持灵活多变的数据结构，这些数据结构大量使用了指针，会给 go 的 GC 带来比较严峻的挑战。在数据量较大时，go 仿写的 redis 项目 GC 时间可以达到 0.5s 以上，这是不可以接受的。C/C++ 中的内存释放开销时被均摊的，但是在 go/JAVA 这种 GC 语言上内存释放不会被均摊，而是一个瞬时消耗。提高吞吐量的一个很好的思路就是去均摊每一个开销，这样能够使得服务的响应比提升。</p>
+<p>实际上，是有办法去避免 go 的 GC 开销的，那就是使用 mmap 来进行内存分配，并将所有的指针代替为 uintptr 类型。uintptr 中的地址不会被GC 扫描到，并且 GC 不会去主动释放 mmap 分配出的内存，这种做法是绝对安全的。同时，直接计算 mmap 的内存大小，能够更好地去估计当前进程使用的内存量，是一个一举两得的措施。但是这样做会对数据结构的设计有更高的要求。在 go 中避免 GC 的代价实在是太大了，在一些进程内缓存的场景，可以说使用这种方式能够减少调用开销，但是作为 KV 存储服务，显然使用无 GC 语言是一个更好的选择。</p>
+<h2 id="网络库与-goroutine-调度"><a href="#网络库与-goroutine-调度" class="headerlink" title="网络库与 goroutine 调度"></a>网络库与 goroutine 调度</h2><p>为了实现用户态线程的调度，go 网络库中只可能提供阻塞的网络读写，这就要求一个 goroutine 只能够处理一个 client 的请求。这能够降低复杂应用场景下的开发难度。但是对于 Redis 这种业务简单，客户端数量极多的情况，是不太适合的。首先，Redis 中的请求处理是无阻塞的，所以不存在事务执行中的暂停与切换问题，所以 goroutine 的这种模式对于 Redis 事务处理的帮助的微乎其微的。而在另一方面，这种模式甚至有一定的劣势。由于 Redis 中是单事务线程，即使有 10W 个 goroutine，那么也只有少数能够是活跃的。这就会给 goroutine 调度器造成压力。在 pprof 测试中，MemTable 有 60% ~ 70%的时间花费在寻找可运行 goroutine 上。并且 goroutine 在运行10ms 后会被强制调度出去，这就会导致事务线程被无意义的中断，造成一定的切换开销。</p>
+<p>如果将单事务线程切换为多事务线程，那么性能会提升吗？我测试过 github 中的一些类型项目，这些项目是使用多事务线程来构建的，数据库采用读写锁来进行保护。当只读操作很多的时候，这种设计当然会提升性能，但是写操作增多时，这种设计并不能够提升性能，反而会造成一定的性能下降。在 redis-benchmark 中，多事务线程的设计会造成 QPS 下降约 6%。</p>
+<p>从功能上进行考虑，使用多线程其实也是不太适合的。例如事务操作、多键值对操作、持久化操作，这些处理起来都是比较棘手的。要实现这些功能，数据库内部是一定需要大量加锁的，这会提升开发的难度，并且内存数据库的性能瓶颈是在网络 IO 上，这种付出与回报其实是不成正比的。</p>
+<h2 id="go-的优势"><a href="#go-的优势" class="headerlink" title="go 的优势"></a>go 的优势</h2><p>如果只是作为学习的话，使用 go 来仿写 redis 是有自身的优势的。其一在于，Redis 用到的功能比较多，使用 C/C++ 时会用到很多第三方依赖库，这些依赖库的风格可能有很大不同，这会增加开发难度。而 go 基本上提供了所有需要的依赖库。其二在于，使用 goroutine 加 channel 可以很轻松地模拟出多线程解析这一特性，在数据量较小时，性能甚至会高于 Redis。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          
+          <div class="post-tags">
+              <a href="/tags/go/" rel="tag"><i class="fa fa-tag"></i> go</a>
+              <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/" rel="tag"><i class="fa fa-tag"></i> 数据库</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/03/28/%E4%B8%8D%E5%8F%AF%E9%87%8D%E5%A4%8D%E8%AF%BB%E4%B8%8E%E5%B9%BB%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/" rel="prev" title="不可重复读与幻读的一些思考">
+      <i class="fa fa-chevron-left"></i> 不可重复读与幻读的一些思考
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E7%94%A8%E9%87%8F%E7%BB%9F%E8%AE%A1%E4%B8%8E%E6%8E%A5%E5%8F%A3%E6%80%A7%E8%83%BD"><span class="nav-number">1.</span> <span class="nav-text">内存用量统计与接口性能</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%8C%87%E9%92%88%E7%BB%93%E6%9E%84%E4%B8%8E-GC-%E9%97%AE%E9%A2%98"><span class="nav-number">2.</span> <span class="nav-text">指针结构与 GC 问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E5%BA%93%E4%B8%8E-goroutine-%E8%B0%83%E5%BA%A6"><span class="nav-number">3.</span> <span class="nav-text">网络库与 goroutine 调度</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#go-%E7%9A%84%E4%BC%98%E5%8A%BF"><span class="nav-number">4.</span> <span class="nav-text">go 的优势</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="tangrc99"
+      src="/images/avatar.png">
+  <p class="site-author-name" itemprop="name">tangrc99</p>
+  <div class="site-description" itemprop="description">技术爱好者</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">44</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">16</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="sidebar-button motion-element">
+    lol welcome!
+  </a>
+  </div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/tangrc99" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:trc99@qq.com" title="E-Mail → mailto:trc99@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.zhihu.com/people/tangrc99" title="知乎 → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;tangrc99" rel="noopener" target="_blank"><i class="fa fa-link fa-fw"></i>知乎</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Tangrc99</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+<script src="https://unpkg.com/darkmode-js@1.5.7/lib/darkmode-js.min.js"></script>
+
+<script>
+var options = {
+  bottom: '64px',
+  right: '32px',
+  left: 'unset',
+  time: '0.5s',
+  mixColor: 'transparent',
+  backgroundColor: 'transparent',
+  buttonColorDark: '#100f2c',
+  buttonColorLight: '#fff',
+  saveInCookies: true,
+  label: '🌓',
+  autoMatchOsTheme: true
+}
+const darkmode = new Darkmode(options);
+window.darkmode = darkmode;
+darkmode.showWidget();
+</script>
+
+</body>
+</html>
