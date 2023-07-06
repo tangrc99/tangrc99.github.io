@@ -193,99 +193,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/26/iptables%20%E8%BD%AC%E5%8F%91%E8%A7%84%E5%88%99/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/12/26/iptables%20%E8%BD%AC%E5%8F%91%E8%A7%84%E5%88%99/" class="post-title-link" itemprop="url">iptables 转发规则</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-              
-
-              <time title="创建时间：2022-12-26 14:14:28 / 修改时间：15:04:41" itemprop="dateCreated datePublished" datetime="2022-12-26T14:14:28+08:00">2022-12-26</time>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>1.5k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>1 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="Iptables-转发规则"><a href="#Iptables-转发规则" class="headerlink" title="Iptables 转发规则"></a>Iptables 转发规则</h1><p>iptables 是 linux 中的防火墙模块，用于网络包的过滤与转发，一共可以分为五链四表。</p>
-<p><img src="/images/BD5561C0-D097-4A4F-BF4F-146FA15C46D7.jpg" alt="image">￼</p>
-<h3 id="iptbles-的匹配规则"><a href="#iptbles-的匹配规则" class="headerlink" title="iptbles 的匹配规则"></a>iptbles 的匹配规则</h3><p>一台主机中，可能会具有多个网卡，这些网卡会有不同的网络地址，但是所有网卡会共用同一个 iptables 匹配规则，也会共用宿主机的路由转发规则。</p>
-<p><strong>在路由选择中，只有最终判断为本地地址，如 127.0.0.1，本机的网卡地址的网络包才会被转发到 INPUT</strong>，而 docker 虚拟网卡上挂载的地址，则会被转发到虚拟网卡上，而不是直接进入INPUT 链中。注意，虚拟网卡上的转发是不经过 iptables 的，一个网络包到达 docker0 网卡后只会经过网卡的转发规则，直接被转发到对应的进程中。在进入 docker 进程后，使用的 iptables 规则和宿主机 iptables 规则是不相同的。</p>
-<p>外部的流量在PREROUTING 链进行 DNAT 后，会根据目的网络地址来判断是否能够匹配本地路由地址，否则将会被转发到 FORWARD 链中。</p>
-<p>内部的流量流出时，会直接根据目的地址判断是否为本地流量，如果是本地流量则不经过 OUTPUT 链，直接被转发到 INPUT 链中。<strong>这意味着 localhost 与 127.0.0.1 这两个地址是不会经过任何的DNAT 的。</strong>如果目的地址不是本机地址，那么会经过 OUTPUT 和 POSTROUTING链进行 DNAT 和 SNAT，这时候会再次通过路由表判断流量的地址转发到具体的网卡上。</p>
-<h3 id="不容易理解的地方"><a href="#不容易理解的地方" class="headerlink" title="不容易理解的地方"></a>不容易理解的地方</h3><p>如果一个主机挂载了一个 docker0 网卡，那么 iptables 的转发规则就会稍微有些难以理解。</p>
-<ul>
-<li>172.0.0.x 网段不是本机的 ip 地址，因此在路由选择中不会转发给 INPUT，而是会转发给 FORWARD，然后经过 POSTROUTING，然后转发给 docker0 网卡，docker0 网卡会根据目的 ip 地址将网络包转发给虚拟机，注意此时的虚拟机收到网络包后已经不与宿主机使用同一个 iptables。</li>
-<li>localhost 和 127.0.0.1 会经过路由选择后直接转发给 INPUT，不能够经过任何的 DNAT 修改，因此针对 localhost 的转发都是无效的。</li>
-<li>DNAT 和 SNAT 是具有记忆性的。如果一次 tcp 中，宿主机给出流量做了 DNAT，那么收到这个 tcp 的回包时，将会自动进行反操作，因此 docker 中的虚拟容器只需要一次 DNAT 就可以访问外界流量了。</li>
-</ul>
-<h3 id="如何做-NAT-转换"><a href="#如何做-NAT-转换" class="headerlink" title="如何做 NAT 转换"></a>如何做 NAT 转换</h3><p>1、首先需要开启端口转发<br>2、<code> sudo iptables -t nat -A PREROUTING -d x.x.x.x -p tcp -dport x -j DNAT --to-destinaton x.x.x.x:x</code></p>
-<p>3、<code> sudo iptables -t nat -A POSTROUTING -d x.x.x.x -p tcp -dport x -j SNAT --to-source x.x.x.x</code></p>
-<p>4、需要在 FORWARD 链中放行流量，例如</p>
-<p><code>sudo iptables -A FORWARD  -i eth0 -o eth0 -j ACCEPT</code></p>
-<p>5、如果只需要在本主机进行端口转换，则应该使用重定向来代替</p>
-<p><code>sudo iptables -t nat -A PREROUTING -d 127.0.0.1 -dport x -j REDIRECT to-ports x</code></p>
-<h3 id="利用-string模块完成应用层过滤"><a href="#利用-string模块完成应用层过滤" class="headerlink" title="利用 string模块完成应用层过滤"></a>利用 string模块完成应用层过滤</h3><p>iptables 的 string 模块可以将网络包中的关键词进行匹配，从而实现禁止访问某些 url，禁止访问某些内容，或者禁止回复某些内容的效果。具体代码如下：</p>
-<p><code>sudo iptables -t filter INPUT -m string --algo bm --string &#39;sf&#39; -j DROP</code></p>
-<p>但是，iptables 不能够确定字符串出现的位置，因此可能会出现误伤的情况。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/25/k8s-proxy-%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -390,6 +297,120 @@
   
   
 
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/25/Docker%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/12/25/Docker%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">Docker 网络模型</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-12-25 16:53:15" itemprop="dateCreated datePublished" datetime="2022-12-25T16:53:15+08:00">2022-12-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-12-26 14:30:34" itemprop="dateModified" datetime="2022-12-26T14:30:34+08:00">2022-12-26</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E4%BA%91%E6%8A%80%E6%9C%AF/" itemprop="url" rel="index"><span itemprop="name">云技术</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2.2k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>2 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="Docker-网络模型"><a href="#Docker-网络模型" class="headerlink" title="Docker 网络模型"></a>Docker 网络模型</h1><p>Docker 容器为了实现网络隔离，可以看作连接在不同虚拟网卡上的主机。网络隔离的基本需求是不同虚拟主机直接网络不能够互通，虚拟主机可以访问外部设备，而外部设备不能够直接访问虚拟主机，只能够通过端口来访问。</p>
+<h3 id="根据链来分"><a href="#根据链来分" class="headerlink" title="根据链来分"></a>根据链来分</h3><ul>
+<li>FORWARD 拦截所有非本地流量，所有 docker 流量都被包含在这里。下图，ISO 是隔离不同网桥之间的互相访问。由于已经过滤掉了不同隔离网络之间的访问，所以 docker 链中是接受所有外界的流量到 docker 网卡中。再往下两条是允许虚拟网卡流量流向主机外部和网卡本身。<br><img src="/images/25044E49-54B6-443E-AD9D-28A50BA05F43.jpg" alt="image">￼</li>
+<li>OUTPUT 和PREROUTING链则是截获所有本地非容器流量，他们都公用 DOCKER 链，如果发现是要访问host:port，将其 DNAT 到对应的容器地址。<br><img src="/images/46722EDA-E303-4193-BA0E-FFF224792801.jpg" alt="image">￼</li>
+<li>POSTROUTING 链是将所有容器访问主机外的流量，伪装成本地流量。<br><img src="/images/FCF35C50-9952-49CA-8613-306460E4EE80.jpg" alt="image">￼</li>
+</ul>
+<h3 id="单机网桥模式"><a href="#单机网桥模式" class="headerlink" title="单机网桥模式"></a>单机网桥模式</h3><p>单机网桥模式是没有指定任何网络选项的容器，假设容器的虚拟 ip 为 172.10.0.x，由于该网段宿主机并没有暴露给外界，因此外界无法访问容器。但有一种例外情况，就是外界主机通过修改路由表强行将 172.10.0.x 的流量转发给宿主机。这样流量在到达宿主机后是可以匹配到一条路由规则的，从而实现外界流量访问虚拟容器。</p>
+<p>容器内部的出流量在宿主机的 POST 链做了 MASQUERADE 处理，所以可以访问外界。假设容器的虚拟 ip 为 172.10.0.x，容器所有的出流量都会经过宿主机的 OUTPUT 和 POSTROUTING 链后选择合适的网卡进行转发。根据 docker 设置的 iptables 规则，所有出流量在 POSTROUTING 链经过 MASQUERADE 的 SNAT 伪装成为宿主机流量。tcp 回路的时候，宿主机会发现该数据包经历过 SNAT 规则转发，自动将回包的地址修改为 172.10.0.x，经过本地的路由规则转发到 docker0 网桥后就可以发送给对应的虚拟容器。</p>
+<h3 id="网桥模式"><a href="#网桥模式" class="headerlink" title="网桥模式"></a>网桥模式</h3><p>网桥模式即使用 -p 选项进行端口映射来启动的容器。单机网桥模式会复用主机端的端口，外部流量通过宿主机的 ip 地址加对应的端口号来访问虚拟容器。因此流量只要是到达主机的对应端口，就默认一定是访问主机端的服务。只用端口来判断流量是否走向 docker 容器就可以了。</p>
+<ul>
+<li>外部流量入：外部流量需要走 PREROUTING-FORWARD-POSTROUTIN 链，外部流量的网卡是除了docker自带的网卡之外的所有网卡。所以这些流量都需要在 PREROUTING 做 DNAT 处理，将流量的目的地址修改为 docker 容器的网段。</li>
+<li>经过 DNAT 后，宿主机发现流量流向地址不是本地应用，转发到 FORWARD 和 POSTROUTING，并且根据路由表转发到容器对应的虚拟网卡里面。</li>
+<li>内部流量出：docker 容器出流量也是宿主机应用出流量，所以会从 docker 虚拟网卡发送到 OUTPUT 链，需要在 OUTPUT 链中进行 MASQUERADE 将发送到外部的流量全部 SNAT 为宿主机的地址；此外，还要将发送给本机暴露出的端口也进行 SNAT 处理，即自访问。</li>
+<li>不同网桥之间的隔离操作：一个网桥发送给其他网桥的流量不会 SNAT 和 DNAT，会被直接发送到虚拟网卡上。虚拟网卡的入链同样会走 PRE 链，检测到是虚拟网卡流量，直接不进行操作。放行到 FORWARD，检测到不同网桥之间的相互访问，由 ISO1 截获，由 ISO2 丢弃。</li>
+<li>用户安全性操作：所有外部流量在截获前，都会被DOCKER-USER 链截获，用户需要将自己的链接入 DOCKER-USER 链中。</li>
+</ul>
+<p>网桥模式中，主要是通过匹配端口号来实现外部流量的转发的，内部流量的流出过程与单机网桥模式是相同的。除此此外，网桥模式下还需要对不同 docker 网络段之间的流量进行隔离操作，防止没有连接的两个虚拟网络段之间相互通信。</p>
+<h3 id="DNS-服务器"><a href="#DNS-服务器" class="headerlink" title="DNS 服务器"></a>DNS 服务器</h3><p>对于使用了 network 选项启动的容器，docker 会自动使用 127.0.0.11 来创建一个 DNS 服务器，所有 docker 创建出的进程会使用该地址作为默认的 DNS 服务器。并且每一个服务名都会作为一个域名进行注册。该内嵌的 DNS 服务器会根据容器的网段地址来进行选择性查询，从而来实现不同网络驱动之间的域名隔离。</p>
+<h3 id="ROUTING-MESH模式"><a href="#ROUTING-MESH模式" class="headerlink" title="ROUTING MESH模式"></a>ROUTING MESH模式</h3><p>该模式的意思是，从任何一个宿主机上暴露端口访问，都可以被负载均衡到任一台宿主机的容器上。</p>
+<p><img src="/images/F0FC6715-47DA-4E75-AB35-A856B43431AA3.jpg" alt="image">￼</p>
+<ul>
+<li>外部流量入口：所有的外部流量都会被 PREROUTING 中的 DOCKER-INGRESS 链截获。如果流量目标端口是一个使用 overlay 网络模式的容器，那么该流量会被捕获到 172.18.0.2 容器中。</li>
+<li>ingress-sbox：用来进行第二步iptables 流量控制。这里是通过mark+ipvs的方式来完成的，ipvs 的 vip 被绑定到overlay-bridge上。FORWARD 和 INPUT 链都会对不同端口数据包进行不同的标记，当数据包通过 INPUT 进入ipvs的vip 时，根据不同的标记进行负载均衡。</li>
+<li>目标容器：直接对流量进行处理。</li>
+<li>容器流量出口：vxlan 流量出来经过容器后，会经重定向发送到挂在宿主机的虚拟网卡。此时，网卡会被 OUTPUT链截获，如果发现是发送给 overlay 网络的流量，则会被 DNAT 到 ingress-box中。注意，docker_gwbridge 没有做外部 DNAT，无法被外部访问。</li>
+<li>以上是实现了overlay网络与普通网络流量之间的隔离。这个隔离是使用一个容器来完成的。</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
 
   
   <nav class="pagination">
@@ -461,20 +482,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-count">46</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-count">18</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-count">20</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>

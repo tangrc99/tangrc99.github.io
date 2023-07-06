@@ -193,100 +193,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/04/21/%E4%BB%8E%E5%91%BD%E4%BB%A4%E8%A1%A5%E5%85%A8%E5%8A%9F%E8%83%BD%E6%9D%A5%E7%9C%8B%E7%BB%88%E7%AB%AF%E4%B8%8E-Shell-%E7%9A%84%E5%85%B3%E7%B3%BB/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/21/%E4%BB%8E%E5%91%BD%E4%BB%A4%E8%A1%A5%E5%85%A8%E5%8A%9F%E8%83%BD%E6%9D%A5%E7%9C%8B%E7%BB%88%E7%AB%AF%E4%B8%8E-Shell-%E7%9A%84%E5%85%B3%E7%B3%BB/" class="post-title-link" itemprop="url">从命令补全功能来看终端与 Shell 的关系</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-              
-
-              <time title="创建时间：2023-04-21 15:37:22 / 修改时间：16:39:03" itemprop="dateCreated datePublished" datetime="2023-04-21T15:37:22+08:00">2023-04-21</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">操作系统</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>2.1k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>2 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>当程序需要读取标准输入时，用户输入的字符串会被显示在终端界面上，在按下回车键之后才能够被程序读取。但是在一些场景下，这种交互逻辑是不合适的，例如需要将用户输入的密码进行隐藏，或者是根据用户已有的输入进行自动补全。这些功能的实现并不依赖于传统的标准输入交互，而是需要定义一套自己的交互逻辑。本文将介绍这种功能背后所用到的一些知识。</p>
-<h2 id="IO-控制层"><a href="#IO-控制层" class="headerlink" title="IO 控制层"></a>IO 控制层</h2><p>当我们在终端中输入字符串时，字符串明明是被输入到标准输入，那么为什么会显示在标准输出呢？以及为什么程序不能够实时地接收到用户的输入呢？这是其实是因为用户在键盘上的输入并不会被直接写入到程序的标准输入中去，而是需要先经过一个 IO 控制层。IO 控制层中有默认的交互逻辑用于缓存并处理用户的输入。</p>
-<p>IO 控制层定义了一套默认的用户输入准则，能够大大减少交互程序的设计复杂度。在交互性程序中，用户的输入并不能够保证一定正确，因此 IO 控制层会先将键盘输入写入到自身的缓冲区，并且将这些字符写入到程序的<strong>标准输出</strong>上，等到用户按下回车才会将缓冲区中的输入发送给用户程序，这样程序就不需要关心删除用户错误输入的逻辑。当用户按下退格时，IO 控制层会删除掉缓冲区中的相关字符串，并且<strong>覆盖标准输出中的信息</strong>。在通常的终端中，已经输出的信息是不能够删除的，这其实也是 IO 控制层的默认规则——为了防止用户删除过多的相关消息。但事实上，在命令行终端上，所有的字符都是可以删除的，例如贪吃蛇游戏就是利用相关的功能来实现的。</p>
-<p>在另一方面，IO 控制层还需要处理一些控制信号，例如键盘中的 Control-C、Control-Z 信号、方向键等。当 IO 控制层收到键盘上的这些指令时，会生成相应的 Signal 并使用 kill 命令发送给程序。</p>
-<p>IO 控制层的相关功能存储在<code>Termios</code>结构体中，当用户不需要 IO 控制层中的某些功能时，可以使用系统调用<code>ioctl()</code>函数来对其进行更改。一些需要实时交互的程序中，例如游戏，可以通过设置<code>Termios</code>中的标准模式标识位来关闭按行缓冲的模式，实时接收用户的输入。在不需要进行输入回显的情景下，例如输入密码，可以设置<code>Termios</code>中的回显为关闭状态，防止输入被打印到标准输出上。</p>
-<h2 id="Shell-命令补全"><a href="#Shell-命令补全" class="headerlink" title="Shell 命令补全"></a>Shell 命令补全</h2><p>Shell 的命令补全是依赖于 GNU Readline 的，可以将后者理解为 IO 控制层的个性化定制版本。它通过设置 IO 控制层的相关参数，关闭了默认功能，并且自行实现了输入的处理逻辑。在标准的 IO 控制模式中，用户按下 Tab 键意味着输入一个制表符，而在 Shell 语境下，当用户按下 Tab 键时，会根据当前的输入进行命令补全。仔细梳理一下命令补全所需的功能，可以概括为以下几点：实时获取用户输入、缓存用户输入、补全字典、字符串显示以及抹除的功能。前面几条比较容易接触到，自行维护一个输入缓冲区以及前缀树即可，而字符串的显示以及模式则需要用到与屏幕控制码相关的内容。</p>
-<p>屏幕控制码是终端中用于控制输出显示的特殊字符串，它可以用于控制屏幕上的光标位置、颜色、显示内容等相关功能。例如将一个光标移动到终端的 y 行 x 列，就可以通过将字符串<code>&quot;\033[y;xH&quot;</code>写入标准输出来实现。Readline 中的补全功能其实是通过读取光标位置、移动光标、打印待补全字符串、恢复光标到最初位置，这一系列操作来完成的，这些操作都是通过屏幕控制码来完成的。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">printStringToComplete</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="comment">// 控制命令：读取光标位置</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;\033[6n&quot;</span>);</span><br><span class="line">    <span class="comment">// 控制命令：从标准输入读取位置</span></span><br><span class="line">    <span class="type">int</span> y,x;</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;\033[%d;%dR&quot;</span>, &amp;y, &amp;x);</span><br><span class="line">    <span class="comment">// 控制命令，移动光标</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;\033[%d;%dH&quot;</span>,y+<span class="number">1</span>,<span class="number">0</span>);</span><br><span class="line">    <span class="comment">// 打印字符串</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;str to complete&quot;</span>);</span><br><span class="line">    <span class="comment">// 恢复光标至原位置</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;\033[%d;%dH&quot;</span>,y,x);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>以上的代码就可以实现在当前输入的下一行打印出一行字符串并且返回到原始的输入位置。由于这段代码的处理速度非常快，因此在用户眼中是一个整体的过程。除了 Shell 中的命令补全，vim 中的相关操作同样也是使用这种技术路线来实现的。</p>
-<h2 id="终端与-Shell"><a href="#终端与-Shell" class="headerlink" title="终端与 Shell"></a>终端与 Shell</h2><p>命令行终端与 Shell 是两个经常容易混淆的概念，但实际上两者的位置是不同的。Shell 的软件位置其实是位于命令行终端的上层，或者说后端。命令行终端的职责更加偏向于处理 IO 设备的各种输入，通过 IO 控制层（或 Shell 自定义的处理逻辑）将其转换为操作系统中的可读语言（各种命令符号），然后将处理后的信息输入到 Shell 程序的标准输入中。而 Shell 的职责则是读取经过处理的输入，按照既定的逻辑调用操作系统的各种接口，最终实现相关的功能。</p>
-<p><img src="/images/terminal-shell.png" alt="terminal-shell"></p>
-<p>事实上，终端不止有命令行终端一种，物理终端同样也是终端的一种。在 IO 控制层中，有一些命令是用于调节输入的波特率等参数的，这些参数只适用于物理终端。终端的意义在于“输入的转换”，而在命令行终端中，这一职责其实被淡化了，因此也就容易与其他概念进行混淆。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/04/06/Go-%E4%BB%BF%E5%86%99-Redis-%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -328,11 +234,11 @@
                 </span>
                   ，
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/redis/" itemprop="url" rel="index"><span itemprop="name">redis</span></a>
                 </span>
                   ，
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/redis/" itemprop="url" rel="index"><span itemprop="name">redis</span></a>
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
                 </span>
             </span>
 
@@ -379,6 +285,98 @@
 <p>如果将单事务线程切换为多事务线程，那么性能会提升吗？我测试过 github 中的一些类型项目，这些项目是使用多事务线程来构建的，数据库采用读写锁来进行保护。当只读操作很多的时候，这种设计当然会提升性能，但是写操作增多时，这种设计并不能够提升性能，反而会造成一定的性能下降。在 redis-benchmark 中，多事务线程的设计会造成 QPS 下降约 6%。</p>
 <p>从功能上进行考虑，使用多线程其实也是不太适合的。例如事务操作、多键值对操作、持久化操作，这些处理起来都是比较棘手的。要实现这些功能，数据库内部是一定需要大量加锁的，这会提升开发的难度，并且内存数据库的性能瓶颈是在网络 IO 上，这种付出与回报其实是不成正比的。</p>
 <h2 id="go-的优势"><a href="#go-的优势" class="headerlink" title="go 的优势"></a>go 的优势</h2><p>如果只是作为学习的话，使用 go 来仿写 redis 是有自身的优势的。其一在于，Redis 用到的功能比较多，使用 C/C++ 时会用到很多第三方依赖库，这些依赖库的风格可能有很大不同，这会增加开发难度。而 go 基本上提供了所有需要的依赖库。其二在于，使用 goroutine 加 channel 可以很轻松地模拟出多线程解析这一特性，在数据量较小时，性能甚至会高于 Redis。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/28/%E4%B8%8D%E5%8F%AF%E9%87%8D%E5%A4%8D%E8%AF%BB%E4%B8%8E%E5%B9%BB%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/03/28/%E4%B8%8D%E5%8F%AF%E9%87%8D%E5%A4%8D%E8%AF%BB%E4%B8%8E%E5%B9%BB%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/" class="post-title-link" itemprop="url">不可重复读与幻读的一些思考</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-03-28 15:15:11 / 修改时间：15:15:56" itemprop="dateCreated datePublished" datetime="2023-03-28T15:15:11+08:00">2023-03-28</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>1.3k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>1 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>在一次面试中，被问到一个问题“不可重复读会带来什么危害，能不能举一些具体的场景来说明？”。虽然对不可重复读这个概念是非常清晰的，但是一时间还真的无法想出具体的案例来说明不可重复读会在什么场景下带来危害。遗憾的是，网上的相关资料比较少，并且其中许多资料都有一些错误，在整理阅读后，我以本篇文章来记录一些自己的思考和理解。</p>
+<p>严格意义上来说，读已提交这个隔离级别其实已经可以满足绝大多数的事务。在可重复读级别下，其实还会带来一定的困惑性，例如一个典型的查询-更新事务。数据库中的隔离级别中，可重复读其实并不是特别重要，因为单单解决不可重复读在大部分业务场景下仍然不能够解决所有的危害。这里以一个案例来说明不可重复读带来的危害，该案例及其相关的文献都来自<a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_24054301/article/details/123086098">博客文章</a>。</p>
+<blockquote>
+<p>银行做活动。事务a查询某地区余额1000以下送一包餐巾纸，生成名单。事务b新增了一个新用户小明，并存款500。事务a查询1000到2000送一桶油，生成名单，这样小明没有收到礼物，而同时注册的小李存了1500却收到了一桶油。</p>
+</blockquote>
+<p><img src="https://img-blog.csdnimg.cn/6f7f638815894efb8de44ce855419125.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBAYmJx54Ok6bih,size_18,color_FFFFFF,t_70,g_se,x_16" alt="不可重复读的危害"></p>
+<p>这里带来的后果是在长事务 A 的范围读取中，两次读取到的数据不一致，从而导致小明的账户获取了两次礼品，这很好理解。那么我们将这个案例进行泛化，可以发现这些问题主要是出现在数据库遍历的业务场景下，这些事务必须要保障多次读取到的数据来自同一时刻，即必须看到某一时刻下数据库的视图。这里即使是使用可重复读隔离级别也是不能够保证业务安全的，因为这里还会有可能出现幻读的问题——一个账户在活动截止后才被创建，而此时事务 A 仍未结束，就会出现新账户也被送出礼品的问题。</p>
+<p>仔细思考，其实会出现不可重复读的业务场景下，同样也是会出现幻读这一问题的，因为在业务场景中很少是在一次事务中针对某一行数据进行多次查询。那么<strong>单单解决不可重复读，其实意义并不是特别大</strong>，只有将不可重复读与幻读一起解决才能够保证<strong>读数据库快照</strong>这一业务场景的正确性。</p>
+<p>这一问题其实就是 ANSI SQL 四种隔离级别的缺陷：可重复读隔离级别并不能够真正解决这一业务场景下的问题，而能够解决这一问题的可串行化隔离级别又会导致数据库的性能大幅度降低——这一场景需要大范围查询数据库中的数据，会极大概率与其他事务发生冲突，这就会造成事务的并发量下降。在快照隔离这一事务隔离级别下，其实才能够最好地去解决这一业务场景问题。</p>
+<p>在 OLAP 的应用场景中，大部分事务都是需要读取数据库快照的，例如：数据库备份、离线数据分析等。这些事务的运行时间较长，并且要求输入的数据来自同一时刻，否则事务便失去了意义。可以发现，一些通用数据库或面向 OLAP 的数据库通常都提供了快照隔离的事务等级。Oracle 是一个例外，这里猜测是由于 Oracle 的发布年代过早，而快照隔离这个概念在 1997 年才被提出。MySQL 定义的可重复读其实就是一个快照隔离的事务隔离等级。</p>
+<p>总而言之，不可重复读带来的危害在多数情况下是与幻读带来的危害高度重叠的，它们两者会出现的业务场景也是类似的，那就是需要对某一时刻的数据进行分析的<strong>读快照</strong>场景。一些可以规避不可重复读的技术手段，同样可以很低成本地规避幻读，因此这两者通常是作为一个整体被解决的，而最终数据库给出的解决方案就是快照隔离。</p>
 
       
     </div>
@@ -465,20 +463,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-count">46</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-count">18</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-count">20</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>

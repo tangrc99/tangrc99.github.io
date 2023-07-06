@@ -193,7 +193,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/25/%E5%B7%A5%E7%A8%8B%E6%96%87%E6%A1%A3%E6%B1%87%E6%80%BB/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/06/23/2023-06-23-NCCL-RDMA-%E5%A4%87%E5%BF%98/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -207,7 +207,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/12/25/%E5%B7%A5%E7%A8%8B%E6%96%87%E6%A1%A3%E6%B1%87%E6%80%BB/" class="post-title-link" itemprop="url">工程文档汇总</a>
+            <a href="/2023/06/23/2023-06-23-NCCL-RDMA-%E5%A4%87%E5%BF%98/" class="post-title-link" itemprop="url">NCCL RDMA 备忘</a>
         </h2>
 
         <div class="post-meta">
@@ -217,15 +217,24 @@
               </span>
               <span class="post-meta-item-text">发表于</span>
 
-              <time title="创建时间：2022-12-25 06:01:28" itemprop="dateCreated datePublished" datetime="2022-12-25T06:01:28+08:00">2022-12-25</time>
+              <time title="创建时间：2023-06-23 00:00:00" itemprop="dateCreated datePublished" datetime="2023-06-23T00:00:00+08:00">2023-06-23</time>
             </span>
               <span class="post-meta-item">
                 <span class="post-meta-item-icon">
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-01-19 02:46:41" itemprop="dateModified" datetime="2023-01-19T02:46:41+08:00">2023-01-19</time>
+                <time title="修改时间：2023-07-06 13:18:32" itemprop="dateModified" datetime="2023-07-06T13:18:32+08:00">2023-07-06</time>
               </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/RDMA/" itemprop="url" rel="index"><span itemprop="name">RDMA</span></a>
+                </span>
+            </span>
 
           <br>
             <span class="post-meta-item" title="本文字数">
@@ -233,14 +242,14 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>227</span>
+              <span>1.9k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
                 <i class="far fa-clock"></i>
               </span>
                 <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>1 分钟</span>
+              <span>2 分钟</span>
             </span>
 
         </div>
@@ -252,19 +261,19 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>这里汇总了我因学习需要或一时兴起写的小项目。</p>
-<h2 id="工程文档链接"><a href="#工程文档链接" class="headerlink" title="工程文档链接"></a>工程文档链接</h2><ul>
-<li><p>MVCC：一个基于跳跃表的进程内并发读写数据结构。 <a target="_blank" rel="noopener" href="https://github.com/tangrc99/MVCC">github仓库</a> <a target="_blank" rel="noopener" href="https://tangrc99.github.io/MVCC">项目文档链接</a></p>
-</li>
-<li><p>Gossip：一个基于 gossip 协议的分布式信息交互组件。<a target="_blank" rel="noopener" href="https://github.com/tangrc99/Gossip">github仓库</a> <a target="_blank" rel="noopener" href="https://tangrc99.github.io/Gossip">项目文档链接</a></p>
-</li>
-<li><p>MLog：一个仿照 WiredTiger 日志系统的玩具项目。<a target="_blank" rel="noopener" href="https://github.com/tangrc99/MLog">github仓库</a> <a target="_blank" rel="noopener" href="https://tangrc99.github.io/MLog">项目文档链接</a></p>
-</li>
-<li><p>TinySwarm：一个轻量级的分布式调度系统。 <a target="_blank" rel="noopener" href="https://github.com/tangrc99/TinySwarm">github仓库</a> <a target="_blank" rel="noopener" href="https://tangrc99.github.io/TinySwarm">项目文档链接</a></p>
-</li>
-<li><p>MemTable：使用 go 语言仿写的 redis 服务器。  <a target="_blank" rel="noopener" href="https://github.com/tangrc99/MemTable">github仓库</a></p>
-</li>
-</ul>
+          <p>libverbs 是 RDMA 通信的通用库，它完成了 RNIC Driver 层的抽象，给用户层提供了一个统一的接口。libverbs 总体上是一个异步通知的队列逻辑。在不考虑 RNIC 网卡性能极限的情况下，一套比较优秀的异步事件交互逻辑能够更加有效地利用网卡的性能，达到更低的延迟和更高的吞吐量。在 NCCL 中源码中，有一些实现上的细节能够提供给我们优化 RDMA 通信逻辑的相关思路。</p>
+<h2 id="IBV-SENDLINE-的使用问题"><a href="#IBV-SENDLINE-的使用问题" class="headerlink" title="IBV_SENDLINE 的使用问题"></a>IBV_SENDLINE 的使用问题</h2><p><code>IBV_SEND_LINE</code>是 libverbs 中针对小数据包的优化处理，它能够明显改善 128 字节以下数据包的发送延迟，略微提升吞吐量。这一优化的具体实现是使用 CPU 而非 RNIC 的 DPU 进行发送。但是使用<code>IBV_SEND_INLINE</code>时，必须要使用<code>IBV_SEND_SIGNALED</code>来处理事件的完成通知，否则可能会导致 SQE 用尽，<a target="_blank" rel="noopener" href="https://blog.csdn.net/bandaoyu/article/details/119207147">无法发送数据</a>。</p>
+<p>在 NCCL 中，会定期使用<code>IBV_SEND_SIGNALED</code>标识位来处理 inline 包的通知问题，即发送一轮 slot 时：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (slot == <span class="number">0</span>) &#123;</span><br><span class="line">    wr.send_flags |= IBV_SEND_SIGNALED;</span><br><span class="line">    wr.wr_id = req - comm-&gt;verbs.reqs;</span><br><span class="line">    req-&gt;events++;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这种思路同样也可以用到其余地方，每隔几次 SR 再带上一次标识位，这样能够降低与 comp channel 之间的通信频率。</p>
+<h2 id="多-QP-利用-DPU-性能"><a href="#多-QP-利用-DPU-性能" class="headerlink" title="多 QP 利用 DPU 性能"></a>多 QP 利用 DPU 性能</h2><p>在 RC 模式下，为了保证每一个事件的完成是顺序的，单一 SQ 中的事件只能够被 RNIC 中的一个 DPU 处理。当连接较少、数据包较少时，可能无法充分利用 RNIC 的 DPU，导致网络性能下降。 NCCL 中会尝试将一次用户请求的数据分解到多个 QP 当中去，从而更加充分地利用 RNIC 的 DPU 性能：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> q = <span class="number">0</span>; q &lt; nqps; q++) &#123;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">ibv_send_wr</span> *<span class="title">bad_wr</span>;</span></span><br><span class="line">    <span class="comment">// 这里会尝试利用多个 qp 进行数据的发送</span></span><br><span class="line">    NCCLCHECK(wrap_ibv_post_send(comm-&gt;qps[comm-&gt;qpIndex], comm-&gt;wrs, &amp;bad_wr));</span><br><span class="line">    comm-&gt;qpIndex = (comm-&gt;qpIndex + <span class="number">1</span>) % comm-&gt;nqps;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="通信分组通知"><a href="#通信分组通知" class="headerlink" title="通信分组通知"></a>通信分组通知</h2><p>RC 模式下，为了检验 SR 是否完成，必须要使用<code>IBV_SEND_SIGNALED</code>与 comp channel 进行交互。但是使用这一标识位意味着应用层需要处理来自于 comp channel 的事件通知，如果每一个请求都使用该标识位，就会导致事件通知过于频繁，应用层需要频繁处理事件完成通知，这会在一定程度上导致 CPU 占用率的上升。由于 NCCL 中分割发送的数据包，在短时间可能就会出现频繁的事件通知，但这种事件通知是不必要的，NCCL 中对此做出了优化：只在分组的最后一个 SR 上使用标识位<code>IBV_SEND_SIGNALED</code>。这样可以利用 RC 的可靠性保证，确保所有请求发送完毕，并且能够有效地减少事件通知的次数，降低 CPU 占用率：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ibv_send_wr</span> *<span class="title">lastWr</span> =</span> comm-&gt;wrs + nreqs - <span class="number">1</span>;</span><br><span class="line"><span class="keyword">if</span> (nreqs &gt; <span class="number">1</span> || (comm-&gt;ar &amp;&amp; reqs[<span class="number">0</span>]-&gt;send.size &gt; ncclParamIbArThreshold())) &#123;</span><br><span class="line">    lastWr++;</span><br><span class="line">    <span class="built_in">memset</span>(lastWr, <span class="number">0</span>, <span class="keyword">sizeof</span>(<span class="keyword">struct</span> ibv_send_wr));</span><br><span class="line">&#125;</span><br><span class="line">lastWr-&gt;wr_id = wr_id;</span><br><span class="line">lastWr-&gt;opcode = IBV_WR_RDMA_WRITE_WITH_IMM;</span><br><span class="line">lastWr-&gt;imm_data = immData;</span><br><span class="line">lastWr-&gt;next = <span class="literal">NULL</span>;</span><br><span class="line"><span class="comment">// Only use this flag in last WR</span></span><br><span class="line">lastWr-&gt;send_flags = IBV_SEND_SIGNALED;</span><br></pre></td></tr></table></figure>
+
+<h2 id="一些思考"><a href="#一些思考" class="headerlink" title="一些思考"></a>一些思考</h2><p>NCCL 所做出的优化，主要还是针对于小数据包的带宽和延迟问题，而针对大数据包的优化比较少。根据我的理解，在数据包较小时，RDMA 的网络通信次数会更加频繁，相应地 comp channel 的通知也比较多。在这种情况下，应用层与 RNIC 驱动之间的交互的耗时占总耗时的比例就比较高，针对这一场景进行优化，效果就比较明显。而数据包较大时，数据的发送耗时大大增加，应用处与 RNIC 驱动交互的耗时就可以忽略不计了。并且当 RNIC 网卡的带宽吃满之后，限制 RDMA 网络通信性能的是网卡本身，而非通信库的处理逻辑。</p>
 
       
     </div>
@@ -284,7 +293,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2021/01/01/%E4%B9%A6%E7%B1%8D%E9%98%85%E8%AF%BB%E5%BB%BA%E8%AE%AE/">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/04/21/%E4%BB%8E%E5%91%BD%E4%BB%A4%E8%A1%A5%E5%85%A8%E5%8A%9F%E8%83%BD%E6%9D%A5%E7%9C%8B%E7%BB%88%E7%AB%AF%E4%B8%8E-Shell-%E7%9A%84%E5%85%B3%E7%B3%BB/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.png">
@@ -298,7 +307,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2021/01/01/%E4%B9%A6%E7%B1%8D%E9%98%85%E8%AF%BB%E5%BB%BA%E8%AE%AE/" class="post-title-link" itemprop="url">书籍阅读建议</a>
+            <a href="/2023/04/21/%E4%BB%8E%E5%91%BD%E4%BB%A4%E8%A1%A5%E5%85%A8%E5%8A%9F%E8%83%BD%E6%9D%A5%E7%9C%8B%E7%BB%88%E7%AB%AF%E4%B8%8E-Shell-%E7%9A%84%E5%85%B3%E7%B3%BB/" class="post-title-link" itemprop="url">从命令补全功能来看终端与 Shell 的关系</a>
         </h2>
 
         <div class="post-meta">
@@ -307,16 +316,19 @@
                 <i class="far fa-calendar"></i>
               </span>
               <span class="post-meta-item-text">发表于</span>
+              
 
-              <time title="创建时间：2021-01-01 00:00:00" itemprop="dateCreated datePublished" datetime="2021-01-01T00:00:00+08:00">2021-01-01</time>
+              <time title="创建时间：2023-04-21 15:37:22 / 修改时间：16:39:03" itemprop="dateCreated datePublished" datetime="2023-04-21T15:37:22+08:00">2023-04-21</time>
             </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-02-07 19:40:50" itemprop="dateModified" datetime="2023-02-07T19:40:50+08:00">2023-02-07</time>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
               </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">操作系统</span></a>
+                </span>
+            </span>
 
           <br>
             <span class="post-meta-item" title="本文字数">
@@ -324,7 +336,7 @@
                 <i class="far fa-file-word"></i>
               </span>
                 <span class="post-meta-item-text">本文字数：</span>
-              <span>1.7k</span>
+              <span>2.1k</span>
             </span>
             <span class="post-meta-item" title="阅读时长">
               <span class="post-meta-item-icon">
@@ -343,231 +355,19 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>这里汇总了本人阅读过的一些书籍，大多数都是一些比较经典的书籍。随着技术的发展，其中一些仍然适合阅读，但另外一些可能就显得有些过时。这里根据本人的阅读体会，给出书籍的阅读建议，希望帮助大家排坑，避免花费不必要的时间和精力；比较推荐的书籍名称会加粗处理。</p>
-<h2 id="编程语言"><a href="#编程语言" class="headerlink" title="编程语言"></a>编程语言</h2><h3 id="C-部分"><a href="#C-部分" class="headerlink" title="C++ 部分"></a>C++ 部分</h3><table>
-<thead>
-<tr>
-<th align="center">书籍名称</th>
-<th align="center">简要描述</th>
-<th align="center">建议</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center"><strong>C++ Primer</strong></td>
-<td align="center">C++ 初学必看书籍，重量级作品</td>
-<td align="center">纸质书阅读</td>
-</tr>
-<tr>
-<td align="center">Effective C++</td>
-<td align="center">C++ 语言中的一些 trick</td>
-<td align="center">不建议买书，一些内容比较老旧，可以在网络查阅电子书</td>
-</tr>
-<tr>
-<td align="center">More Effective C++</td>
-<td align="center">C++ 语言中的一些 trick</td>
-<td align="center">不建议买书，一些内容比较老旧，可以在网络查阅电子书</td>
-</tr>
-<tr>
-<td align="center"><strong>C++ 并发编程实践</strong></td>
-<td align="center">C++ 多线程编程必看书籍，重量级作品</td>
-<td align="center">必读，并发编程的基础，部分内容较难可以跳过</td>
-</tr>
-<tr>
-<td align="center"><strong>Linux 多线程服务端编程</strong></td>
-<td align="center">C++ 网络编程，Reactor 模式</td>
-<td align="center">需要上手仿写 muduo 网络库，C++网络必学</td>
-</tr>
-<tr>
-<td align="center"><strong>Redis 设计与实现</strong></td>
-<td align="center">数据结构、网络</td>
-<td align="center">redis 的数据结构以及架构还是值得学习的</td>
-</tr>
-</tbody></table>
-<h3 id="Glang-部分"><a href="#Glang-部分" class="headerlink" title="Glang 部分"></a>Glang 部分</h3><table>
-<thead>
-<tr>
-<th align="center">书籍名称</th>
-<th align="center">简要描述</th>
-<th align="center">建议</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center"><strong>Go 语言圣经</strong></td>
-<td align="center">Golang 入门</td>
-<td align="center">Golang 入门的选择之一</td>
-</tr>
-<tr>
-<td align="center">Go 语言编程之旅</td>
-<td align="center">Golang 项目：博客、grpc、进程内缓存等</td>
-<td align="center">不建议买书，网络上有内容可以跟做，内容深度不够，章节顺序对初学者来说难以理解</td>
-</tr>
-<tr>
-<td align="center">Docker 源码分析</td>
-<td align="center">Docker 源码以及架构介绍</td>
-<td align="center">不建议，内容非常浅显，只介绍了几个模块，对理解 Docker、Golang 帮助都不大</td>
-</tr>
-</tbody></table>
-<h2 id="数据库"><a href="#数据库" class="headerlink" title="数据库"></a>数据库</h2><h3 id="redis"><a href="#redis" class="headerlink" title="redis"></a>redis</h3><table>
-<thead>
-<tr>
-<th align="center">书籍名称</th>
-<th align="center">简要描述</th>
-<th align="center">建议</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center"><strong>Redis 设计与实现</strong></td>
-<td align="center">redis 全面剖析</td>
-<td align="center">redis 经典书籍，但缺少 redis 新版本内容</td>
-</tr>
-<tr>
-<td align="center">Redis深度历险：核心原理和应用实践</td>
-<td align="center">redis 应用及原理</td>
-<td align="center">一般，内容比较全面，但介绍不深入，可以作为学习大纲</td>
-</tr>
-<tr>
-<td align="center">深入分布式缓存 从原理到实践</td>
-<td align="center">缓存类应用综述</td>
-<td align="center">redis 部分比较简略</td>
-</tr>
-</tbody></table>
-<h3 id="MySQL"><a href="#MySQL" class="headerlink" title="MySQL"></a>MySQL</h3><table>
-<thead>
-<tr>
-<th align="center">书籍名称</th>
-<th align="center">简要描述</th>
-<th align="center">建议</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center"><strong>MySQL 必知必会</strong></td>
-<td align="center">MySQL 入门书籍</td>
-<td align="center">入门之选，可以搭配牛客网题目练习</td>
-</tr>
-<tr>
-<td align="center"><strong>MySQL 技术内幕：InnoDB 存储引擎</strong></td>
-<td align="center">MySQL 架构与原理剖析</td>
-<td align="center">非常全面地介绍了 InnoDB 中的一些特性和读写优化，进阶必读，但缺少比较新的特性</td>
-</tr>
-<tr>
-<td align="center">SQL 学习指南</td>
-<td align="center">SQL 入门书籍</td>
-<td align="center">加强版的 MySQL 必知必会</td>
-</tr>
-<tr>
-<td align="center"><strong>SQL 经典实例</strong></td>
-<td align="center">SQL 经典场景</td>
-<td align="center">搭配 Leetcode 题库一起学习</td>
-</tr>
-</tbody></table>
-<h3 id="MongoDB"><a href="#MongoDB" class="headerlink" title="MongoDB"></a>MongoDB</h3><p>MongoDB 中应用了一些较新的技术优化点，非常值得学习。</p>
-<p>MongoDB 的书籍还是比较少的，并且由于 MongoDB 早期使用的是 MMAP 引擎而非 WiredTiger，有一些学习资料中的内容已经不适用了。MongoDB 最好的学习方式还是网络博客，例如 MongoDB 官方博客、知乎、腾讯云、阿里云的栏目中都有一些很好的文章。</p>
-<table>
-<thead>
-<tr>
-<th align="center">书籍名称</th>
-<th align="center">简要描述</th>
-<th align="center">建议</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center">MongoDB 权威指南</td>
-<td align="center">MongoDB 一本通</td>
-<td align="center">PDF，可以经常查阅</td>
-</tr>
-<tr>
-<td align="center"><strong>MongoDB 核心原理与实践</strong></td>
-<td align="center">对 MongoDB 架构和原理比较深入的一本书</td>
-<td align="center">书中讲述了一些原理，但不够深入，可以搭配网络上的博客一起学习</td>
-</tr>
-</tbody></table>
-<h3 id="etcd"><a href="#etcd" class="headerlink" title="etcd"></a>etcd</h3><p>etcd 作为 Golang 经典项目，书籍也是比较少的，更多的还是从网络博客上学习。</p>
-<table>
-<thead>
-<tr>
-<th align="center">书籍名称</th>
-<th align="center">简要描述</th>
-<th align="center">建议</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center"><strong>etcd 工作笔记：架构分析、优化与最佳实践</strong></td>
-<td align="center">etcd 架构、原理剖析</td>
-<td align="center">etcd 中比较好的书籍，建议阅读，但书比较老，与新版本 etcd 有一定出入，注意甄别</td>
-</tr>
-<tr>
-<td align="center">云原生分布式存储基石：etcd深入解析</td>
-<td align="center">更加综合的，但深度一般</td>
-<td align="center">在 etcd 工作笔记之中选择一本即可</td>
-</tr>
-</tbody></table>
-<h2 id="计算机网络"><a href="#计算机网络" class="headerlink" title="计算机网络"></a>计算机网络</h2><table>
-<thead>
-<tr>
-<th align="center">书籍名称</th>
-<th align="center">简要描述</th>
-<th align="center">建议</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center"><strong>Unix 网络编程 1 ( UNP )</strong></td>
-<td align="center">unix 网络编程</td>
-<td align="center">必读书籍，重点在前几章</td>
-</tr>
-<tr>
-<td align="center">Unix 网络编程 2：进程间通信</td>
-<td align="center">unix 进程通信</td>
-<td align="center">不建议阅读，进程通信还是用 socket 比较多，可以看看信号部分的内容</td>
-</tr>
-<tr>
-<td align="center">计算机网络自顶向下方法</td>
-<td align="center">计算机网络概念</td>
-<td align="center">不清楚计算机网络概念可以读</td>
-</tr>
-<tr>
-<td align="center">图解 HTTP</td>
-<td align="center">HTTP 介绍</td>
-<td align="center">基于 HTTP1.1，初学 HTTP 可以读</td>
-</tr>
-<tr>
-<td align="center">Wireshark 数据包分析实战</td>
-<td align="center">抓包分析</td>
-<td align="center">抓包实战时可以查阅</td>
-</tr>
-</tbody></table>
-<h2 id="分布式"><a href="#分布式" class="headerlink" title="分布式"></a>分布式</h2><table>
-<thead>
-<tr>
-<th align="center">书籍名称</th>
-<th align="center">简要描述</th>
-<th align="center">建议</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center">深入分布式缓存 从原理到实践</td>
-<td align="center">未看完</td>
-<td align="center"></td>
-</tr>
-<tr>
-<td align="center"><strong>分布式系统模式</strong></td>
-<td align="center">分布式系统各原理和基础概念介绍</td>
-<td align="center">可以比较全面地学习分布式系统</td>
-</tr>
-</tbody></table>
-<h2 id="Linux"><a href="#Linux" class="headerlink" title="Linux"></a>Linux</h2><table>
-<thead>
-<tr>
-<th align="center">书籍名称</th>
-<th align="center">简要描述</th>
-<th align="center">建议</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center">Linux 内核设计与实现</td>
-<td align="center">Linux 内核入门级别</td>
-<td align="center">内容比较全面，根据需要阅读</td>
-</tr>
-</tbody></table>
+          <p>当程序需要读取标准输入时，用户输入的字符串会被显示在终端界面上，在按下回车键之后才能够被程序读取。但是在一些场景下，这种交互逻辑是不合适的，例如需要将用户输入的密码进行隐藏，或者是根据用户已有的输入进行自动补全。这些功能的实现并不依赖于传统的标准输入交互，而是需要定义一套自己的交互逻辑。本文将介绍这种功能背后所用到的一些知识。</p>
+<h2 id="IO-控制层"><a href="#IO-控制层" class="headerlink" title="IO 控制层"></a>IO 控制层</h2><p>当我们在终端中输入字符串时，字符串明明是被输入到标准输入，那么为什么会显示在标准输出呢？以及为什么程序不能够实时地接收到用户的输入呢？这是其实是因为用户在键盘上的输入并不会被直接写入到程序的标准输入中去，而是需要先经过一个 IO 控制层。IO 控制层中有默认的交互逻辑用于缓存并处理用户的输入。</p>
+<p>IO 控制层定义了一套默认的用户输入准则，能够大大减少交互程序的设计复杂度。在交互性程序中，用户的输入并不能够保证一定正确，因此 IO 控制层会先将键盘输入写入到自身的缓冲区，并且将这些字符写入到程序的<strong>标准输出</strong>上，等到用户按下回车才会将缓冲区中的输入发送给用户程序，这样程序就不需要关心删除用户错误输入的逻辑。当用户按下退格时，IO 控制层会删除掉缓冲区中的相关字符串，并且<strong>覆盖标准输出中的信息</strong>。在通常的终端中，已经输出的信息是不能够删除的，这其实也是 IO 控制层的默认规则——为了防止用户删除过多的相关消息。但事实上，在命令行终端上，所有的字符都是可以删除的，例如贪吃蛇游戏就是利用相关的功能来实现的。</p>
+<p>在另一方面，IO 控制层还需要处理一些控制信号，例如键盘中的 Control-C、Control-Z 信号、方向键等。当 IO 控制层收到键盘上的这些指令时，会生成相应的 Signal 并使用 kill 命令发送给程序。</p>
+<p>IO 控制层的相关功能存储在<code>Termios</code>结构体中，当用户不需要 IO 控制层中的某些功能时，可以使用系统调用<code>ioctl()</code>函数来对其进行更改。一些需要实时交互的程序中，例如游戏，可以通过设置<code>Termios</code>中的标准模式标识位来关闭按行缓冲的模式，实时接收用户的输入。在不需要进行输入回显的情景下，例如输入密码，可以设置<code>Termios</code>中的回显为关闭状态，防止输入被打印到标准输出上。</p>
+<h2 id="Shell-命令补全"><a href="#Shell-命令补全" class="headerlink" title="Shell 命令补全"></a>Shell 命令补全</h2><p>Shell 的命令补全是依赖于 GNU Readline 的，可以将后者理解为 IO 控制层的个性化定制版本。它通过设置 IO 控制层的相关参数，关闭了默认功能，并且自行实现了输入的处理逻辑。在标准的 IO 控制模式中，用户按下 Tab 键意味着输入一个制表符，而在 Shell 语境下，当用户按下 Tab 键时，会根据当前的输入进行命令补全。仔细梳理一下命令补全所需的功能，可以概括为以下几点：实时获取用户输入、缓存用户输入、补全字典、字符串显示以及抹除的功能。前面几条比较容易接触到，自行维护一个输入缓冲区以及前缀树即可，而字符串的显示以及模式则需要用到与屏幕控制码相关的内容。</p>
+<p>屏幕控制码是终端中用于控制输出显示的特殊字符串，它可以用于控制屏幕上的光标位置、颜色、显示内容等相关功能。例如将一个光标移动到终端的 y 行 x 列，就可以通过将字符串<code>&quot;\033[y;xH&quot;</code>写入标准输出来实现。Readline 中的补全功能其实是通过读取光标位置、移动光标、打印待补全字符串、恢复光标到最初位置，这一系列操作来完成的，这些操作都是通过屏幕控制码来完成的。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">printStringToComplete</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="comment">// 控制命令：读取光标位置</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;\033[6n&quot;</span>);</span><br><span class="line">    <span class="comment">// 控制命令：从标准输入读取位置</span></span><br><span class="line">    <span class="type">int</span> y,x;</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;\033[%d;%dR&quot;</span>, &amp;y, &amp;x);</span><br><span class="line">    <span class="comment">// 控制命令，移动光标</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;\033[%d;%dH&quot;</span>,y+<span class="number">1</span>,<span class="number">0</span>);</span><br><span class="line">    <span class="comment">// 打印字符串</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;str to complete&quot;</span>);</span><br><span class="line">    <span class="comment">// 恢复光标至原位置</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;\033[%d;%dH&quot;</span>,y,x);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以上的代码就可以实现在当前输入的下一行打印出一行字符串并且返回到原始的输入位置。由于这段代码的处理速度非常快，因此在用户眼中是一个整体的过程。除了 Shell 中的命令补全，vim 中的相关操作同样也是使用这种技术路线来实现的。</p>
+<h2 id="终端与-Shell"><a href="#终端与-Shell" class="headerlink" title="终端与 Shell"></a>终端与 Shell</h2><p>命令行终端与 Shell 是两个经常容易混淆的概念，但实际上两者的位置是不同的。Shell 的软件位置其实是位于命令行终端的上层，或者说后端。命令行终端的职责更加偏向于处理 IO 设备的各种输入，通过 IO 控制层（或 Shell 自定义的处理逻辑）将其转换为操作系统中的可读语言（各种命令符号），然后将处理后的信息输入到 Shell 程序的标准输入中。而 Shell 的职责则是读取经过处理的输入，按照既定的逻辑调用操作系统的各种接口，最终实现相关的功能。</p>
+<p><img src="/images/terminal-shell.png" alt="terminal-shell"></p>
+<p>事实上，终端不止有命令行终端一种，物理终端同样也是终端的一种。在 IO 控制层中，有一些命令是用于调节输入的波特率等参数的，这些参数只适用于物理终端。终端的意义在于“输入的转换”，而在命令行终端中，这一职责其实被淡化了，因此也就容易与其他概念进行混淆。</p>
 
       
     </div>
@@ -654,20 +454,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-count">46</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-count">18</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-count">20</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>

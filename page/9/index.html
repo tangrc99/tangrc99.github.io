@@ -193,163 +193,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/14/go-%E7%BC%96%E8%AF%91%E7%9B%B8%E5%85%B3%E5%86%85%E5%AE%B9%E7%9A%84%E8%AE%B0%E5%BD%95/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/01/14/go-%E7%BC%96%E8%AF%91%E7%9B%B8%E5%85%B3%E5%86%85%E5%AE%B9%E7%9A%84%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">go 编译相关内容的记录</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2023-01-14 20:57:29" itemprop="dateCreated datePublished" datetime="2023-01-14T20:57:29+08:00">2023-01-14</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-01-15 01:53:43" itemprop="dateModified" datetime="2023-01-15T01:53:43+08:00">2023-01-15</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>2.9k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>3 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>本文记录学习到的一些与 go 语言编译相关的内容。</p>
-<h2 id="编译速度"><a href="#编译速度" class="headerlink" title="编译速度"></a>编译速度</h2><p>go 是编译速度比较快的语言之一，主要有以下几个原因，<a target="_blank" rel="noopener" href="https://qastack.cn/programming/2976630/how-does-go-compile-so-quickly">参考链接</a>：</p>
-<ul>
-<li>语法较为简单，不允许重载，不需要复杂的语义分析</li>
-<li>使用包管理，而非头文件形式，避免了解析头文件</li>
-<li>不使用虚拟机，编译时不需要加载 VM</li>
-<li>大部分包都使用静态链接的方式</li>
-<li>优化器更为简单，编译期优化较少，同时导致性能一定程度上下降，<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/550270332">参考链接</a></li>
-</ul>
-<h2 id="编译缓存"><a href="#编译缓存" class="headerlink" title="编译缓存"></a>编译缓存</h2><p>在 C/C++ 中，大型项目的构建往往需要依赖 make 和 CMake 工具来提供编译缓存，以实现增量编译的功能。在 golang 中，从 1.10  版本后编译器支持了编译缓存的功能，可以进行增量构建。编译过程中的缓存文件将会被存放在环境路径 GOCACHE 下。此外，go test 也支持在特定条件下缓存 test 结果，从而加快执行测试的速度。</p>
-<h3 id="增量编译"><a href="#增量编译" class="headerlink" title="增量编译"></a>增量编译</h3><p><strong>go 语言的增量编译是以 package 为单位的</strong>，一个 package 内任意一个文件的变更都会导致整个 package 以及依赖该 package 的所有 package重新编译 。但是，golang 的文件修改判别依据相比 C/C++ 体系更加合理。在 qt5 中，使用 qmake 进行增量编译时，依赖于文件的修改时间戳，如果只是对文件进行了格式调整，也会导致项目重新编译。而在 golang 中，文件修改的判别依据是文件内容是否改变，<strong>只修改文件的行数、增加注释、删除后恢复内容都不会导致package 重新编译</strong>。</p>
-<p>在 GOCACHE 路径下，执行 tree 命令，可以得到如下输出（截取部分）：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">go-build % tree</span><br><span class="line"></span><br><span class="line">.</span><br><span class="line">├── 00</span><br><span class="line">│   ├── 000d954e953e73d70b0fa00ceaf3c68f3adbb5164e5381754493a4e592ad714f-a</span><br><span class="line">│   └── 0068e9620015a00b938707781ad8b56fdd86fe4a09eeb7802d874bd041f5ad79-a</span><br><span class="line">├── 01</span><br><span class="line">│   ├── 0107518e42b66ffb35a353ffd437cb2a6f448b07ad8fceba401e7bc1692c17e3-d</span><br><span class="line">│   ├── 01126d3106b1aee39e975dcd10a2ac64f170d28ca14b37c8c5e7cec7817e60fd-a</span><br><span class="line">...</span><br><span class="line">└── trim.txt</span><br></pre></td></tr></table></figure>
-
-<p>可以看到，golang 中使用了内容摘要算法来组织存储，每一个目录下存储的文件名前两位字符都对应着文件夹名称。在编译过程中，go 编译器会将编译后 package 的 .a 文件求取 64 位摘要值，并将其名称命名为”摘要值-a” 的形式，并存储在摘要值前两位对应的文件夹下。</p>
-<h3 id="go-test-缓存"><a href="#go-test-缓存" class="headerlink" title="go test 缓存"></a>go test 缓存</h3><p>在go 1.10中，go test 同样可以被缓存介入，不过需要满足一定的条件，go release note 中给出了缓存介入条件：</p>
-<ul>
-<li>本次测试的执行程序以及命令行（及参数）与之前的一次test运行匹配；</li>
-<li>上次测试执行时的文件和环境变量在本次没有发生变化；</li>
-<li>测试结果是成功的；</li>
-<li>以package list mode运行测试；</li>
-<li>go test的命令行参数使用”-cpu, -list, -parallel, -run, -short和 -v”的一个子集时。</li>
-</ul>
-<p>其中 package list mode 是指运行某个 package 的测试程序，而不是以当前目录为参数。</p>
-<h2 id="交叉编译"><a href="#交叉编译" class="headerlink" title="交叉编译"></a>交叉编译</h2><p>go build 工具链是支持交叉编译的，在不直接调用 C 代码的情况下，可以直接使用 go build 命令来完成交叉编译。在使用交叉编译时，需要通过变更 GO ENV 来控制编译输出。常用的环境变量如下：</p>
-<ul>
-<li>CGO_ENABLE：关闭 CGO 选项，需要关闭，因为交叉编译不支持 CGO；</li>
-<li>GOOS：编译的目标操作系统，如 linux、darwin、windows；</li>
-<li>GOARCH：编译的架构，如 386、amd64、arm。</li>
-</ul>
-<p>交叉编译示例：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">x86_64 linux</span></span><br><span class="line">CGO_ENABLED=0 </span><br><span class="line">GOOS=linux </span><br><span class="line">GOARCH=amd64 </span><br><span class="line">go build main.go</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">x86_64 Windows</span></span><br><span class="line">CGO_ENABLED=0</span><br><span class="line">GOOS=windows </span><br><span class="line">GOARCH=amd64 </span><br><span class="line">go build main.go</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">arm Macos</span></span><br><span class="line">CGO_ENABLED=0 </span><br><span class="line">GOOS=darwin </span><br><span class="line">GOARCH=arm </span><br><span class="line">go build main.go</span><br></pre></td></tr></table></figure>
-
-<p>如果在项目中依赖了 C 代码，则不能够使用 go build 工具来实现交叉编译，需要要借助第三方工具 xgo。</p>
-<h2 id="编译期赋值"><a href="#编译期赋值" class="headerlink" title="编译期赋值"></a>编译期赋值</h2><p>go 语言可以实现在编译时对变量赋值，以完成在代码中增加版本等信息。该功能需要借助 -ldflags 选项。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span>(</span><br><span class="line">  <span class="keyword">var</span> version = <span class="string">&quot;v0.0.0&quot;</span></span><br><span class="line">  buildTime <span class="type">string</span></span><br><span class="line">  buildVersion <span class="type">string</span></span><br><span class="line">)</span><br></pre></td></tr></table></figure>
-
-<p>直接使用 -ldflags 选项即可，不需要再借助 flag parse。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">go build -ldflags \ </span><br><span class="line">&quot;-X main.version=v0.0.1 -X main.dateTime=`date +%Y-%m-%d,%H:%M:%S` -X main.gitTag=`git tag`&quot;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">输出值</span></span><br><span class="line">version is: v0.0.1</span><br><span class="line">dateTime is: 2023-01-14,22:18:54</span><br><span class="line">gitTag is: v0.0.0-beta</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-<p>这是通过将值写入符号表来完成的，符号表用来存储程序中的标识符（即常量和变量的类型、值等相关数据）。go 语言编译期过程可以简化理解为：在编译期将部分的变量的值修改，相当于改变了变量的默认值。</p>
-<h2 id="条件编译"><a href="#条件编译" class="headerlink" title="条件编译"></a>条件编译</h2><p>go 语言中不支持 define，但是可以依赖<code>build tags</code>或文件后缀的方式来实现不同平台的条件编译。</p>
-<h3 id="build-tags"><a href="#build-tags" class="headerlink" title="build tags"></a>build tags</h3><p>build tags 是一种特殊的注释，它必须位于 package 声明的上方，并且后跟一个空行。当一个包被编译时，编译器会根据构建标签的内容来判断该包是否需要编译。</p>
-<p>build tags 可以指定以下内容：</p>
-<ul>
-<li>操作系统，环境变量中<code>GOOS</code>的值；</li>
-<li>操作系统的架构，环境变量中<code>GOARCH</code>的值；</li>
-<li>使用的编译器，<code>gc</code>或者<code>gccgo</code>；</li>
-<li>是否开启CGO，<code>cgo</code>；</li>
-<li>golang版本号， 如<code>go1.1</code>；</li>
-<li>其它自定义标签，通过<code>go build -tags</code>指定的值。</li>
-</ul>
-<p>以下为 build tags 的一个例子。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// +build linux darwin</span></span><br><span class="line"><span class="comment">// +build x86</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">package</span> os</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
-
-<p>build tags 需要遵循以下原则：</p>
-<ul>
-<li>每一行注释以<code>+build</code>开始；</li>
-<li>每个选项由数字和字母组成，如果开头为<code>!</code>代表反义；</li>
-<li>选项之间相隔<code>&#39; &#39;</code>代表或关系，选项之间相隔<code>,</code>代表与关系；</li>
-<li>不同行注释代表与关系</li>
-</ul>
-<p>上面示例中代表在 linux 或 darwin 平台且架构为 x86 的情况下才会编译。</p>
-<h3 id="文件名后缀"><a href="#文件名后缀" class="headerlink" title="文件名后缀"></a>文件名后缀</h3><p>类似测试文件的 <code>_test</code>后缀，go 语言中也可以通过添加后缀的方式来实现条件编译。文件名后缀的命名方式为：<code>filename(_$GOOS)(_$GOARCH).go</code>。其中 GOOS 如果出现，必须排列在 GOARCH 前面。</p>
-<p>文件名后缀只能够实现在特定条件下进行编译，而不能实现在特定条件下取消编译。</p>
-<h2 id="Go-Plugin"><a href="#Go-Plugin" class="headerlink" title="Go Plugin"></a>Go Plugin</h2><p>参考<a target="_blank" rel="noopener" href="https://www.easemob.com/news/6987">链接</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/13/kfifo-%E4%BC%98%E9%9B%85%E7%9A%84%E6%97%A0%E9%94%81%E9%98%9F%E5%88%97%E5%AE%9E%E7%8E%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -470,6 +313,135 @@
   
   
 
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/12/Context-%E4%B8%8E%E8%B6%85%E6%97%B6%E6%8E%A7%E5%88%B6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/01/12/Context-%E4%B8%8E%E8%B6%85%E6%97%B6%E6%8E%A7%E5%88%B6/" class="post-title-link" itemprop="url">Context 与超时控制</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-01-12 15:33:01 / 修改时间：18:24:45" itemprop="dateCreated datePublished" datetime="2023-01-12T15:33:01+08:00">2023-01-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>4.6k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="Context-与超时控制"><a href="#Context-与超时控制" class="headerlink" title="Context 与超时控制"></a>Context 与超时控制</h1><p>Context 是 go 语言中监控与控制 goroutine 的一种方式，它可以在协程之间进行信息的传递，从而控制 goroutine 的行为。在一定程度上，可以将 context 看作包含一部分输入参数的 channel。与 channel 不同的是，channel 的传递并不是递归的，当一个 goroutine 调用的 goroutine 再次调用了 goroutine，简单使用 channel 进行退出通知是非常麻烦的；而使用 context 则能很轻松地使用递归的 goroutine 控制。</p>
+<h2 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h2><p>context 在 go 语言中是一个接口，在此基础上可以衍生出不同的类型的 context，sdk 中提供了六种方法来获取不同类型的 context 以适用于不同的场景，可以概括为：</p>
+<ul>
+<li>两个接口：context、canceler</li>
+<li>四种实现：emptyCtx、cancelCtx、timerCtx、valueCtx</li>
+<li>六个方法：Background、TODO、WithCancel、WithDeadline、WithTimeout、WithValue</li>
+</ul>
+<h3 id="两个接口"><a href="#两个接口" class="headerlink" title="两个接口"></a>两个接口</h3><p>在 go sdk 中，context 和 canceler 接口定义如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Context <span class="keyword">interface</span> &#123;</span><br><span class="line">  <span class="comment">// 返回 context 的截止时间</span></span><br><span class="line">  Deadline() (deadline time.Time, ok <span class="type">bool</span>)</span><br><span class="line">  <span class="comment">// 返回只读 channel，用于接收 context 是否完成</span></span><br><span class="line">  Done() &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">  <span class="comment">// 返回 context 被取消的原因</span></span><br><span class="line">  Err() <span class="type">error</span></span><br><span class="line">  <span class="comment">// 返回 key 对应的 value</span></span><br><span class="line">  Value(key <span class="keyword">interface</span>&#123;&#125;) <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> canceler <span class="keyword">interface</span> &#123;</span><br><span class="line">  <span class="comment">// 取消方法</span></span><br><span class="line">  cancel(removeFromParent <span class="type">bool</span>, err <span class="type">error</span>)</span><br><span class="line">  <span class="comment">// 返回只读 channel</span></span><br><span class="line">  Done() &lt;-<span class="keyword">chan</span> <span class="keyword">struct</span>&#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在这两种接口的基础上，sdk 实现了四种不同的基础 context，用户同样可以利用这些 context 来自行实现。</p>
+<h3 id="四种实现"><a href="#四种实现" class="headerlink" title="四种实现"></a>四种实现</h3><p>在 context 和 canceler 接口的基础上，go sdk 包含了四种基础 context 实现。</p>
+<h4 id="emptyCtx"><a href="#emptyCtx" class="headerlink" title="emptyCtx"></a>emptyCtx</h4><p>emptyCtx 的所有方法均为空方法，主要用于作为基础上下文，并衍生出其他上下文。由于 goroutine 的调用是树状的，因此 context 的组织形式也是树状的，一颗 context 树，其根节点应当是一个 emptyCtx 类型。</p>
+<p>sdk 提供了 Background 和 TODO 两种 emptyCtx，两者互为别名，只是在语义上有所不同：</p>
+<ul>
+<li>context.Background 是上下文的默认值，所有其他的上下文都应该从它衍生出来；</li>
+<li>context.TODO 应该仅在不确定应该使用哪种上下文时使用；</li>
+</ul>
+<p>一般情况下，会在一个模块的 main goroutine 使用 Background context；当想从一个叶 context 节点从派生出一个新的 context 叶时，可以选择使用 TODO。</p>
+<h4 id="cancelCtx"><a href="#cancelCtx" class="headerlink" title="cancelCtx"></a>cancelCtx</h4><p>cancelCtx 是一个具备取消功能的 context，在父 goroutine 中可以使用 cancel 函数来通知 goroutine 进行取消。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 父 goroutine 中</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">parent</span><span class="params">()</span></span> &#123;</span><br><span class="line">  <span class="comment">// 获取 context</span></span><br><span class="line">  ctx, cancel := context.WithCancel(context.Background(), time.Millisecond*<span class="number">100</span>)</span><br><span class="line"></span><br><span class="line">  <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span>&#123;</span><br><span class="line">    children(ctx)</span><br><span class="line">  &#125;()</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 通知取消</span></span><br><span class="line">  cancel()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">children</span><span class="params">(c *context.Context)</span></span> &#123;</span><br><span class="line">  <span class="keyword">for</span> &#123;</span><br><span class="line">    <span class="keyword">select</span>&#123;</span><br><span class="line">      <span class="keyword">case</span> &lt;- c.Done():</span><br><span class="line">    <span class="keyword">case</span> <span class="keyword">default</span>:</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>cancelCtx 可以用于用户交互等场景的控制，自由度比较高。</p>
+<h4 id="timerCtx"><a href="#timerCtx" class="headerlink" title="timerCtx"></a>timerCtx</h4><p>timerCtx 主要通过两种方法来获得：WithDeadline、WithTimeout。不同之处就是一个是明确截止时间，一个是明确运行时间，使用方法与 cancelCtx 非常相似，也同样提供了 cancel 接口，用户可以手动进行取消，或等待设置的时间到期后自动取消。</p>
+<p>timerCtx 是通过 timer.AfterFunc 来实现的，核心代码如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">WithDeadline</span><span class="params">(parent Context, d time.Time)</span></span> (Context, CancelFunc) &#123;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> c.err == <span class="literal">nil</span> &#123;</span><br><span class="line">    <span class="comment">// 设置定时器，当定时器到期后，自动调用取消函数</span></span><br><span class="line">    c.timer = time.AfterFunc(dur, <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">      c.cancel(<span class="literal">true</span>, DeadlineExceeded)</span><br><span class="line">    &#125;)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="valueCtx"><a href="#valueCtx" class="headerlink" title="valueCtx"></a>valueCtx</h4><p>valueCtx 提供了在不同 goroutine 之间利用 context 进行值传递的功能，可以使用 context 来进行链路追踪。valueCtx 只能够将值传递给子 goroutine，而不能够实现反向操作。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 父 goroutine 中</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">parent</span><span class="params">()</span></span> &#123;</span><br><span class="line">  <span class="comment">// 获取 context</span></span><br><span class="line">  ctx := context.WithValue(context.Background(), <span class="string">&quot;key&quot;</span>,<span class="string">&quot;value&quot;</span>)</span><br><span class="line"></span><br><span class="line">  <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span>&#123;</span><br><span class="line">    children(ctx)</span><br><span class="line">  &#125;()</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">children</span><span class="params">(c *context.Context)</span></span> &#123;</span><br><span class="line">  <span class="comment">// 在子 goroutine 中获取值</span></span><br><span class="line">  <span class="built_in">println</span>(<span class="string">&quot;context key:&quot;</span>,c.Value(<span class="string">&quot;key&quot;</span>).(<span class="type">string</span>))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="不同-context-的混合使用"><a href="#不同-context-的混合使用" class="headerlink" title="不同 context 的混合使用"></a>不同 context 的混合使用</h3><p>用户可以将 sdk 中提供的六种方法混合使用，来构造较为复杂的 context，利用使用带有超时控制的值 context：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 获取超时	</span></span><br><span class="line">withTimeout, cancel := context.WithTimeout(context.Background(), time.Millisecond*<span class="number">1</span>)</span><br><span class="line"><span class="comment">// 加入值传递</span></span><br><span class="line">ctx := context.WithValue(withTimeout, <span class="string">&quot;traceId&quot;</span>, <span class="string">&quot;id12345&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="Context-使用场景"><a href="#Context-使用场景" class="headerlink" title="Context 使用场景"></a>Context 使用场景</h2><p>context 可以很轻松地完成消息在 goroutine 中的传递，但是不能够直接完成对 goroutine 的控制，而是需要用户自行完成接收通知的逻辑，也就是这是一种侵入式比较强的消息传递方式。但由于这是在 go sdk 中提供的一种标准控制方式，所以其应用场景非常广，一些开源的工具包中基本上都提供了包含 context 的实现，使用起来会相对简单。</p>
+<p>一般情况下，在下一级逻辑中，需要使用定时器和 select 来完成对 context 超时的读取，或者是使用 context 中的截止时间，不使用ctx.Done 函数完成超时控制。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// mongo-driver session.go</span></span><br><span class="line"><span class="comment">// 不使用 ctx.Done() 完成控制</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> &#123;</span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="keyword">select</span> &#123;</span><br><span class="line">    <span class="comment">// timeout 定时事件为 context deadline</span></span><br><span class="line">    <span class="keyword">case</span> &lt;-timeout.C:</span><br><span class="line">    <span class="keyword">return</span> res, err</span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">    <span class="comment">// default 自旋，防止被阻塞</span></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">  <span class="keyword">return</span> res, err</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>无论哪一种方式，使用 context 来完成超时控制都是需要使用 for - select 循环来处理的，对于网络 IO、信号阻塞等对 CPU 占用比较少的情景，使用 context 是非常合适的。但是如果使用 context 来处理一些比较重型的任务，就显得不是特别合适，因为不能够直接在任务中去执行检查。这种情况下，可以考虑使用状态机来将任务进行分解，每一个阶段来完成后检查一次是否超时。</p>
+<h2 id="另一种超时控制"><a href="#另一种超时控制" class="headerlink" title="另一种超时控制"></a>另一种超时控制</h2><p>使用 context 进行超时控制是侵入式的，可能会破坏代码逻辑，增加维护的难度。最主要的是，当需要调用的代码并没有提供 context 接口时，无法使用 context 来完成控制逻辑。<strong>这种情况下，是无法完成对 goroutine 的调度的，只能够完成在逻辑上的退出，即上一层逻辑提前完成并放任下一层逻辑继续运行直至退出</strong>。这种情况下，可以使用 goroutine 来完成非侵入式的超时控制。gin-contrib 中的 timeout 中间件就是一个很好的例子。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 代码截自 gin-contrib/timeout@v0.0.3/timeout.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">New</span><span class="params">(opts ...Option)</span></span> gin.HandlerFunc &#123;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 开辟缓冲区，存储下一层逻辑返回值</span></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 使用 goroutine 处理下一层逻辑</span></span><br><span class="line">  <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 处理下一层逻辑中抛出的 panic</span></span><br><span class="line">    <span class="keyword">defer</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">      <span class="keyword">if</span> p := <span class="built_in">recover</span>(); p != <span class="literal">nil</span> &#123;</span><br><span class="line">        panicChan &lt;- p</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;()</span><br><span class="line">    <span class="comment">// 处理下一层逻辑</span></span><br><span class="line">    t.handler(c)</span><br><span class="line">    <span class="comment">// 等待下一层逻辑完成</span></span><br><span class="line">    finish &lt;- <span class="keyword">struct</span>&#123;&#125;&#123;&#125;</span><br><span class="line">  &#125;()</span><br><span class="line"></span><br><span class="line">  <span class="keyword">select</span> &#123;</span><br><span class="line">    <span class="comment">// 处理下一层逻辑抛出的 panic</span></span><br><span class="line">    <span class="keyword">case</span> p := &lt;-panicChan:</span><br><span class="line">    ...</span><br><span class="line">    <span class="comment">// 处理下一层逻辑完成</span></span><br><span class="line">    <span class="keyword">case</span> &lt;-finish:</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 使用 default 返回值和 error:timeout 返回</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 处理超时</span></span><br><span class="line">    <span class="keyword">case</span> &lt;-time.After(t.timeout):</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 使用下一层逻辑的返回值返回</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，源码中并没有去调度下一层逻辑的 goroutine，而是在超时后直接使用 default 值并抛出一个错误来完成退出。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这两种方法显然都不是特别完美，但是 goroutine 的调度机制决定了，一个 goroutine 只能够自行退出。这种调度方式是最符合 goroutine 的使用逻辑的，一个 goroutine 内必须是一个完整的状态机来处理逻辑，直接 abort 一个 goroutine 会大大增加状态的不确定性，这是一个非常危险的操作。</p>
+<p>timeout 本身就是非常危险的，如果在操作一个有状态的程序，无法通过 timeout 来确定程序的状态。因此，需要避免在不需要进行用户交互的代码层级使用超时错误，并避免超时错误传递到数据库层级。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
 
   
   <nav class="pagination">
@@ -541,20 +513,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-count">46</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-count">18</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-count">20</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>

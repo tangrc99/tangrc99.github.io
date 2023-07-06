@@ -193,172 +193,6 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/19/%E6%B5%85%E6%9E%90-CloudWeGOnetpoll/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/01/19/%E6%B5%85%E6%9E%90-CloudWeGOnetpoll/" class="post-title-link" itemprop="url">浅析 CloudWeGo-Netpoll</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2023-01-19 15:58:15" itemprop="dateCreated datePublished" datetime="2023-01-19T15:58:15+08:00">2023-01-19</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-02-08 16:50:45" itemprop="dateModified" datetime="2023-02-08T16:50:45+08:00">2023-02-08</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">计算机网络</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>7.4k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>7 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>CloudWeGo-Netpoll ，以下简称为 Netpoll，是由字节跳动开发的一款<strong>专注于 RPC 场景</strong>的高性能 NIO 网络库。大大多基于多路复用的网络库，基本框架都比较类似。但不同的网络库会针对不同的应用场景对基本框架进行修改，从而使其在固定场景下发挥出更好的性能。本文着重分析 Netpoll 与其他网络库不同的设计，以及这些设计是如何满足 RPC 场景的。</p>
-<h2 id="Netpoll-场景"><a href="#Netpoll-场景" class="headerlink" title="Netpoll 场景"></a>Netpoll 场景</h2><p>RPC 场景，在我的理解中，主要可以由以下几个特点来概括：</p>
-<ul>
-<li>较重的处理逻辑，事务处理中可能会有较长时间的阻塞；</li>
-<li>通常采用短连接或者长连接池的形式；</li>
-<li>具有超时机制，可能会产生较多的失效连接。</li>
-</ul>
-<p>在这种场景下，使用 go 标准网络库开发服务端比较方便，但无法达到较高的性能，这主要来源于 goroutine 的调度开销上。在微服务场景下，服务器之间的交互非常频繁，服务器 A 到服务器 B 之间可能会需要多条 rpc 逻辑连接，如果为这些逻辑连接全部开辟出一条物理连接，会对服务端和客户端都造成比较大的压力。通常，rpc 框架会选择使用多路复用的方式，避免开辟过多的物理连接。但又因为 rpc 依赖链路这种情景，串行处理 rpc 是性能非常低下的。当使用标准网络库时，虽然 rpc 的解析在阻塞 IO 下也可以实现多路复用，但是 rpc 的处理逻辑必须要开辟一个新的 goroutine 来防止队首阻塞。这是因为 rpc 可能是具有依赖链路的。通过分析，我们可以发现，使用 go 标准网络库进行开发，虽然可以避免开辟过多 goroutine 用于解析，但是仍然需要为每一条业务逻辑开辟出一个 goroutine。当 goroutine 过多时，调度器的压力会比较大，造成较大的延迟。</p>
-<p>而 go 语言的一些其他网络库如 gnet，底层会使用 ring_buffer 作为缓冲区（新版本中也可以作为 linked_list 作为缓冲区）来获取更高的性能。由于 ring_buffer 中内存地址是会被复用的，并且生命周期难以被管理，如果应用层的业务逻辑没有阻塞的情况下，可以直接在读事件中的 callback 中完成事件处理（如 redis 的 500us 左右的纯内存操作，HAProxy 的转发操作），那么这种网络框架性能是非常高的，<strong>核心点就是不需要分配内存</strong>。但是在 rpc 场景下，业务的处理逻辑非常重，仍然需要分配内存进行拷贝，防止 ring_buffer 被覆盖，这种框架的优势就没有那么明显了。（当然，可以在业务层自行实现内存池来解决这一问题，不过这相当于把问题抛给了用户）</p>
-<p>综上所述，Netpoll 所要做的，核心有两点：</p>
-<ul>
-<li>实现非阻塞读写，避免开辟过多 goroutine；</li>
-<li>实现生命周期可调控的内存复用，避免分配内存。</li>
-</ul>
-<h2 id="高性能网络库“三板斧”"><a href="#高性能网络库“三板斧”" class="headerlink" title="高性能网络库“三板斧”"></a>高性能网络库“三板斧”</h2><p>各种实现的 Reactor 模式，其高性能主要来自于避免了各种耗时操作，如内存分配、线程开辟、互斥量竞争，几乎所有的高性能网络库都做了以下几点优化：</p>
-<ul>
-<li>Multi-Reactors/Master-Workers 模型，避免 epoll 惊群效应；</li>
-<li>EventLoop 模型的高效运行机制；</li>
-<li>高效的内存管理机制，尽量避免内存分配；</li>
-<li>高性能线程/goroutine池，避免用户手动开辟处理异步逻辑。</li>
-</ul>
-<p>这几点在 Netpoll 中都有涉及，其中内存管理是借助 sync.Pool 和 link_buffer 实现的；高性能协程池则是使用了自家的 <a target="_blank" rel="noopener" href="https://github.com/bytedance/gopkg/tree/develop/util/gopool">gopool</a>。</p>
-<h2 id="Reactor-模式实现"><a href="#Reactor-模式实现" class="headerlink" title="Reactor 模式实现"></a>Reactor 模式实现</h2><p>Netpoll 中使用的是主从 Reactor 模式，能够有效地避免 epoll 惊群效应。主从 Reactor 模式实现上的一个细节问题是如何进行 fd 的传递，即系统调用 accept 获得的 fd 如何注册到 Worker Reactor 的 epoll 上。在 muduo 和 gnet 的实现中，都是以队列的形式进行传递；而在 Netpoll 实现中，则是直接在 Master Reactor 线程使用 epoll 系统调用将新到达连接的 fd 注册到 Worker Reactor 上。 </p>
-<p>Netpoll 中处理新连接到达的代码比较分散，这里简述一下调用链：<code>server.OnRead -&gt; connection.init -&gt; connection.onPrepare -&gt; connection.register -&gt; FDOperator.Control -&gt; poll.Control</code></p>
-<p>上述调用链是发生在 Master Reactor 线程中的，这是利用了 epoll 线程安全的特性，当使用 epoll 相关系统调用时会使用自旋锁来保证红黑树结构的线程安全。<code>poll.Control</code>函数会根据输入参数使用不同的系统调用来维护 epoll 的注册表。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Control implements Poll.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(p *defaultPoll)</span></span> Control(operator *FDOperator, event PollEvent) <span class="type">error</span> &#123;</span><br><span class="line">	<span class="keyword">var</span> op <span class="type">int</span></span><br><span class="line">	<span class="keyword">var</span> evt epollevent</span><br><span class="line">	*(**FDOperator)(unsafe.Pointer(&amp;evt.data)) = operator</span><br><span class="line">	<span class="keyword">switch</span> event &#123;</span><br><span class="line">	<span class="keyword">case</span> PollReadable: <span class="comment">// server accept a new connection and wait read</span></span><br><span class="line">		operator.inuse()</span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_ADD, syscall.EPOLLIN|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	<span class="keyword">case</span> PollWritable: <span class="comment">// client create a new connection and wait connect finished</span></span><br><span class="line">		operator.inuse()</span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_ADD, EPOLLET|syscall.EPOLLOUT|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	<span class="keyword">case</span> PollModReadable: <span class="comment">// client wait read/write</span></span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_MOD, syscall.EPOLLIN|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	<span class="keyword">case</span> PollDetach: <span class="comment">// deregister</span></span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_DEL, syscall.EPOLLIN|syscall.EPOLLOUT|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	<span class="keyword">case</span> PollR2RW: <span class="comment">// connection wait read/write</span></span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_MOD, syscall.EPOLLIN|syscall.EPOLLOUT|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	<span class="keyword">case</span> PollRW2R: <span class="comment">// connection wait read</span></span><br><span class="line">		op, evt.events = syscall.EPOLL_CTL_MOD, syscall.EPOLLIN|syscall.EPOLLRDHUP|syscall.EPOLLERR</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> EpollCtl(p.fd, op, operator.FD, &amp;evt)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>当新连接到达时，<code>FDOperator.event == PollReadable</code> 或者 <code>FDOperator.event == PollModReadable</code>，因此该函数会将新到达的 fd 注册到对应的 poll 结构体上。</p>
-<h2 id="Nocopy-Buffer"><a href="#Nocopy-Buffer" class="headerlink" title="Nocopy Buffer"></a>Nocopy Buffer</h2><p>Nocopy Buffer 是 Netpoll 设计的核心内容，连接多路复用、ZeroCopy 优化都是基于 Nocopy Buffer 结构的。</p>
-<h3 id="linkBuffer-数据结构"><a href="#linkBuffer-数据结构" class="headerlink" title="linkBuffer 数据结构"></a>linkBuffer 数据结构</h3><p>Nocopy Buffer 本质上是一个基于链表的无锁读写结构，链表的节点是<code>linkBufferNode</code>数据结构。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> linkBufferNode <span class="keyword">struct</span> &#123;</span><br><span class="line">    buf      []<span class="type">byte</span>          <span class="comment">// buffer</span></span><br><span class="line">    off      <span class="type">int</span>             <span class="comment">// read-offset</span></span><br><span class="line">    malloc   <span class="type">int</span>             <span class="comment">// write-offset</span></span><br><span class="line">    refer    <span class="type">int32</span>           <span class="comment">// reference count</span></span><br><span class="line">    readonly <span class="type">bool</span>            <span class="comment">// read-only node</span></span><br><span class="line">    origin   *linkBufferNode <span class="comment">// the root node of the extends</span></span><br><span class="line">    next     *linkBufferNode <span class="comment">// the next node of the linked buffer</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>linkBufferNode</code>本质上是一个可引用、具有读写标识位的缓冲区，由于单独对读标识位和写标识位操作是可以并发的，所以其是一个单读写可并发的无锁结构。</p>
-<p><code>linkBuffer</code>则是<code>linkBufferNode</code>组成的链表，其数据结构如下：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> LinkBuffer <span class="keyword">struct</span> &#123;</span><br><span class="line">    length     <span class="type">int64</span>	<span class="comment">// 可读长度</span></span><br><span class="line">    mallocSize <span class="type">int</span>	<span class="comment">// 可写长度</span></span><br><span class="line"></span><br><span class="line">    head  *linkBufferNode <span class="comment">// 链表头部</span></span><br><span class="line">    read  *linkBufferNode <span class="comment">// 读取位置</span></span><br><span class="line">    flush *linkBufferNode <span class="comment">// 写入提交位置</span></span><br><span class="line">    write *linkBufferNode <span class="comment">// 链表尾部</span></span><br><span class="line"></span><br><span class="line">    caches [][]<span class="type">byte</span> <span class="comment">// 从内存池中获取的内存，用于跨 node 读取</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>linkBuffer</code>中使用四个标识位来描述当前的读写状态。head 指向链表的头部，head 与 read 节点之间是可以被释放的节点，read 至 flush 节点是当前可读的区域，flush 至 write 节点是当前可以写入的区域。</p>
-<p><img src="/images/link_buffer.png" alt="/images/link_buffer.png"></p>
-<p>flush 节点指向的 node 是渐变的，代表其中一部分区域是可读的，一部分区域是不可读的。因为同一个节点可能会被同时写入和读取。虽然图中未指出，但是 head 与 read 节点也可能重合，可以被安全释放的范围是 [head,read) 。</p>
-<h3 id="Nocopy-体现在哪"><a href="#Nocopy-体现在哪" class="headerlink" title="Nocopy 体现在哪"></a>Nocopy 体现在哪</h3><p>linkBuffer 具有 nocopy 特性，但并非所有的接口都是 nocopy 的。</p>
-<p>linkBuffer 的所有读接口的处理逻辑都是类似的，这些读取操作是否为 nocopy 取决于读取的位置。以 <code>linkBuffer.Next</code>函数为例，分析什么情况读取是不需要拷贝的，代码只保留了用于分析的部分：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *LinkBuffer)</span></span> Next(n <span class="type">int</span>) (p []<span class="type">byte</span>, err <span class="type">error</span>) &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 检查长度并移动更新 length</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 读取长度小于一个节点</span></span><br><span class="line">    <span class="keyword">if</span> b.isSingleNode(n) &#123;</span><br><span class="line">        <span class="keyword">return</span> b.read.Next(n), <span class="literal">nil</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 大于 1k 的内存块进行内存池管理，避免分配大内存</span></span><br><span class="line">    <span class="keyword">if</span> block1k &lt; n &amp;&amp; n &lt;= mallocMax &#123;</span><br><span class="line">        p = malloc(n, n)</span><br><span class="line">        b.caches = <span class="built_in">append</span>(b.caches, p)</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        p = <span class="built_in">make</span>([]<span class="type">byte</span>, n)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">var</span> pIdx,l <span class="type">int</span></span><br><span class="line">    <span class="comment">// 循环读取不同节点，直到满足需求</span></span><br><span class="line">    <span class="keyword">for</span> ack := n; ack &gt; <span class="number">0</span>; ack = ack - l &#123;</span><br><span class="line">        l = b.read.Len()</span><br><span class="line">        <span class="keyword">if</span> l &gt;= ack &#123;</span><br><span class="line">            pIdx += <span class="built_in">copy</span>(p[pIdx:], b.read.Next(ack))</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> l &gt; <span class="number">0</span> &#123;</span><br><span class="line">            pIdx += <span class="built_in">copy</span>(p[pIdx:], b.read.Next(l))</span><br><span class="line">        &#125;</span><br><span class="line">        b.read = b.read.next</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    _ = pIdx</span><br><span class="line">    <span class="keyword">return</span> p, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>linkBuffer.Next</code>函数中的读取一共具有两种情况。第一种情况是读取的长度小于 read node 的剩余可读取长度，在这种情况下并没有使用 copy 操作，而是复制了地址，这种情况下是 nocopy 的；另外一种情况是读取的长度大于 read node 的剩余可读取长度，这时候需要将分散在各个节点的数据拷贝到一起，如果要求的数据过长，甚至可能会发生多次拷贝。为了避免出现多次拷贝的情况，应该设置<code>linkBufferNode.buf</code>的长度大于用户需要读取数据的平均长度。</p>
-<p>另外值得注意的是，函数中还会根据用户要求的长度来决定不同的内存分配策略。当用户需要的长度过大时，会考虑从内存池中获取一块内存，并将这块内存保存在 caches 数组中，再选择合适的时机将内存归还内存池。</p>
-<p>linkBuffer 的写接口只有一部分是 nocopy 的，即<code>linkBuffer.Malloc</code>函数。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *LinkBuffer)</span></span> Malloc(n <span class="type">int</span>) (buf []<span class="type">byte</span>, err <span class="type">error</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> n &lt;= <span class="number">0</span> &#123;</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    &#125;</span><br><span class="line">    b.mallocSize += n</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 寻找写入位置，若无位置，则创建新节点</span></span><br><span class="line">    b.growth(n)</span><br><span class="line">    <span class="comment">// 更新标志位</span></span><br><span class="line">    <span class="keyword">return</span> b.write.Malloc(n), <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>函数的逻辑也非常简单，就是在链表中找到一个连续的内存区域，然后将该内存区域返回给用户。如果所有的内存区域都不足以写入，那么将分配一个新的节点，该节点大小正好为用户要求的区域。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(b *LinkBuffer)</span></span> growth(n <span class="type">int</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> n &lt;= <span class="number">0</span> &#123;</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 跳过只读节点，并且要求剩余可写入空间充足</span></span><br><span class="line">    <span class="keyword">for</span> b.write.readonly || <span class="built_in">cap</span>(b.write.buf)-b.write.malloc &lt; n &#123;</span><br><span class="line">        <span class="comment">// 寻找至最后一个节点后，分配新节点</span></span><br><span class="line">        <span class="keyword">if</span> b.write.next == <span class="literal">nil</span> &#123;</span><br><span class="line">            <span class="comment">// 新节点的大小正好为用户需求大小</span></span><br><span class="line">            b.write.next = newLinkBufferNode(n)</span><br><span class="line">            b.write = b.write.next</span><br><span class="line">            <span class="keyword">return</span></span><br><span class="line">        &#125;</span><br><span class="line">        b.write = b.write.next</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p><code>linkBuffer.growth</code>函数很好地封装了分配新节点和寻找内存区域的功能，这个函数还是比较好的。注意到，函数中有一段逻辑是跳过了所有的只读节点，那么什么情况下会出现只读节点呢？linkBuffer 中只读节点只来源于用户的接口函数<code>linkBuffer.WriteDirect</code>。该函数可能会导致用户方的乱序写入，因此可能会出现下图中的情况。</p>
-<p><img src="/images/link_buffer_read_only_area.png" alt="/images/link_buffer_read_only_area"></p>
-<p>用户在获取内存后，首先写入了 node2 中的部分，而 node1 中虽然仍有空白内存，但该内存已经被用户 hold。此时，如果用户又调用了一次写入操作，必须将数据写入到“未写入部分”，因为“待写入部分”后续会被其他写操作覆盖。linkBuffer 实现中的做法是直接将 node1 设置未 readonly 状态，这里的 readonly 并不是完全禁止写入，而是禁止再从该节点上获取位置进行写入，已经获取位置的区域仍然是可以写入的。</p>
-<h3 id="为什么是无锁的"><a href="#为什么是无锁的" class="headerlink" title="为什么是无锁的"></a>为什么是无锁的</h3><p>linkBuffer 可以用作读缓冲或写缓冲，由于每一个 connection 都会被分配到一个 poller 上，在读缓冲区时，poller 底层只会对 poller 进行写入（接收数据），在写缓冲时，只会对 poller 进行读取（发送数据）。所以无论哪种情况下，Netpoller 都保证框架对缓冲区的读写是单线程的，由于读与写操作使用了不同的标志位，因此只要用户可以保证也使用单线程进行读写，就能够保证 linkBuffer 的无锁并发访问。</p>
-<h2 id="连接多路复用"><a href="#连接多路复用" class="headerlink" title="连接多路复用"></a>连接多路复用</h2><p>连接多路复用这个概念是存在于客户端的，服务端中不需要连接多路复用。Netpoll 在客户端实现连接多路复用的基础是非阻塞 IO，而 linkBuffer 则是实现高性能的多路复用手段。同时，由于连接多路复用是协议依赖的，NetPoll 只是提供了多路复用的支持，并在官方 blog 中给出了可行的方案。</p>
-<p><img src="/images/netpoll_multiplexing.png" alt="/images/link_buffer_read_only_area"></p>
-<p>连接多路复用方案包含以下几个要素：</p>
-<ul>
-<li>Virtual Connection：建立在真实连接之上的虚拟连接，具有一个 uuid 用于区分；</li>
-<li>Shared Map：根据 uuid-virtual conn 的方式来存储虚拟连接；</li>
-<li>Dispatcher：用于读取并解析数据包，根据数据包中的 id 选择对应的 Virtual Connection；</li>
-<li>Rpc Protocol：一个支持多路复用的通信协议。</li>
-</ul>
-<p>方案中，一个真实连接能够承载多个虚拟连接。这些虚拟连接都通过一个分发器来间接与读写缓冲区交互，虽然多个虚拟连接可能运行在不同的 goroutine 中，但是读写操作最终只能够由 Dispatcher 来处理，因此 linkBuffer 之上依然是一读或一写，能够保持无锁并发的特性。Dispatcher 在读取数据后，可以不拷贝数据，而是直接返回对应的切片位置，不同虚拟客户端之间操作不同的切片位置，仍然能够保证无锁并发。</p>
-<h2 id="ZeroCopy"><a href="#ZeroCopy" class="headerlink" title="ZeroCopy"></a>ZeroCopy</h2><p>Netpoll 目前并不提供 zero copy 的支持。如果要使用 zero copy 的系统调用，就必须要保证需要发送的数据在被内核拷贝掉网卡没有被释放掉。这对于 Netpoll 的框架来说会比较麻烦，因为 linkBuffer 每一次在进行写入时，会根据写入的字节长度来对内存区域进行释放。被释放的内存会进入可 GC 状态或进入内存池，这两种状态下都不能够保证内存的存活周期。如果想要在解决这个问题，可能需要大幅度修改代码框架。</p>
-<p>NetPoll 的官方博客中有这样一段介绍，我不太能够理解：</p>
-<blockquote>
-<p>于是，字节跳动框架组和字节跳动内核组合作，由内核组提供了同步的接口：当调用 sendmsg 的时候，内核会监听并拦截内核原先给业务的回调，并且在回调完成后才会让 sendmsg 返回。 这使得我们无需更改原有模型，可以很方便地接入 ZeroCopy send。同时，字节跳动内核组还实现了基于 unix domain socket 的 ZeroCopy，可以使得业务进程与 Mesh sidecar 之间的通信也达到零拷贝。</p>
-</blockquote>
-<p>这样是让 <code>sendmsg</code>阻塞直到将内核将内存写入，如果在写入速度比较频繁的情况下，这样会不会导致写入操作被阻塞过长时间。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/16/linux%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE%E6%A0%88%E6%A1%86%E6%9E%B6/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -563,6 +397,163 @@
   
   
 
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/14/go-%E7%BC%96%E8%AF%91%E7%9B%B8%E5%85%B3%E5%86%85%E5%AE%B9%E7%9A%84%E8%AE%B0%E5%BD%95/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/01/14/go-%E7%BC%96%E8%AF%91%E7%9B%B8%E5%85%B3%E5%86%85%E5%AE%B9%E7%9A%84%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">go 编译相关内容的记录</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-01-14 20:57:29" itemprop="dateCreated datePublished" datetime="2023-01-14T20:57:29+08:00">2023-01-14</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-01-15 01:53:43" itemprop="dateModified" datetime="2023-01-15T01:53:43+08:00">2023-01-15</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2.9k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>本文记录学习到的一些与 go 语言编译相关的内容。</p>
+<h2 id="编译速度"><a href="#编译速度" class="headerlink" title="编译速度"></a>编译速度</h2><p>go 是编译速度比较快的语言之一，主要有以下几个原因，<a target="_blank" rel="noopener" href="https://qastack.cn/programming/2976630/how-does-go-compile-so-quickly">参考链接</a>：</p>
+<ul>
+<li>语法较为简单，不允许重载，不需要复杂的语义分析</li>
+<li>使用包管理，而非头文件形式，避免了解析头文件</li>
+<li>不使用虚拟机，编译时不需要加载 VM</li>
+<li>大部分包都使用静态链接的方式</li>
+<li>优化器更为简单，编译期优化较少，同时导致性能一定程度上下降，<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/550270332">参考链接</a></li>
+</ul>
+<h2 id="编译缓存"><a href="#编译缓存" class="headerlink" title="编译缓存"></a>编译缓存</h2><p>在 C/C++ 中，大型项目的构建往往需要依赖 make 和 CMake 工具来提供编译缓存，以实现增量编译的功能。在 golang 中，从 1.10  版本后编译器支持了编译缓存的功能，可以进行增量构建。编译过程中的缓存文件将会被存放在环境路径 GOCACHE 下。此外，go test 也支持在特定条件下缓存 test 结果，从而加快执行测试的速度。</p>
+<h3 id="增量编译"><a href="#增量编译" class="headerlink" title="增量编译"></a>增量编译</h3><p><strong>go 语言的增量编译是以 package 为单位的</strong>，一个 package 内任意一个文件的变更都会导致整个 package 以及依赖该 package 的所有 package重新编译 。但是，golang 的文件修改判别依据相比 C/C++ 体系更加合理。在 qt5 中，使用 qmake 进行增量编译时，依赖于文件的修改时间戳，如果只是对文件进行了格式调整，也会导致项目重新编译。而在 golang 中，文件修改的判别依据是文件内容是否改变，<strong>只修改文件的行数、增加注释、删除后恢复内容都不会导致package 重新编译</strong>。</p>
+<p>在 GOCACHE 路径下，执行 tree 命令，可以得到如下输出（截取部分）：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">go-build % tree</span><br><span class="line"></span><br><span class="line">.</span><br><span class="line">├── 00</span><br><span class="line">│   ├── 000d954e953e73d70b0fa00ceaf3c68f3adbb5164e5381754493a4e592ad714f-a</span><br><span class="line">│   └── 0068e9620015a00b938707781ad8b56fdd86fe4a09eeb7802d874bd041f5ad79-a</span><br><span class="line">├── 01</span><br><span class="line">│   ├── 0107518e42b66ffb35a353ffd437cb2a6f448b07ad8fceba401e7bc1692c17e3-d</span><br><span class="line">│   ├── 01126d3106b1aee39e975dcd10a2ac64f170d28ca14b37c8c5e7cec7817e60fd-a</span><br><span class="line">...</span><br><span class="line">└── trim.txt</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，golang 中使用了内容摘要算法来组织存储，每一个目录下存储的文件名前两位字符都对应着文件夹名称。在编译过程中，go 编译器会将编译后 package 的 .a 文件求取 64 位摘要值，并将其名称命名为”摘要值-a” 的形式，并存储在摘要值前两位对应的文件夹下。</p>
+<h3 id="go-test-缓存"><a href="#go-test-缓存" class="headerlink" title="go test 缓存"></a>go test 缓存</h3><p>在go 1.10中，go test 同样可以被缓存介入，不过需要满足一定的条件，go release note 中给出了缓存介入条件：</p>
+<ul>
+<li>本次测试的执行程序以及命令行（及参数）与之前的一次test运行匹配；</li>
+<li>上次测试执行时的文件和环境变量在本次没有发生变化；</li>
+<li>测试结果是成功的；</li>
+<li>以package list mode运行测试；</li>
+<li>go test的命令行参数使用”-cpu, -list, -parallel, -run, -short和 -v”的一个子集时。</li>
+</ul>
+<p>其中 package list mode 是指运行某个 package 的测试程序，而不是以当前目录为参数。</p>
+<h2 id="交叉编译"><a href="#交叉编译" class="headerlink" title="交叉编译"></a>交叉编译</h2><p>go build 工具链是支持交叉编译的，在不直接调用 C 代码的情况下，可以直接使用 go build 命令来完成交叉编译。在使用交叉编译时，需要通过变更 GO ENV 来控制编译输出。常用的环境变量如下：</p>
+<ul>
+<li>CGO_ENABLE：关闭 CGO 选项，需要关闭，因为交叉编译不支持 CGO；</li>
+<li>GOOS：编译的目标操作系统，如 linux、darwin、windows；</li>
+<li>GOARCH：编译的架构，如 386、amd64、arm。</li>
+</ul>
+<p>交叉编译示例：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">x86_64 linux</span></span><br><span class="line">CGO_ENABLED=0 </span><br><span class="line">GOOS=linux </span><br><span class="line">GOARCH=amd64 </span><br><span class="line">go build main.go</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">x86_64 Windows</span></span><br><span class="line">CGO_ENABLED=0</span><br><span class="line">GOOS=windows </span><br><span class="line">GOARCH=amd64 </span><br><span class="line">go build main.go</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">arm Macos</span></span><br><span class="line">CGO_ENABLED=0 </span><br><span class="line">GOOS=darwin </span><br><span class="line">GOARCH=arm </span><br><span class="line">go build main.go</span><br></pre></td></tr></table></figure>
+
+<p>如果在项目中依赖了 C 代码，则不能够使用 go build 工具来实现交叉编译，需要要借助第三方工具 xgo。</p>
+<h2 id="编译期赋值"><a href="#编译期赋值" class="headerlink" title="编译期赋值"></a>编译期赋值</h2><p>go 语言可以实现在编译时对变量赋值，以完成在代码中增加版本等信息。该功能需要借助 -ldflags 选项。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span>(</span><br><span class="line">  <span class="keyword">var</span> version = <span class="string">&quot;v0.0.0&quot;</span></span><br><span class="line">  buildTime <span class="type">string</span></span><br><span class="line">  buildVersion <span class="type">string</span></span><br><span class="line">)</span><br></pre></td></tr></table></figure>
+
+<p>直接使用 -ldflags 选项即可，不需要再借助 flag parse。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">go build -ldflags \ </span><br><span class="line">&quot;-X main.version=v0.0.1 -X main.dateTime=`date +%Y-%m-%d,%H:%M:%S` -X main.gitTag=`git tag`&quot;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">输出值</span></span><br><span class="line">version is: v0.0.1</span><br><span class="line">dateTime is: 2023-01-14,22:18:54</span><br><span class="line">gitTag is: v0.0.0-beta</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>这是通过将值写入符号表来完成的，符号表用来存储程序中的标识符（即常量和变量的类型、值等相关数据）。go 语言编译期过程可以简化理解为：在编译期将部分的变量的值修改，相当于改变了变量的默认值。</p>
+<h2 id="条件编译"><a href="#条件编译" class="headerlink" title="条件编译"></a>条件编译</h2><p>go 语言中不支持 define，但是可以依赖<code>build tags</code>或文件后缀的方式来实现不同平台的条件编译。</p>
+<h3 id="build-tags"><a href="#build-tags" class="headerlink" title="build tags"></a>build tags</h3><p>build tags 是一种特殊的注释，它必须位于 package 声明的上方，并且后跟一个空行。当一个包被编译时，编译器会根据构建标签的内容来判断该包是否需要编译。</p>
+<p>build tags 可以指定以下内容：</p>
+<ul>
+<li>操作系统，环境变量中<code>GOOS</code>的值；</li>
+<li>操作系统的架构，环境变量中<code>GOARCH</code>的值；</li>
+<li>使用的编译器，<code>gc</code>或者<code>gccgo</code>；</li>
+<li>是否开启CGO，<code>cgo</code>；</li>
+<li>golang版本号， 如<code>go1.1</code>；</li>
+<li>其它自定义标签，通过<code>go build -tags</code>指定的值。</li>
+</ul>
+<p>以下为 build tags 的一个例子。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// +build linux darwin</span></span><br><span class="line"><span class="comment">// +build x86</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">package</span> os</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<p>build tags 需要遵循以下原则：</p>
+<ul>
+<li>每一行注释以<code>+build</code>开始；</li>
+<li>每个选项由数字和字母组成，如果开头为<code>!</code>代表反义；</li>
+<li>选项之间相隔<code>&#39; &#39;</code>代表或关系，选项之间相隔<code>,</code>代表与关系；</li>
+<li>不同行注释代表与关系</li>
+</ul>
+<p>上面示例中代表在 linux 或 darwin 平台且架构为 x86 的情况下才会编译。</p>
+<h3 id="文件名后缀"><a href="#文件名后缀" class="headerlink" title="文件名后缀"></a>文件名后缀</h3><p>类似测试文件的 <code>_test</code>后缀，go 语言中也可以通过添加后缀的方式来实现条件编译。文件名后缀的命名方式为：<code>filename(_$GOOS)(_$GOARCH).go</code>。其中 GOOS 如果出现，必须排列在 GOARCH 前面。</p>
+<p>文件名后缀只能够实现在特定条件下进行编译，而不能实现在特定条件下取消编译。</p>
+<h2 id="Go-Plugin"><a href="#Go-Plugin" class="headerlink" title="Go Plugin"></a>Go Plugin</h2><p>参考<a target="_blank" rel="noopener" href="https://www.easemob.com/news/6987">链接</a></p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
 
   
   <nav class="pagination">
@@ -634,20 +625,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">45</span>
+          <span class="site-state-item-count">46</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">17</span>
+        <span class="site-state-item-count">18</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">19</span>
+        <span class="site-state-item-count">20</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>

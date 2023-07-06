@@ -4,6 +4,31 @@
   
     
     <entry>
+      <title>NCCL RDMA 备忘</title>
+      <link href="/2023/06/23/2023-06-23-NCCL-RDMA-%E5%A4%87%E5%BF%98/"/>
+      <url>/2023/06/23/2023-06-23-NCCL-RDMA-%E5%A4%87%E5%BF%98/</url>
+      
+        <content type="html"><![CDATA[<p>libverbs 是 RDMA 通信的通用库，它完成了 RNIC Driver 层的抽象，给用户层提供了一个统一的接口。libverbs 总体上是一个异步通知的队列逻辑。在不考虑 RNIC 网卡性能极限的情况下，一套比较优秀的异步事件交互逻辑能够更加有效地利用网卡的性能，达到更低的延迟和更高的吞吐量。在 NCCL 中源码中，有一些实现上的细节能够提供给我们优化 RDMA 通信逻辑的相关思路。</p><h2 id="IBV-SENDLINE-的使用问题"><a href="#IBV-SENDLINE-的使用问题" class="headerlink" title="IBV_SENDLINE 的使用问题"></a>IBV_SENDLINE 的使用问题</h2><p><code>IBV_SEND_LINE</code>是 libverbs 中针对小数据包的优化处理，它能够明显改善 128 字节以下数据包的发送延迟，略微提升吞吐量。这一优化的具体实现是使用 CPU 而非 RNIC 的 DPU 进行发送。但是使用<code>IBV_SEND_INLINE</code>时，必须要使用<code>IBV_SEND_SIGNALED</code>来处理事件的完成通知，否则可能会导致 SQE 用尽，<a href="https://blog.csdn.net/bandaoyu/article/details/119207147">无法发送数据</a>。</p><p>在 NCCL 中，会定期使用<code>IBV_SEND_SIGNALED</code>标识位来处理 inline 包的通知问题，即发送一轮 slot 时：</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (slot == <span class="number">0</span>) &#123;</span><br><span class="line">    wr.send_flags |= IBV_SEND_SIGNALED;</span><br><span class="line">    wr.wr_id = req - comm-&gt;verbs.reqs;</span><br><span class="line">    req-&gt;events++;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>这种思路同样也可以用到其余地方，每隔几次 SR 再带上一次标识位，这样能够降低与 comp channel 之间的通信频率。</p><h2 id="多-QP-利用-DPU-性能"><a href="#多-QP-利用-DPU-性能" class="headerlink" title="多 QP 利用 DPU 性能"></a>多 QP 利用 DPU 性能</h2><p>在 RC 模式下，为了保证每一个事件的完成是顺序的，单一 SQ 中的事件只能够被 RNIC 中的一个 DPU 处理。当连接较少、数据包较少时，可能无法充分利用 RNIC 的 DPU，导致网络性能下降。 NCCL 中会尝试将一次用户请求的数据分解到多个 QP 当中去，从而更加充分地利用 RNIC 的 DPU 性能：</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> q = <span class="number">0</span>; q &lt; nqps; q++) &#123;</span><br><span class="line"></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">ibv_send_wr</span> *<span class="title">bad_wr</span>;</span></span><br><span class="line">    <span class="comment">// 这里会尝试利用多个 qp 进行数据的发送</span></span><br><span class="line">    NCCLCHECK(wrap_ibv_post_send(comm-&gt;qps[comm-&gt;qpIndex], comm-&gt;wrs, &amp;bad_wr));</span><br><span class="line">    comm-&gt;qpIndex = (comm-&gt;qpIndex + <span class="number">1</span>) % comm-&gt;nqps;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><h2 id="通信分组通知"><a href="#通信分组通知" class="headerlink" title="通信分组通知"></a>通信分组通知</h2><p>RC 模式下，为了检验 SR 是否完成，必须要使用<code>IBV_SEND_SIGNALED</code>与 comp channel 进行交互。但是使用这一标识位意味着应用层需要处理来自于 comp channel 的事件通知，如果每一个请求都使用该标识位，就会导致事件通知过于频繁，应用层需要频繁处理事件完成通知，这会在一定程度上导致 CPU 占用率的上升。由于 NCCL 中分割发送的数据包，在短时间可能就会出现频繁的事件通知，但这种事件通知是不必要的，NCCL 中对此做出了优化：只在分组的最后一个 SR 上使用标识位<code>IBV_SEND_SIGNALED</code>。这样可以利用 RC 的可靠性保证，确保所有请求发送完毕，并且能够有效地减少事件通知的次数，降低 CPU 占用率：</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">ibv_send_wr</span> *<span class="title">lastWr</span> =</span> comm-&gt;wrs + nreqs - <span class="number">1</span>;</span><br><span class="line"><span class="keyword">if</span> (nreqs &gt; <span class="number">1</span> || (comm-&gt;ar &amp;&amp; reqs[<span class="number">0</span>]-&gt;send.size &gt; ncclParamIbArThreshold())) &#123;</span><br><span class="line">    lastWr++;</span><br><span class="line">    <span class="built_in">memset</span>(lastWr, <span class="number">0</span>, <span class="keyword">sizeof</span>(<span class="keyword">struct</span> ibv_send_wr));</span><br><span class="line">&#125;</span><br><span class="line">lastWr-&gt;wr_id = wr_id;</span><br><span class="line">lastWr-&gt;opcode = IBV_WR_RDMA_WRITE_WITH_IMM;</span><br><span class="line">lastWr-&gt;imm_data = immData;</span><br><span class="line">lastWr-&gt;next = <span class="literal">NULL</span>;</span><br><span class="line"><span class="comment">// Only use this flag in last WR</span></span><br><span class="line">lastWr-&gt;send_flags = IBV_SEND_SIGNALED;</span><br></pre></td></tr></table></figure><h2 id="一些思考"><a href="#一些思考" class="headerlink" title="一些思考"></a>一些思考</h2><p>NCCL 所做出的优化，主要还是针对于小数据包的带宽和延迟问题，而针对大数据包的优化比较少。根据我的理解，在数据包较小时，RDMA 的网络通信次数会更加频繁，相应地 comp channel 的通知也比较多。在这种情况下，应用层与 RNIC 驱动之间的交互的耗时占总耗时的比例就比较高，针对这一场景进行优化，效果就比较明显。而数据包较大时，数据的发送耗时大大增加，应用处与 RNIC 驱动交互的耗时就可以忽略不计了。并且当 RNIC 网卡的带宽吃满之后，限制 RDMA 网络通信性能的是网卡本身，而非通信库的处理逻辑。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> RDMA </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> RDMA </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>从命令补全功能来看终端与 Shell 的关系</title>
       <link href="/2023/04/21/%E4%BB%8E%E5%91%BD%E4%BB%A4%E8%A1%A5%E5%85%A8%E5%8A%9F%E8%83%BD%E6%9D%A5%E7%9C%8B%E7%BB%88%E7%AB%AF%E4%B8%8E-Shell-%E7%9A%84%E5%85%B3%E7%B3%BB/"/>
       <url>/2023/04/21/%E4%BB%8E%E5%91%BD%E4%BB%A4%E8%A1%A5%E5%85%A8%E5%8A%9F%E8%83%BD%E6%9D%A5%E7%9C%8B%E7%BB%88%E7%AB%AF%E4%B8%8E-Shell-%E7%9A%84%E5%85%B3%E7%B3%BB/</url>
@@ -42,9 +67,9 @@
           
           <category> 数据库 </category>
           
-          <category> go </category>
-          
           <category> redis </category>
+          
+          <category> go </category>
           
       </categories>
       
@@ -244,9 +269,9 @@
       
         <tags>
             
-            <tag> 数据库 </tag>
-            
             <tag> redis </tag>
+            
+            <tag> 数据库 </tag>
             
         </tags>
       
@@ -268,9 +293,9 @@
           
           <category> 数据库 </category>
           
-          <category> go </category>
-          
           <category> etcd </category>
+          
+          <category> go </category>
           
       </categories>
       
@@ -326,18 +351,18 @@
           
           <category> 编程语言 </category>
           
-          <category> go </category>
-          
           <category> 计算机网络 </category>
+          
+          <category> go </category>
           
       </categories>
       
       
         <tags>
             
-            <tag> go </tag>
-            
             <tag> 计算机网络 </tag>
+            
+            <tag> go </tag>
             
         </tags>
       
@@ -357,18 +382,18 @@
           
           <category> 编程语言 </category>
           
-          <category> go </category>
-          
           <category> 计算机网络 </category>
+          
+          <category> go </category>
           
       </categories>
       
       
         <tags>
             
-            <tag> go </tag>
-            
             <tag> 计算机网络 </tag>
+            
+            <tag> go </tag>
             
         </tags>
       
@@ -852,9 +877,9 @@
       
         <tags>
             
-            <tag> TCP </tag>
-            
             <tag> 计算机网络 </tag>
+            
+            <tag> TCP </tag>
             
         </tags>
       
@@ -1170,9 +1195,9 @@
       
         <tags>
             
-            <tag> TCP </tag>
-            
             <tag> 计算机网络 </tag>
+            
+            <tag> TCP </tag>
             
         </tags>
       
