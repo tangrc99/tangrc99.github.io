@@ -193,6 +193,121 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/10/channel-%E4%B8%8E-select-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/01/10/channel-%E4%B8%8E-select-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">channel 与 select 的一些记录</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-01-10 02:06:00 / 修改时间：08:00:42" itemprop="dateCreated datePublished" datetime="2023-01-10T02:06:00+08:00">2023-01-10</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>3.5k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>3 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="channel-与-select-的一些记录"><a href="#channel-与-select-的一些记录" class="headerlink" title="channel 与 select 的一些记录"></a>channel 与 select 的一些记录</h1><p>本篇文章用于记录本人学习到的与 channel 与 select 有关的一些知识。</p>
+<h2 id="CSP-并发模型"><a href="#CSP-并发模型" class="headerlink" title="CSP 并发模型"></a>CSP 并发模型</h2><p>CSP 并发模型是指“不要通过共享内存来通信，而应该通过通信来共享内存”。go 语言的并发模型是基于 CSP 模型的，这得益于完备的 go、channel、select 体系。这一模型的核心思想是尽量降低程序模块之间的耦合度，尽可能地将每一个模块封装为状态机的形式，在不同的模块之间通过数据或标志位的传递来改变状态机的行为，并尽可能降低不同模块之间的临界竞争。</p>
+<p>在 C++程序中，线程之间的通信大多数场景也是遵循这一思想的。大部分线程之间会选择使用队列、原子标志位、期望值来进行同步，而不是多个线程同时去并发访问同一数据结构。毕竟无锁数据结构的设计非常复杂，并且可以设计为无锁形式的数据结构非常有限；而采取加锁的形式来保证线程安全可能会因为竞争而带来比较严重的性能问题。</p>
+<p>C++的并发编程中，简单的控制同步可以直接使用原子量来完成，数据类型的传递可以使用队列来完成。但是，如果状态机中的某个状态具有多个分支，可能就需要使用多个原子量、或者使用多态类型的队列，在实际编程过程中可能会比较繁琐。而 go 语言中的 select 语句可以很好地实现信号的多路复用，使得一个程序的模块可以更加轻松地使用复杂的状态机。这也是为什么 goroutine 并没有提供外界退出的方式，而是必须从自身的逻辑中退出。go 语言的编程逻辑中，更希望每一个 goroutine 中封装的是一个完成的状态机，每一个 goroutine 都是一个独立的模块，从而实现程序不同模块间的低耦合。</p>
+<p>如果进程内的所有线程/协程之间传递数据都使用FIFO 队列，可能会出现较多的内存拷贝。一种更好的方式是针对大对象，通过指针的方式来转移对象的所属权，使程序的不同模块用流水线的方式工作。</p>
+<p>CSP 并发模型，更多地还是在描述程序不同模块之间如何去进行信息交换。在程序模块的内部，为了高性能可以尝试使用一些更加底层的方法来进行更加复杂的操作，但是最好不要将这种复杂度传递给模块之外，否则程序将会变得难以维护。</p>
+<h2 id="hchan"><a href="#hchan" class="headerlink" title="hchan"></a>hchan</h2><p>go 语言中 channel 底层使用的是 hchan 结构体，它本质上是一个有锁的环形缓冲区，hchan 数据结构如下:</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> hchan <span class="keyword">struct</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 有缓冲时，存储相关信息</span></span><br><span class="line">    qcount   <span class="type">uint</span>           <span class="comment">// 循环数组中的元素数量</span></span><br><span class="line">    dataqsiz <span class="type">uint</span>           <span class="comment">// 循环数组的长度</span></span><br><span class="line">    buf      unsafe.Pointer <span class="comment">// 指向底层循环数组的指针</span></span><br><span class="line">    elemsize <span class="type">uint16</span> <span class="comment">//能够收发元素的大小</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    closed   <span class="type">uint32</span>   <span class="comment">//channel是否关闭的标志</span></span><br><span class="line">    elemtype *_type <span class="comment">//channel中的元素类型</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 读写游标</span></span><br><span class="line">    sendx    <span class="type">uint</span>   <span class="comment">// 下一次发送数据的下标位置</span></span><br><span class="line">    recvx    <span class="type">uint</span>   <span class="comment">// 下一次读取数据的下标位置</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">// 用于处理读写阻塞</span></span><br><span class="line">    recvq    waitq  <span class="comment">// 读等待队列</span></span><br><span class="line">    sendq    waitq  <span class="comment">// 写等待队列</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    lock mutex <span class="comment">//互斥锁，保证读写channel时不存在并发竞争问题</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果 hchan 中的 ring_buffer 缓冲区有数据，那么读写操作无特殊之处。若 hchan 中缓冲区为空，并且接收到一个读操作，或者 hchan 中缓冲区已满，但是接收到一个写操作；那么就会将该操作注册到 waitq 结构体中，waitq 结构体底层是一个 sudog 链表，存储了阻塞 goroutine 的相关调度信息。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> sudog <span class="keyword">struct</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 原始G结构。相当于g_id</span></span><br><span class="line">    g *g</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 等待链表上的指针</span></span><br><span class="line">    next *sudog</span><br><span class="line">    prev *sudog</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 所属的channel，相当于channel_id</span></span><br><span class="line">    c    *hchan</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>sudog 是注册在一个具体的 hchan 上的，这是因为一个 goroutine 可能会因为不同的 channel 阻塞，因此每一个 hchan 都必须要保留能够查询到阻塞 goroutine 的指针。</p>
+<p>通过上述结构体的分析，goroutine 因为 channel 而陷入阻塞，是会主动让出执行权的。而唤醒操作则由另外一个操作 channel 的 goroutine 负责。</p>
+<h2 id="channel-的并发读写"><a href="#channel-的并发读写" class="headerlink" title="channel 的并发读写"></a>channel 的并发读写</h2><p>一般的互斥量性能都会随着并发量的增长而迅速下降；channel 虽然是一个有锁的数据结构，但是因为底层做了特殊的优化，即使由大量的 goroutine 进行并发操作也不会造成性能的严重下降，只会发生 ns 级别的改变。</p>
+<p>另外，由于涉及到 GC 的问题，所有数据结构在经过 channel 进行传递时都会发生一次复制。因此，可以尽量尝试使用指针来传递比较复杂的数据结构，防止内存复制损耗过多时间。</p>
+<h2 id="select-的阻塞与唤醒"><a href="#select-的阻塞与唤醒" class="headerlink" title="select 的阻塞与唤醒"></a>select 的阻塞与唤醒</h2><p>在早期的版本中，select 语句是由后台 goroutine 轮询来实现的，当分支过多的情况下性能会比较差。在最新版本中，已经针对 select 语句进行了优化，采取了被动调度的方式进行唤醒。</p>
+<p>select 语句的执行逻辑大致可以分为三步：</p>
+<ul>
+<li>判断当前是否有就绪 channel，并随机选择一个分支执行操作</li>
+<li>若无就绪 channel，将 goroutine 信息注册到各个 channel 分支，进入阻塞</li>
+<li>被唤醒时检测就绪 channel，随机选择一个分支操作</li>
+</ul>
+<p>这意味着，一个 for - select 循环在一直满足就绪条件下是可以不断执行的，直到运行被抢占。</p>
+<p>当一个 goroutine 中的 select 语句中并没有可满足的条件时，runtime.selectgo 函数会根据不同分支的 poller 顺序来选择被唤醒时的轮询顺序（每一次完成选择后会重新将该顺序打乱，保证随机选择分支）；还需要根据 channel 的内存指针顺序来依次加锁，以防止死锁。完成上述操作后，goroutine 会进入阻塞状态，等待自身的 G 结构被其他 goroutine 因发送 channel 而状态改变为 _Grunnable，也就是进入 select 阻塞后的 goroutine 只能够被 goroutine 调度器唤醒，而不会主动尝试运行。当 goroutine 被唤醒时，会将所有的 channel 加锁，并且释放所有的 sudog 结构体。</p>
+<p>由于 select 语句在进入阻塞和被唤醒时都需要对所有 channel 加锁，这里会有一定的性能损耗。</p>
+<p>select 语句是一个多分支语句，只能够随机选择一个 channel 运行。但是 go 语言中，sudog 的节点的移出是由解除阻塞的一方负责的，如果不加以控制，就可能会出现多个分支注册的 sudog 同时被多个协程删除的情况，这样就会造成channel 消息的丢失。为了防止这一情况，select 语句注册的 sudog 会做出特殊的标记处理。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// runtime/chan.go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(q *waitq)</span></span> dequeue() *sudog &#123;</span><br><span class="line">  <span class="keyword">for</span> &#123;</span><br><span class="line">    <span class="comment">// 这里是链表删除的逻辑，进入函数前已经对 hchan 加锁</span></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">// if a goroutine was put on this queue because of a</span></span><br><span class="line">    <span class="comment">// select, there is a small window between the goroutine</span></span><br><span class="line">    <span class="comment">// being woken up by a different case and it grabbing the</span></span><br><span class="line">    <span class="comment">// channel locks. Once it has the lock</span></span><br><span class="line">    <span class="comment">// it removes itself from the queue, so we won&#x27;t see it after that.</span></span><br><span class="line">    <span class="comment">// We use a flag in the G struct to tell us when someone</span></span><br><span class="line">    <span class="comment">// else has won the race to signal this goroutine but the goroutine</span></span><br><span class="line">    <span class="comment">// hasn&#x27;t removed itself from the queue yet.</span></span><br><span class="line">    <span class="keyword">if</span> sgp.isSelect &amp;&amp; !atomic.Cas(&amp;sgp.g.selectDone, <span class="number">0</span>, <span class="number">1</span>) &#123;</span><br><span class="line">      <span class="keyword">continue</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> sgp</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，如果发现取出的 sudog 结构体是由 select 语句注册的，那么会使用 CAS 语句将 selectDone 标志位设置为 1。虽然在进入 dequeue 函数前已经对 hchan 加锁，但是这里的 selectDone 标志位也被注册到了其他 hchan 结构体中，可能会发生 concurrency unsafe。如果成功修改标志位，代表本次操作是第一个通知 select 的操作，此时才会进行数据拷贝；如果修改失败，那么会将忽略本次操作，并且再一次尝试取出 sudog。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/09/gnet-%E4%B8%8E-net-%E7%BD%91%E7%BB%9C%E5%BA%93%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -296,134 +411,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2022/12/27/%E4%BD%BF%E7%94%A8%20goroutine%20%E6%A8%A1%E6%8B%9F%20redis%20IO%20%E6%A8%A1%E5%9E%8B/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/12/27/%E4%BD%BF%E7%94%A8%20goroutine%20%E6%A8%A1%E6%8B%9F%20redis%20IO%20%E6%A8%A1%E5%9E%8B/" class="post-title-link" itemprop="url">使用 goroutine 模拟 redis IO 模型</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2022-12-27 20:46:14" itemprop="dateCreated datePublished" datetime="2022-12-27T20:46:14+08:00">2022-12-27</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-01-10 07:51:34" itemprop="dateModified" datetime="2023-01-10T07:51:34+08:00">2023-01-10</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>2.9k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>3 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="使用-goroutine-模拟-redis-IO-模型"><a href="#使用-goroutine-模拟-redis-IO-模型" class="headerlink" title="使用 goroutine 模拟 redis IO 模型"></a>使用 goroutine 模拟 redis IO 模型</h1><p>在 redis 6.0 之后，redis 引入了 IO 线程的概念，但是并没有改变原有的单线程执行事务的模式。这是因为网络 IO 和协议解析在一次请求耗时中的占比是非常大的。使用单线程的模型可以简化应用层数据结构的设计，从而使代码更加便于维护。</p>
-<p>而 go 语言中，同样可以利用 goroutine 和 channel 来模拟 redis 的请求处理方式，使用单一事务协程和多个协议解析协程的方式来处理客户端请求。这种处理方式不仅能够借助 go 语言的特点，还能够结合传统 reactor 事务模式的特点，使得代码更易于维护。这种模式下，网络 IO 可以分为 Accept Loop, IO Loop, Event Loop，分别完成建立新连接，解析客户端命令，处理客户端请求的功能。</p>
-<h2 id="抽象客户端连接"><a href="#抽象客户端连接" class="headerlink" title="抽象客户端连接"></a>抽象客户端连接</h2><p>由于 goroutine 不具备传统线程的特点，不能够直接从外部来改变协程的状态。可以将每一个客户端连接所对应的协程抽象为一个 Client Struct，也就是一个 Context 进行管理。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Client <span class="keyword">struct</span> &#123;</span><br><span class="line"></span><br><span class="line">  event *Request             <span class="comment">// 解析后的命令</span></span><br><span class="line">  raw []<span class="type">byte</span>               <span class="comment">// 解析前的命令</span></span><br><span class="line">  res <span class="keyword">chan</span> *Response <span class="comment">// 回包</span></span><br><span class="line"></span><br><span class="line">  cnn   net.Conn  <span class="comment">// 连接实例</span></span><br><span class="line">  id    uuid.UUID <span class="comment">// Cli 编号</span></span><br><span class="line">  tp    time.Time <span class="comment">// 通信时间戳</span></span><br><span class="line"></span><br><span class="line">  status ClientStatus  <span class="comment">// 状态 0 等待连接 1 正常 -1 退出 -2 异常</span></span><br><span class="line">  exit   <span class="type">bool</span>					 <span class="comment">// 退出标志</span></span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewClient</span><span class="params">(c net.Conn)</span></span> *Client &#123;</span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>每一个 <code>Client Struct</code> 都对应了一个 <code>net.Conn</code> 实例，并运行在一个单独的 goroutine 上。结构体内部存储与该连接相关的所有信息，当不同循环之间需要通信时，可以使用 <code>chan *Client</code> 进行通信，减少数据的拷贝。</p>
-<h2 id="Accept-Loop"><a href="#Accept-Loop" class="headerlink" title="Accept Loop"></a>Accept Loop</h2><p>Accept Loop 主要执行 reactor 模型中 Acceptor 对象的功能，监听被动套接字，新连接抽象为<code>Client Struct</code>，并开启协程来处理读写请求。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 处理新连接</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">AcceptLoop</span><span class="params">()</span></span> &#123;</span><br><span class="line"></span><br><span class="line">  ...</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> !quit&#123;</span><br><span class="line">    conn, err := listener.Accept()</span><br><span class="line">    <span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">      <span class="comment">// 错误处理</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 建立一个新的 Client 实例</span></span><br><span class="line">    newCli := NewClient(conn)</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 开启协程处理 IO 请求</span></span><br><span class="line">    <span class="keyword">go</span> IOLoop(newCli)			<span class="comment">// 这里也可以使用协程池的方式，一个协程绑定多个客户端连接</span></span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="IO-Loop"><a href="#IO-Loop" class="headerlink" title="IO Loop"></a>IO Loop</h2><p>IO Loop 主要负责处理 socket 的读写，客户端请求的解析工作。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">IOLoop</span><span class="params">(cli *Client)</span></span> &#123;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> !cli.exit &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 读请求</span></span><br><span class="line">    cli.cnn.Read(cli.raw[rd:])</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 解析请求</span></span><br><span class="line">    parseRequest(cli.raw,cli.event)</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 通过 channel 发送通知</span></span><br><span class="line">    events &lt;- cli</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 等待 Event Loop 执行</span></span><br><span class="line">    cli.cnn.Write( &lt;-cli.res) </span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 通知 Event Loop 释放相关记录</span></span><br><span class="line">  ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="Event-Loop"><a href="#Event-Loop" class="headerlink" title="Event Loop"></a>Event Loop</h2><p>Event Loop 处理 IO Loop 发送的活跃事件以及定时事件。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">EventLoop</span><span class="params">()</span></span> &#123;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">for</span> !quit&#123;</span><br><span class="line">    timer := time.NewTimer(time.Second)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">select</span> &#123;</span><br><span class="line">      <span class="keyword">case</span> &lt;-timer.C:</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 执行时间事件</span></span><br><span class="line">      execTimeEvent()</span><br><span class="line"></span><br><span class="line">      <span class="keyword">case</span> cli := &lt;-events:</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 执行 IO 时间</span></span><br><span class="line">      eventRes := executeIOEvent(cli.event)</span><br><span class="line"></span><br><span class="line">      <span class="comment">// 通知阻塞的客户端</span></span><br><span class="line">      cli.res &lt;- eventRes</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="comment">// 执行退出事件</span></span><br><span class="line">  executeShutdownEvents()</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="优缺点"><a href="#优缺点" class="headerlink" title="优缺点"></a>优缺点</h2><h3 id="优点"><a href="#优点" class="headerlink" title="优点"></a>优点</h3><ul>
-<li>事件流程较为清晰，事件的处理并不存在并发。</li>
-<li>可以减少应用层临界资源的竞争。</li>
-<li>可以保证所有事件是串行执行的。</li>
-</ul>
-<h3 id="缺点"><a href="#缺点" class="headerlink" title="缺点"></a>缺点</h3><ul>
-<li>使用管道传递主业务数据，会造成一定的性能损耗。</li>
-<li>该模式不适合单个事件执行时间过长的场景。</li>
-</ul>
-<h3 id="redis-场景下的对比"><a href="#redis-场景下的对比" class="headerlink" title="redis 场景下的对比"></a>redis 场景下的对比</h3><p>在保证协议解析部分，数据库部分（除读写锁）相同的情况下，测试直接使用 goroutine 解析并执行命令（使用读写锁保证互斥）、使用单独的 goroutine 执行命令、redis-server 三者性能。redis-benchmark，测试环境为 MacOS Ventura 13.0，8 G 内存，双核四线程。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">使用单独 goroutine 串行执行命令</span></span><br><span class="line">Summary:</span><br><span class="line">  throughput summary: 45289.86 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.611     0.048     0.551     0.919     1.999     3.711</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">直接使用 goroutine 解析并执行命令</span></span><br><span class="line">Summary:     </span><br><span class="line">  throughput summary: 42680.32 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.620     0.048     0.599     0.863     1.279     4.871</span><br><span class="line">        </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">redis-server</span> </span><br><span class="line">Summary:</span><br><span class="line">  throughput summary: 76982.29 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.387     0.152     0.351     0.655     0.799     1.511</span><br></pre></td></tr></table></figure>
-
-<p>经过多次对比，使用单独 goroutine 串行执行命令时，每秒钟执行的命令数比直接使用 goroutine 解析并执行命令多 3000 次左右，并且后者并没有执行 aof 刷盘、更新服务器状态等时间事件。而 redis-server 的每秒请求数保持在 76000 左右，远远高于 go 语言版本。</p>
-<h2 id="性能瓶颈"><a href="#性能瓶颈" class="headerlink" title="性能瓶颈"></a>性能瓶颈</h2><p>使用 pprof 工具获取压力测试阶段的调用图。可以看到，syscall.read 和 syscall.write 占据了绝大多数的 CPU 时间片，网络 IO 是主要的性能瓶颈。</p>
-<p><img src="/images/image-20230108035814657.png" alt="image-20230108035814657"></p>
-<p>经过查阅资料，go 官方的 net 库性能较差，尝试选用 gnet 网络库更换 net 库。更换后，进行同样的测试，性能有较大的提升。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">使用 gnet 网络库</span></span><br><span class="line">Summary:</span><br><span class="line">  throughput summary: 64977.26 requests per second</span><br><span class="line">  latency summary (msec):</span><br><span class="line">          avg       min       p50       p95       p99       max</span><br><span class="line">        0.590     0.120     0.543     1.079     1.439     2.335</span><br></pre></td></tr></table></figure>
-
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/10/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><span class="page-number current">11</span><a class="page-number" href="/page/12/">12</a><span class="space">&hellip;</span><a class="page-number" href="/page/23/">23</a><a class="extend next" rel="next" href="/page/12/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/10/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><span class="page-number current">11</span><a class="page-number" href="/page/12/">12</a><span class="space">&hellip;</span><a class="page-number" href="/page/24/">24</a><a class="extend next" rel="next" href="/page/12/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -491,7 +482,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">46</span>
+          <span class="site-state-item-count">47</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

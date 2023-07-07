@@ -4,6 +4,31 @@
   
     
     <entry>
+      <title>nvidia-peermem 和 dmabuf 两种 GDR 方式的区别</title>
+      <link href="/2023/07/05/nvidia-peermem%20%E5%92%8C%20dmabuf%20%E4%B8%A4%E7%A7%8D%20GDR%20%E6%96%B9%E5%BC%8F%E7%9A%84%E5%8C%BA%E5%88%AB/"/>
+      <url>/2023/07/05/nvidia-peermem%20%E5%92%8C%20dmabuf%20%E4%B8%A4%E7%A7%8D%20GDR%20%E6%96%B9%E5%BC%8F%E7%9A%84%E5%8C%BA%E5%88%AB/</url>
+      
+        <content type="html"><![CDATA[<p>NCCL 的源码中，具有两种方式的 GDR，<code>nvidia-peermem</code>和<code>dmabuf</code>，在注册收发缓冲区时会优先选择后面一种方式。源码注释中的<code>nv_peermem</code>和<code>nvidia-peermem</code>是同一个东西，在不同版本的叫法有所不同。</p><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> p=<span class="number">0</span>; p&lt;NCCL_NUM_PROTOCOLS; p++) &#123;</span><br><span class="line">    resources-&gt;buffers[p] = NCCL_NET_MAP_GET_POINTER(<span class="built_in">map</span>, cpu, buffs[p]);</span><br><span class="line">    <span class="keyword">if</span> (resources-&gt;buffers[p]) &#123;</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> CUDA_VERSION &gt;= 11070</span></span><br><span class="line">      <span class="comment">/* DMA-BUF support */</span></span><br><span class="line">      <span class="type">int</span> type = NCCL_NET_MAP_DEV_MEM(<span class="built_in">map</span>, buffs[p]) ? NCCL_PTR_CUDA : NCCL_PTR_HOST;</span><br><span class="line">      <span class="keyword">if</span> (type == NCCL_PTR_CUDA &amp;&amp; resources-&gt;useDmaBuf) &#123;</span><br><span class="line">        <span class="type">int</span> dmabuf_fd;</span><br><span class="line">        CUCHECK(cuMemGetHandleForAddressRange((<span class="type">void</span> *)&amp;dmabuf_fd, (CUdeviceptr)resources-&gt;buffers[p], resources-&gt;buffSizes[p], CU_MEM_RANGE_HANDLE_TYPE_DMA_BUF_FD, <span class="number">0</span>));</span><br><span class="line">        NCCLCHECK(proxyState-&gt;ncclNet-&gt;regMrDmaBuf(resources-&gt;netRecvComm, resources-&gt;buffers[p], resources-&gt;buffSizes[p], type, <span class="number">0ULL</span>, dmabuf_fd, &amp;resources-&gt;mhandles[p]));</span><br><span class="line">        (<span class="type">void</span>)close(dmabuf_fd);</span><br><span class="line">      &#125; <span class="keyword">else</span> <span class="comment">// FALL-THROUGH to nv_peermem GDR path</span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">      &#123;</span><br><span class="line">        NCCLCHECK(proxyState-&gt;ncclNet-&gt;regMr(resources-&gt;netRecvComm, resources-&gt;buffers[p], resources-&gt;buffSizes[p], NCCL_NET_MAP_DEV_MEM(<span class="built_in">map</span>, buffs[p]) ? NCCL_PTR_CUDA : NCCL_PTR_HOST, &amp;resources-&gt;mhandles[p]));</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure><p>中文网站上，有关 dmabuf 和<code>ibv_reg_dmabuf_mr</code>的相关资料比较少。在阅读源码时，笔者不确定这两种方式是否有性能上的差异，因此在 NCCL 的仓库下提出了一个<a href="https://github.com/NVIDIA/nccl/issues/908">issue</a>，得到的回复是，这两者之间没有性能上的差别：</p><blockquote><p>No, there is no performance difference.</p></blockquote><p>之后，笔者调研了一下相关资料，对比了两者之间的差异，在此作为二手资料进行分享。</p><p>虽然 RDMA 这个概念已经很早了，但是 GDR 的提出不过是最近十年左右的事情——早期并没有大量数据直接传输到 GPU 上的需求。因此，GDR 这一方案也并没有一个明确的标准。GDR 与普通 RDMA 的区别在于，计算机访问显存和内存的方式不一样，早期的 libverbs 接口中，并不存在<code>ibv_reg_dmabuf_mr</code>，只存在<code>ibv_reg_mr</code>这一通用的接口。因此<code>cudaMalloc</code>分配出的假显存被注册时，IB core 是不知道这是一片映射得到的内存，在尝试去 pin 这块内存时，内核会报错，具体的原因可以参见<code>pin_user_pages</code>这一函数的<a href="https://www.kernel.org/doc/html/v5.7/core-api/pin_user_pages.html">设计文档</a>，里面有比较详细的介绍。</p><p><code>nvidia-peermem</code>的这一方案，是 Mallenox 公司推出的。它没有改变 libverbs 的接口，而是修改了自身的驱动，对于不能 pin 住的内存，它会轮询额外加载的<code>peer_memory_client</code>模块，让这些模块尝试翻译并 pin 住这些内存区域。对于 N 卡来说，这一模块就是<code>nvidia-peermem</code>。在忽略 GPU 页表切换时，其实这一模块就是完成了一个地址翻译的工作，数据传输本质上还是依赖于显卡驱动的。</p><p><code>ibv_reg_dmabuf_mr</code>是 OpenFabric 提出的方案，为了反对 Mallenox 公司对 GDR 方案的垄断：<code>nvidia-peermem</code>需要绑定 Mallenox 的网卡。这一方案利用 Kernel 中设计的 dmabuf，将其作为中间值，从而让 RNIC 能够拿到翻译后的物理地址。<code>ibv_reg_dmabuf_mr</code>就是为了这一方案而新引入 libverbs 中的一个接口。这一方案的实现是更加优雅的，并且在注册 mr 时不需要轮询，在注册时的性能“理论上”会好一些。<code>ibv_reg_dmabuf_mr</code>这一接口的具体实现，直至 Linux Kernel 5.12 才被加入内核中，因此对软件栈的要求是比较高的。</p><p>如果使用的是 Mallenox 网卡，两种方案并没有本质上的区别，因为数据传输都是由显卡驱动完成的。</p>]]></content>
+      
+      
+      <categories>
+          
+          <category> RDMA </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> RDMA </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>NCCL RDMA 备忘</title>
       <link href="/2023/06/23/2023-06-23-NCCL-RDMA-%E5%A4%87%E5%BF%98/"/>
       <url>/2023/06/23/2023-06-23-NCCL-RDMA-%E5%A4%87%E5%BF%98/</url>
