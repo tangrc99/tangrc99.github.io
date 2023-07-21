@@ -193,6 +193,152 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/29/boltdb%E6%BA%90%E7%A0%81%E9%80%9A%E8%AF%BB/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/01/29/boltdb%E6%BA%90%E7%A0%81%E9%80%9A%E8%AF%BB/" class="post-title-link" itemprop="url">boltdb源码通读笔记</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-01-29 17:27:40" itemprop="dateCreated datePublished" datetime="2023-01-29T17:27:40+08:00">2023-01-29</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-03-25 20:45:13" itemprop="dateModified" datetime="2023-03-25T20:45:13+08:00">2023-03-25</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/etcd/" itemprop="url" rel="index"><span itemprop="name">etcd</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>8.4k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>8 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>Bolt 是一个完全由 go 写成的基于硬盘的 K/V 存储引擎，为了表示区分一般被称为 boltdb。对于一款存储引擎而言，boltdb 的源码非常短小精悍，包含测试代码仅有 17000 行左右。正是因为其体量比较小，boltdb 并不具备较为复杂的功能；在实现上，boltdb 主要借鉴了其他语言中的做法并将其改进，使之更加符合 go 语言的基础架构。</p>
+<p>通读 boltdb 的代码，主要是为了学习作者是如何利用 go 语言的特性来实现数据库的，这是本文的重点内容。而 boltdb 的用法以及其中的基本概念，可以参考<a target="_blank" rel="noopener" href="https://www.bookstack.cn/books/jaydenwen123-boltdb_book">《自底向上分析 BoltDB 源码》</a>。</p>
+<h2 id="各模块实现方式"><a href="#各模块实现方式" class="headerlink" title="各模块实现方式"></a>各模块实现方式</h2><p>首先介绍一下 boltdb 中各个模块的实现方式：</p>
+<ul>
+<li>数据库文件落盘：使用 mmap 读取数据库文件，使用 write 接口写回脏页；</li>
+<li>空闲页面管理：使用链表/哈希表进行管理，按需取出，不够时重新 mmap 映射；</li>
+<li>数据库文件 compact：使用写缓冲，重写数据库文件；</li>
+<li>内存硬盘之间页面大小保持一致，直接映射；</li>
+<li>无日志，事务提交时直接落盘，使用读写锁控制并发。</li>
+</ul>
+<p>可以看到 boltdb 中的各个模块实现都是比较简单的，这也在一定程度上保障了其稳定性。boltdb 无日志的设计使得写写之间是禁止并发的，因此 boltdb 可以很轻松地实现可串行级别的事务隔离。同时这也导致 boltdb 的写入性能非常差，只适合多读少写的场景。另外，boltdb 直接使用了 mmap 来映射数据库文件，这在一方面避免了 go 中的 GC 保证了数据库的性能，但另一方面当数据库大小超过内存时，可能会导致内存页面频繁被置换从而影响性能。但在 go 语言中大量使用指针可能会导致 GC 问题，使用 mmap 映射相当于避免了内存 B+ 树页面的 GC 扫描，这在 go 语言限制下应该是一种比较好的设计。</p>
+<h2 id="mmap-映射"><a href="#mmap-映射" class="headerlink" title="mmap 映射"></a>mmap 映射</h2><h3 id="mmap-映射实现"><a href="#mmap-映射实现" class="headerlink" title="mmap 映射实现"></a>mmap 映射实现</h3><p>boltdb 使用 mmap 系统调用的源码片段如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">mmap</span><span class="params">(db *DB, sz <span class="type">int</span>)</span></span> <span class="type">error</span> &#123;</span><br><span class="line">	<span class="comment">// Map the data file to memory.</span></span><br><span class="line">	b, err := unix.Mmap(<span class="type">int</span>(db.file.Fd()), <span class="number">0</span>, sz, syscall.PROT_READ, syscall.MAP_SHARED|db.MmapFlags)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</span><br><span class="line">		<span class="keyword">return</span> err</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Advise the kernel that the mmap is accessed randomly.</span></span><br><span class="line">	err = unix.Madvise(b, syscall.MADV_RANDOM)</span><br><span class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &amp;&amp; err != syscall.ENOSYS &#123;</span><br><span class="line">		<span class="comment">// Ignore not implemented error in kernel because it still works.</span></span><br><span class="line">		<span class="keyword">return</span> fmt.Errorf(<span class="string">&quot;madvise: %s&quot;</span>, err)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Save the original byte slice and convert to a byte array pointer.</span></span><br><span class="line">	db.dataref = b</span><br><span class="line">	db.data = (*[maxMapSize]<span class="type">byte</span>)(unsafe.Pointer(&amp;b[<span class="number">0</span>]))</span><br><span class="line">	db.datasz = sz</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这部分内容很简单，将 mmap 映射获得的内存设置为只读，并且允许进程间共享；调用 madvise 将内存片段设置为随机读取模式，防止操作系统按照顺序读的方式来置换出内存页面。 最后，boltdb 将 mmap 获得的内存片段转换为了一个长度为<code>maxMapSize</code>的切片指针，这一个步骤主要是为了方便进行<code>page</code>、<code>meta</code>等数据结构的映射。设置切片长度为<code>maxMapSize</code>是为了能够方便地完成 Golang 中的 unsafe 转换，保证转换长度足够。</p>
+<p>如果成功获得内存映射片段，boltdb 还会调用<code>mlock</code>尝试禁止页面置换，从而提升数据库读性能。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> mmap(minsz <span class="type">int</span>) <span class="type">error</span> &#123;</span><br><span class="line">	...</span><br><span class="line">    <span class="keyword">if</span> db.Mlock &#123;</span><br><span class="line">        <span class="comment">// Don&#x27;t allow swapping of data file</span></span><br><span class="line">        <span class="keyword">if</span> err := db.mlock(fileSize); err != <span class="literal">nil</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> err</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>虽然<code>mlock</code>调用会抛出 error，但是并不会影响数据库的正常处理流程。</p>
+<p> boltdb 并没有使用 mmap 接口直接进行文件写入的操作，因为 mmap 的写入时机较为特殊，它不会立刻进行刷盘，而是等待内存页面被置换出时再进行刷盘，或者进程主动使用 madvise + msnyc 进行刷盘。这是因为操作系统并不确定进程是否会在未来的一段时间内再次对内存片段进行更新，因此采取惰性处理策略会更好。boltdb 中选择使用了<code>writeAt</code>接口进行文件写入。当一个写事务被提交时，它会将当前数据库文件中的所有脏页写回到硬盘中。</p>
+<h3 id="mmap-映射策略"><a href="#mmap-映射策略" class="headerlink" title="mmap 映射策略"></a>mmap 映射策略</h3><p>随着数据库文件大小的增长，boltdb 从操作系统中获得的 mmap 内存大小可能会小于数据库文件的长度。这种情况发生时，boltdb 将会再次使用 mmap 来增加映射内存的长度。boltdb 每次进行内存映射时，映射的内存大小并不等于数据库文件的大小，而是根据一定策略来选择内存大小。选择映射内存大小的逻辑出现在 db.go 的<code>mmapSize</code>函数中：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> mmapSize(size <span class="type">int</span>) (<span class="type">int</span>, <span class="type">error</span>) &#123;</span><br><span class="line">	<span class="comment">// Double the size from 32KB until 1GB.</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="type">uint</span>(<span class="number">15</span>); i &lt;= <span class="number">30</span>; i++ &#123;	<span class="comment">// 数据库文件小于1GB时，每次映射的大小翻倍</span></span><br><span class="line">		<span class="keyword">if</span> size &lt;= <span class="number">1</span>&lt;&lt;i &#123;</span><br><span class="line">			<span class="keyword">return</span> <span class="number">1</span> &lt;&lt; i, <span class="literal">nil</span></span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// Verify the requested size is not above the maximum allowed.</span></span><br><span class="line">    <span class="comment">// maxMapSize == 0xFFFFFFFFFFFF</span></span><br><span class="line">	<span class="keyword">if</span> size &gt; maxMapSize &#123;</span><br><span class="line">		<span class="keyword">return</span> <span class="number">0</span>, fmt.Errorf(<span class="string">&quot;mmap too large&quot;</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// If larger than 1GB then grow by 1GB at a time.</span></span><br><span class="line">	sz := <span class="type">int64</span>(size)</span><br><span class="line">    <span class="comment">// maxMmapStep == 1 &lt;&lt; 30</span></span><br><span class="line">	<span class="keyword">if</span> remainder := sz % <span class="type">int64</span>(maxMmapStep); remainder &gt; <span class="number">0</span> &#123;</span><br><span class="line">		sz += <span class="type">int64</span>(maxMmapStep) - remainder</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// Ensure that the mmap size is a multiple of the page size.</span></span><br><span class="line">	<span class="comment">// This should always be true since we&#x27;re incrementing in MBs.</span></span><br><span class="line">	pageSize := <span class="type">int64</span>(db.pageSize)</span><br><span class="line">	<span class="keyword">if</span> (sz % pageSize) != <span class="number">0</span> &#123;</span><br><span class="line">		sz = ((sz / pageSize) + <span class="number">1</span>) * pageSize</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">// If we&#x27;ve exceeded the max size then only grow up to the max size.</span></span><br><span class="line">	<span class="keyword">if</span> sz &gt; maxMapSize &#123;</span><br><span class="line">		sz = maxMapSize</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="type">int</span>(sz), <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>根据源码，我们可以得到 boltdb 中内存映射的策略具有两个阶段，即快速增长期与慢速增长期。当数据库文件小于 1GB 时，boltdb 的内存分配处于快速增长期，进行内存映射时会直接按照数据库文件大小向上取整为 2 的幂。当数据库文件大于 1GB 时，每一次进行内存映射时的内存大小较上一次增长 1GB。由于在慢速增长期，内存映射策略是步进的，可能会出现步进后的内存大小并不是页面大小(4 KB)的整数倍，这种情况下使用最后一个页面将会导致程序越界访问内存，导致程序崩溃；因此需要向上取整为页面的大小。</p>
+<h2 id="struct-零成本重建"><a href="#struct-零成本重建" class="headerlink" title="struct 零成本重建"></a>struct 零成本重建</h2><p>boltdb 使用了直接映射的方式来完成一些数据结构的写入和重建，该方式并不会拷贝内存而是重新解释 unsafe pointer 来完成对象的重建，这些操作使用了 unsafe.go 中的接口：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeAdd</span><span class="params">(base unsafe.Pointer, offset <span class="type">uintptr</span>)</span></span> unsafe.Pointer &#123;</span><br><span class="line">    <span class="keyword">return</span> unsafe.Pointer(<span class="type">uintptr</span>(base) + offset)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeIndex</span><span class="params">(base unsafe.Pointer, offset <span class="type">uintptr</span>, elemsz <span class="type">uintptr</span>, n <span class="type">int</span>)</span></span> unsafe.Pointer &#123;</span><br><span class="line">    <span class="keyword">return</span> unsafe.Pointer(<span class="type">uintptr</span>(base) + offset + <span class="type">uintptr</span>(n)*elemsz)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeByteSlice</span><span class="params">(base unsafe.Pointer, offset <span class="type">uintptr</span>, i, j <span class="type">int</span>)</span></span> []<span class="type">byte</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> (*[maxAllocSize]<span class="type">byte</span>)(unsafeAdd(base, offset))[i:j:j]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// unsafeSlice modifies the data, len, and cap of a slice variable pointed to by</span></span><br><span class="line"><span class="comment">// the slice parameter.  This helper should be used over other direct</span></span><br><span class="line"><span class="comment">// manipulation of reflect.SliceHeader to prevent misuse, namely, converting</span></span><br><span class="line"><span class="comment">// from reflect.SliceHeader to a Go slice type.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unsafeSlice</span><span class="params">(slice, data unsafe.Pointer, <span class="built_in">len</span> <span class="type">int</span>)</span></span> &#123;</span><br><span class="line">    s := (*reflect.SliceHeader)(slice)</span><br><span class="line">    s.Data = <span class="type">uintptr</span>(data)</span><br><span class="line">    s.Cap = <span class="built_in">len</span></span><br><span class="line">    s.Len = <span class="built_in">len</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该方法可以用来进行简单对象的转换，相当于进行了一次对象的引用，重建后的对象地址会发生改变，但对象内容中的各个子对象地址都不会发生改变；下面使用一个 demo 来演示该方法是如何工作的：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Foo <span class="keyword">struct</span> &#123;</span><br><span class="line">	content1 <span class="type">int32</span></span><br><span class="line">	content2 <span class="type">int32</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(d *Foo)</span></span> unsafeByteSlice() []<span class="type">byte</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> (*[unsafe.Sizeof(*d)]<span class="type">byte</span>)(unsafe.Pointer(d))[<span class="number">0</span>:unsafe.Sizeof(*d)]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">parseFromByteSlice</span><span class="params">(serialized []<span class="type">byte</span>)</span></span> *Foo &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> (*Foo)(unsafe.Pointer(&amp;serialized[<span class="number">0</span>]))</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">ObjectSerializedTest</span><span class="params">()</span></span> &#123;</span><br><span class="line">	d := Foo&#123;<span class="number">1</span>, <span class="number">2</span>&#125;</span><br><span class="line"></span><br><span class="line">	now := time.Now()</span><br><span class="line"></span><br><span class="line">	slice := d.unsafeByteSlice()</span><br><span class="line">	d.content2 = <span class="number">3</span></span><br><span class="line"></span><br><span class="line">	dd := parseFromByteSlice(slice)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;time cost:&quot;</span>, time.Since(now).Nanoseconds(), <span class="string">&quot;ns&quot;</span>)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd.content1:&quot;</span>, dd.content1)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd.content2:&quot;</span>, dd.content2)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;d address:&quot;</span>, &amp;d)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd address:&quot;</span>, &amp;dd)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;d content1 address:&quot;</span>, &amp;d.content1)</span><br><span class="line">	<span class="built_in">println</span>(<span class="string">&quot;dd content2 address:&quot;</span>, &amp;dd.content1)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>demo 先获取对象 d 的内存片段，然后修改对象 dd 的值，再使用该内存片段重建对象，程序输出结果为：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">time cost: <span class="number">162</span> ns</span><br><span class="line">dd.content1: <span class="number">1</span></span><br><span class="line">dd.content2: <span class="number">3</span></span><br><span class="line">d address: <span class="number">0xc000062f38</span></span><br><span class="line">dd address: <span class="number">0xc000062f50</span></span><br><span class="line">d content1 address: <span class="number">0xc000062f38</span></span><br><span class="line">dd content2 address: <span class="number">0xc000062f38</span></span><br></pre></td></tr></table></figure>
+
+<p>可以看到，dd 与 d 两个对象的地址是不同的，但是 dd.content1 与 d.content1 地址是相同的；因此即使在进行映射后更改 d 中的值，也会造成 dd 的改变。运用此方法进行 struct -&gt; slice -&gt; struct 耗时仅为 162ns，主要耗时集中在类型转换上。</p>
+<h2 id="接口设计"><a href="#接口设计" class="headerlink" title="接口设计"></a>接口设计</h2><p>由于 boltdb 内部使用了读写锁，为了对读写事务加以区分，并给予用户较高的自由度，boltdb 设计了如下接口：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 只读事务</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> View(fn <span class="function"><span class="keyword">func</span><span class="params">(*Tx)</span></span> <span class="type">error</span>) <span class="type">error</span></span><br><span class="line"><span class="comment">// 写事务</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> Update(fn <span class="function"><span class="keyword">func</span><span class="params">(*Tx)</span></span> <span class="type">error</span>) <span class="type">error</span></span><br><span class="line"><span class="comment">// 批处理事务</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> Batch(fn <span class="function"><span class="keyword">func</span><span class="params">(*Tx)</span></span> <span class="type">error</span>) <span class="type">error</span></span><br><span class="line"><span class="comment">// 原始事务接口</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> Begin(writable <span class="type">bool</span>) (*Tx, <span class="type">error</span>)</span><br></pre></td></tr></table></figure>
+
+<p>在事务的开启阶段，就可以简单地对事务进行区分，更好地处理读写并行关系。</p>
+<h2 id="空闲页索引"><a href="#空闲页索引" class="headerlink" title="空闲页索引"></a>空闲页索引</h2><p>boltdb 的设计中，并不会直接在 B+树上进行修改，而是会先分配出一块缓冲区，写入缓冲区后再 merge 到 B+树上，即 COW。这种策略能够实现多读一些的并行。写事务的内存分配是由如下代码片段来实现的，该代码主要具有两个部分的功能，一部分是尝试用内存池中获取或者直接分配出一块缓冲区用于写入，另一部分则是在 B+树中找出合适的写入位置。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(db *DB)</span></span> allocate(txid txid, count <span class="type">int</span>) (*page, <span class="type">error</span>) &#123;</span><br><span class="line">    <span class="comment">// 分配用于 COW 的内存</span></span><br><span class="line">    <span class="keyword">var</span> buf []<span class="type">byte</span></span><br><span class="line">    <span class="keyword">if</span> count == <span class="number">1</span> &#123;</span><br><span class="line">      buf = db.pagePool.Get().([]<span class="type">byte</span>)</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      buf = <span class="built_in">make</span>([]<span class="type">byte</span>, count*db.pageSize)</span><br><span class="line">    &#125;</span><br><span class="line">    p := (*page)(unsafe.Pointer(&amp;buf[<span class="number">0</span>]))</span><br><span class="line">    p.overflow = <span class="type">uint32</span>(count - <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 试图从当前 mmap 内存中找到可用的页</span></span><br><span class="line">    <span class="keyword">if</span> p.id = db.freelist.allocate(txid, count); p.id != <span class="number">0</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> p, <span class="literal">nil</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 如果未找到，说明数据库过大，需要调整 mmap 大小</span></span><br><span class="line">    p.id = db.rwtx.meta.pgid</span><br><span class="line">    <span class="keyword">var</span> minsz = <span class="type">int</span>((p.id+pgid(count))+<span class="number">1</span>) * db.pageSize</span><br><span class="line">    <span class="keyword">if</span> minsz &gt;= db.datasz &#123;</span><br><span class="line">      <span class="keyword">if</span> err := db.mmap(minsz); err != <span class="literal">nil</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">nil</span>, fmt.Errorf(<span class="string">&quot;mmap allocate error: %s&quot;</span>, err)</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 将之前的最后一页分配给事务（mmap 分配出的新页在该页之后）</span></span><br><span class="line">    db.rwtx.meta.pgid += pgid(count)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> p, <span class="literal">nil</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，<code>freelist</code>的功能只是为了调控当前事务需要再 B+树中写入的位置，而不直接管理内存。当事务需要写入时，必须分配一次内存，这样做的好处是不需要做内存池的管理了。当无法从<code>freelist</code>中获取可写的页时，代表当前 B+树已经无可用位置给事务写入，这并不代表当前 B+树已经写满了，可能是由于当前事务需要写入的数据量过大。具体如何去界定，是由不同的分配策略来决定的。</p>
+<p>在 boltdb 中，使用<code>freelist</code>结构体来统一管理 mmap 获得的内存在当前时刻下的视图。该结构体只使用 pageid 来管理当前时刻的状态，但并不直接管理页面的内存，因为 boltdb 中使用的是 COW 机制，所有的写入操作并不会直接在 mmap 的内存上写入，而是先写入到其他内存上，等待写入完毕后再 merge 到 B+ 树中。这样是为了避免 mmap 的低效写入问题，并且更加具有安全性。</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> freelist <span class="keyword">struct</span> &#123;</span><br><span class="line">    freelistType   FreelistType                <span class="comment">// freelist type</span></span><br><span class="line">    ids            []pgid                      <span class="comment">// all free and available free page ids.</span></span><br><span class="line">    allocs         <span class="keyword">map</span>[pgid]txid               <span class="comment">// mapping of txid that allocated a pgid.</span></span><br><span class="line">    pending        <span class="keyword">map</span>[txid]*txPending         <span class="comment">// mapping of soon-to-be free page ids by tx.</span></span><br><span class="line">    cache          <span class="keyword">map</span>[pgid]<span class="keyword">struct</span>&#123;&#125;           <span class="comment">// fast lookup of all free and pending page ids.</span></span><br><span class="line">    freemaps       <span class="keyword">map</span>[<span class="type">uint64</span>]pidSet           <span class="comment">// key is the size of continuous pages(span), value is a set which contains the starting pgids of same size</span></span><br><span class="line">    forwardMap     <span class="keyword">map</span>[pgid]<span class="type">uint64</span>             <span class="comment">// key is start pgid, value is its span size</span></span><br><span class="line">    backwardMap    <span class="keyword">map</span>[pgid]<span class="type">uint64</span>             <span class="comment">// key is end pgid, value is its span size</span></span><br><span class="line">    allocate       <span class="function"><span class="keyword">func</span><span class="params">(txid txid, n <span class="type">int</span>)</span></span> pgid <span class="comment">// the freelist allocate func</span></span><br><span class="line">    free_count     <span class="function"><span class="keyword">func</span><span class="params">()</span></span> <span class="type">int</span>                  <span class="comment">// the function which gives you free page number</span></span><br><span class="line">    mergeSpans     <span class="function"><span class="keyword">func</span><span class="params">(ids pgids)</span></span>             <span class="comment">// the mergeSpan func</span></span><br><span class="line">    getFreePageIDs <span class="function"><span class="keyword">func</span><span class="params">()</span></span> []pgid               <span class="comment">// get free pgids func</span></span><br><span class="line">    readIDs        <span class="function"><span class="keyword">func</span><span class="params">(pgids []pgid)</span></span>          <span class="comment">// readIDs func reads list of pages and init the freelist</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>freelist</code>以不同的视角来记录每一个页面上的可用范围，并根据写事务所需要的范围来分配具体的页面。在 boltdb 的实现中，<code>freelist</code>具有 FreelistArrayType 和 FreelistMapType 两种分配策略，前者会使用线性查找的方式来查询一块可用的内存页，而后者则使用索引的方式来查找可用的内存范围。FreelistMapType 分配策略的性能要远好于 FreelistArrayType。其具体做法是在归还的过程中将邻接页中可用的内存区域进行“合并”，并且这一块区域的整体大小注册到 freemaps 数据结构中。这样在查询可用区域的时候就不需要进行遍历，而是采用哈希表的方式进行查询。具体的细节可以参考该设计的<a target="_blank" rel="noopener" href="https://www.cncf.io/blog/2019/05/09/performance-optimization-of-etcd-in-web-scale-data-scenario/">博客文章</a>。</p>
+<h2 id="写入性能"><a href="#写入性能" class="headerlink" title="写入性能"></a>写入性能</h2><p>归根结底，一个基于硬盘的数据库系统的性能瓶颈是硬盘的 IO 速度，在其他的数据库设计中，面对写入，都是先使用低成本的操作记录写入日志，然后再将写入内容搬运到具体的位置上，才能够获得较高的写入性能。而 boltdb 的设计中，并没有对写入操作进行任何的缓冲机制，而是直接将写入内容放入到硬盘中，这是其写入性能较低的根本原因。但是这种设计能够很简单地实现事务的串行，任何设计都有取舍，写入性能就是 boltdb 舍弃掉的东西。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/27/%E4%BB%A5freecachebigcache%E4%B8%BA%E4%BE%8B%E7%9C%8Bgo%E8%BF%9B%E7%A8%8B%E5%86%85%E7%BC%93%E5%AD%98/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -312,160 +458,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/01/20/gnet-%E4%B8%AD%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%BE%E8%AE%A1/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/01/20/gnet-%E4%B8%AD%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%BE%E8%AE%A1/" class="post-title-link" itemprop="url">gnet 中的一些设计</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2023-01-20 23:55:49" itemprop="dateCreated datePublished" datetime="2023-01-20T23:55:49+08:00">2023-01-20</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-01-21 00:02:12" itemprop="dateModified" datetime="2023-01-21T00:02:12+08:00">2023-01-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA%E7%BD%91%E7%BB%9C/" itemprop="url" rel="index"><span itemprop="name">计算机网络</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>2.4k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>2 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>gnet 是一个基于 Reactor 模式的高性能 go 网络库，工作原理类似 netty 和 libuv，直接使用 epoll 或 kqueue 系统调用来构建网络应用，这使其有着非常好的性能表现。本文章着重讲在阅读 gnet v2.2.3源码中注意到的一些问题。</p>
-<h2 id="主从-Reactor-通信方式"><a href="#主从-Reactor-通信方式" class="headerlink" title="主从 Reactor 通信方式"></a>主从 Reactor 通信方式</h2><p>主从 Reactor 模式中，主 Reactor 与从 Reactor 模式之间需要通信机制来实现任务的调度。由于主从 Reactor 运行在不同的 goroutine 上，所以很轻松地可以想到使用 channel 进行通信。但是考虑到主 Reactor 与从 Reactor 直接的通信是一读一写的模式，gnet 中使用的是无锁队列的通信机制。这种一读一写的方式是比较经典的无锁队列使用场景了。gnet 中的无锁队列是一个非常经典的实现。</p>
-<p>在学习 gnet 框架的时候，恰好我所写的一个玩具项目中也有类似的场景；因为我尝试模仿 gnet 的做法，将 channel 替换为无锁队列。但是在做出这样的修改后，我发现软件的性能竟然比修改之前要下降了。这让我比较疑惑，于是我测试了 gnet 中无锁队列的性能以及 channel 的性能。测试环境为 Macos Ventura, 双核四线程 CPU，8GB 内存，go 1.19 版本；测试的方法一共有两种，一种是测试写入侧完成写入的耗时，第二种是测试读取侧完成读取的耗时。测试结果如下，其中 channel 的缓冲区选取 1000：</p>
-<table>
-<thead>
-<tr>
-<th align="center">测试编号</th>
-<th align="center">数据量10W</th>
-<th align="center">数据量100W</th>
-<th align="center">数据量500W</th>
-<th align="center">数据量1000W</th>
-</tr>
-</thead>
-<tbody><tr>
-<td align="center">queue 完成写入</td>
-<td align="center">8 ms</td>
-<td align="center">89 ms</td>
-<td align="center">647 ms</td>
-<td align="center">1228 ms</td>
-</tr>
-<tr>
-<td align="center">channel 完成写入</td>
-<td align="center">6 ms</td>
-<td align="center">64 ms</td>
-<td align="center">528 ms</td>
-<td align="center">961ms</td>
-</tr>
-<tr>
-<td align="center">queue 完成读取</td>
-<td align="center">14 ms</td>
-<td align="center">159 ms</td>
-<td align="center">703 ms</td>
-<td align="center">1854 ms</td>
-</tr>
-<tr>
-<td align="center">channel 完成读取</td>
-<td align="center">11 ms</td>
-<td align="center">142 ms</td>
-<td align="center">558 ms</td>
-<td align="center">1414 ms</td>
-</tr>
-</tbody></table>
-<p>根据测试结果，无锁队列的性能确实会比 channel 的性能要低，相同数据量下，使用无锁队列的耗时是使用 channel 耗时的约<strong>1.2倍</strong>左右。</p>
-<p>在得到测试结果后，我以为是我的测试用例有问题，于是花费了很多时间去搜寻资料无果。后来，我尝试替换其他的无锁队列进行测试，于是我选择了<code>github.com/yireyun/go-queue</code>项目进行测试，但测试结果与 gent 中的无锁队列相似，仍然是比 channel 要慢的。于是我开始疑惑，为什么 gnet 中要选择无锁队列来作为消息传递的方式。</p>
-<p>在思考无果后，我又开始查询资料，最终找到了可能的答案。这是 go-queue 项目中的一个 <a target="_blank" rel="noopener" href="https://github.com/yireyun/go-queue/issues/13">issue</a>，它指出 go-queue 会比官方的 channel 速度要慢约10%左右，在其中的一个回复中有如下内容：</p>
-<blockquote>
-<h3 id="yireyun-commented-on-Jul-25-2022"><a href="#yireyun-commented-on-Jul-25-2022" class="headerlink" title="yireyun commented on Jul 25, 2022"></a><strong><a target="_blank" rel="noopener" href="https://github.com/yireyun">yireyun</a></strong> commented <a target="_blank" rel="noopener" href="https://github.com/yireyun/go-queue/issues/13#issuecomment-1193690662">on Jul 25, 2022</a></h3><p>已经在 MacPro M1 基于go1.17.12 上确认了”<strong>Chan 比 Queue 快</strong>”；并没有用之前机器和go版本回归测试，初步结论是 chan 比以前快多了； go1.8.3 的 chan 在高并发情况下，性能会急速下降，但在 go1.17.14 上发现高并发，chan性能下降缓慢。</p>
-</blockquote>
-<p>go-queue 确实是一个四年前的项目，其测试环境为 go1.8.3，这让我回想起在知乎曾经看到的一篇文章，“<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/21514693">Golang号称高并发，但高并发时性能不高</a>”，里面有这样一段内容：</p>
-<blockquote>
-<p>管道chan吞吐极限10,000,000，单次Put,Get耗时大约100ns/op，无论是采用单Go程，还是多Go程并发(并发数:100, 10000, 100000)，耗时均没有变化，Go内核这对chan进行优化。</p>
-</blockquote>
-<p>而 gnet v2 是基于 go 1.11 开发的，因此我<strong>猜测</strong> gnet 这里的设计可能是因为 channel 在低版本 go 中性能表现较差。而在高版本 go 中，数据量 10W 左右的级别无锁队列与 channel 并没有表现出较大的性能差异，因此这里并没有对其进行修改。毕竟主从 Reactor 之间更多地只会传递 *conn 指针，很难会出现 10W 以上这种级别的新连接同时到达的情况。</p>
-<h2 id="连接管理优化"><a href="#连接管理优化" class="headerlink" title="连接管理优化"></a>连接管理优化</h2><p>这个问题在 gnet 的 <a target="_blank" rel="noopener" href="https://github.com/panjf2000/gnet/issues/334">issue</a> 中有提到，目前解决方案还没有加入到正式版本中。gnet 中，每一个从 Reactor 都需要管理分配到的所有连接，为了区分这些连接，gent 目前采用的是哈希表的方式，将每一个连接的 [file descriptor,*conn] 注册到哈希表中。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> eventloop <span class="keyword">struct</span> &#123;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    connCount    <span class="type">int32</span>           <span class="comment">// number of active connections in event-loop</span></span><br><span class="line">    udpSockets   <span class="keyword">map</span>[<span class="type">int</span>]*conn   <span class="comment">// client-side UDP socket map: fd -&gt; conn</span></span><br><span class="line">    connections  <span class="keyword">map</span>[<span class="type">int</span>]*conn   <span class="comment">// TCP connection map: fd -&gt; conn</span></span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这种设计在非 GC 语言中可能没有问题，但是在 GC 语言中可能会带来性能问题。GC 扫描对于连续的数据结构是非常快的，但是对于哈希表这种非连续存储的数据结构就会相对较慢。如果使用值存储的形式，哈希表会为键值对分配出一块的连续的内存，而使用指针存储时，值会逃逸到堆上，这样在扫描时就无法采取连续扫描的方式。如果在此基础上，再使用指针来存储比较大的对象，可能会导致扫描哈希表的耗时大大增加。</p>
-<p>由于 gnet 主要面对的是类似 redis 和 HaProxy 的场景，这种场景下应用层的处理时间很短，网络库的性能对软件的整体性能影响非常大。而恰好这种情景都是作为后端的基础架构来使用的，客户端数量可能会非常多。当服务端需要处理的连接数较大时，直接使用哈希表来存储指针可能会造成 GC 耗时增加，从而造成比较严重的性能劣化。</p>
-<p>gnet 后期可能会依据 bigcache 的模式做出优化，将哈希表更改为二级索引的数据结构，从而实现 GC 的线性扫描。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 原方案</span></span><br><span class="line"><span class="keyword">map</span>[<span class="type">int</span>]*conn</span><br><span class="line"></span><br><span class="line"><span class="comment">// 优化思路，fd 作为索引在哈希表中存储slice下标</span></span><br><span class="line"><span class="keyword">map</span>[<span class="type">int</span>]<span class="type">int</span></span><br><span class="line"><span class="comment">// 在 slice 中存储 *conn 指针</span></span><br><span class="line">slice[]*conn</span><br></pre></td></tr></table></figure>
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -537,7 +529,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">47</span>
+          <span class="site-state-item-count">48</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

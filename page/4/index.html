@@ -193,6 +193,146 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/25/Percolator-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/03/25/Percolator-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">Percolator 的一些记录</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-03-25 20:14:25" itemprop="dateCreated datePublished" datetime="2023-03-25T20:14:25+08:00">2023-03-25</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-03-26 14:25:33" itemprop="dateModified" datetime="2023-03-26T14:25:33+08:00">2023-03-26</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/tinykv/" itemprop="url" rel="index"><span itemprop="name">tinykv</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>3.9k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>4 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>Percolator 是一种分布式事务的实现方式，它是一种较为特殊的 2PC 事务提交方式。Percolator 能够提供 Snapshot Isolation 级别的事务隔离，能够解决除 write skew 之外的并发问题。</p>
+<h2 id="前置知识"><a href="#前置知识" class="headerlink" title="前置知识"></a>前置知识</h2><p>这里介绍一下 Percolator 需要了解的前置知识。</p>
+<h3 id="2PC-存在的问题"><a href="#2PC-存在的问题" class="headerlink" title="2PC 存在的问题"></a>2PC 存在的问题</h3><p>2PC 是一种中心化的分布式事务提交方式，所有事务的正常提交都需要依赖于 Coordinator，如果 Coordinator 发生异常，整个系统将无法处理当前事务的状态，必须要等待 Coordinator 进行恢复，整个系统的当前状态才能够确定。因此，在 2PC 的场景下，一般要使用共识算法来保证 Coordinator 的自动恢复，这可能会带来一些性能的问题，并且在恢复阶段系统同样是不可用的。</p>
+<h3 id="Snapshot-Isolation"><a href="#Snapshot-Isolation" class="headerlink" title="Snapshot Isolation"></a>Snapshot Isolation</h3><p>Snapshot Isolation 是一个较为特殊的数据库隔离等级，它能够解决不可重复读和幻读问题，隔离等级位于 Repeatable Read 和 Serialization 之间。Snapshot Isolation 的实现也比较简单，核心思想是使用一个时间戳来对事务的开始和结束时间进行标记，任何一个事务都只能看到在自身开始前就已经提交的事务，相当于每一个事务都只能看到数据库的一个“快照”。相比于 Repeatalbe Read 等级，它能够保证一次事务中的所有行都使用相同的版本，前者则是会读到不同的版本；因此能够解决掉幻读的问题。</p>
+<p>Snapshot Isolation 与 Serialization 隔离之间的区别在于：Serialization 可以解决 write skew 的问题。这是数据库事务并发中的环路问题。以一个简单的例子：考虑两个事务P和Q，两个值 x 和 y，P 将 x 复制到 y 而 Q 将 y 复制到 x，这两个事务存在环路问题。在Serialization 隔离级别下，这两者必须要串行执行，即 P -&gt; Q 或 Q -&gt; P。而在 Snapshot Isolation 下，则会发生以下的序列：</p>
+<ul>
+<li>事务P读取x</li>
+<li>事务Q读取y</li>
+<li>事务P将其读取的值写入y</li>
+<li>事务Q将其读取的值写入x</li>
+</ul>
+<p>这样就会导致 x 和 y 的值最终不相等。核心来说就是 Snapshot Isolation 无法解决环路事务的问题。</p>
+<h2 id="Percolator-的实现思路"><a href="#Percolator-的实现思路" class="headerlink" title="Percolator 的实现思路"></a>Percolator 的实现思路</h2><p>Percolator 的实现主要可以分为两个部分：去中心化的 2PC 和 MVCC 实现 Snapshot Isolation。我们先讨论一下这两个设计目标需要解决的问题。</p>
+<h3 id="去中心化的-2PC"><a href="#去中心化的-2PC" class="headerlink" title="去中心化的 2PC"></a>去中心化的 2PC</h3><p>去中心化的 2PC 意味着两个问题：</p>
+<ol>
+<li>事务的并发问题会从 Coordinator 转移到数据库分片上；</li>
+<li>原有的 Coordinator 节点并不能够自动恢复。</li>
+</ol>
+<p>对于问题一，原因是并没有一个全局统一的事务协调器来进行 MVCC 并发控制，并不能够在事务发起阶段来判定事务是否存在并发冲突。Percolator 的解决思路与传统的数据库事务解决思路是一样的，使用 lock 来解决事务的冲突。为了确保事务能够确认当前 lock 是否是由自己获得，每一个 lock 都需要带有一个 timestamp 来标明自身的所属权。</p>
+<p>问题二比较好理解，解决思路其实也比较清晰：要使用一定的机制来发现客户端遗留的中间事务并进行恢复。Percolator 中选择了让另一个与该事务互斥的客户端来去解决中间事务的问题，这样就能够惰性地去发现中间态事务。而判断一个事务是否处于中间态的依据是 lock 是否已经过期，如果 lock 过期则代表事务已经处于中间态，需要被处理。</p>
+<p>顺着问题二的解决思路，其实又催生出了两个子问题：</p>
+<ul>
+<li>如何判断事务的状态；</li>
+<li>慢事务应该如何处理。</li>
+</ul>
+<p>因为存在慢事务这种情况，所以 Percolator 中事务的提交/回滚阶段是会有竞争的。在这一前提下，Percolator 使用了 Primary Key 来确定一个事务的状态。当 Primary Key 被提交后，整个事务需要被提交，否则事务被回滚。这样 Primary Key 就相当于一个管程的作用，将不同客户端的互斥限定在了 Primary Key 上，这样并发就集中在数据库的一个分片上，就能够使用 latch 来保护临界区。在进入临界区之间，一个事务有必须要去检查当前 lock 状态是否符合自身的预期，这样能够降低临界区的竞争（检查 lock 并不是互斥的）。</p>
+<p>综上所述，在“去中心化的 2PC”这一部分中，Percolator 需要做的就是对写事务加上一个带有过期时间以及事务标识的锁，并且在事务的提交阶段或回滚阶段优先操作 Primary Key 并使用 latch 来保护该操作。而事务中间态的检查则是当客户端发现加锁失败后，检查锁状态，并且依据 Primary Key 来处理遗留事务。</p>
+<h3 id="Snapshot-Isolation-1"><a href="#Snapshot-Isolation-1" class="headerlink" title="Snapshot Isolation"></a>Snapshot Isolation</h3><p>写与写之间是一定冲突的，MVCC 的目的主要是控制读事务。因此，读事务必须要能够看到当前数据库当中所有写事务的视图，才能够实现 MVCC。很显然，不同的数据库分片之间天然是可串行的，因此只需要检查本地分片的写事务视图即可。</p>
+<p>Percolator 中采取的实现是将所有的 write 操作持久化，并且使用 start timestamp 和 commit timestamp 这两个参数对其进行描述。一个读事务同样也具有一个 start timestamp，它只能够看到 commit timestamp 早于自身 start timestamp 的写事务。这就要求一个事务在最终的提交阶段必须再获取一次时间戳。</p>
+<h3 id="Percolator-的实现"><a href="#Percolator-的实现" class="headerlink" title="Percolator 的实现"></a>Percolator 的实现</h3><p>围绕着上述的两个思路，Percolator 的基础框架已经可以被构建起来，但是这距离实际的实现还有一定的差距，因为尚有一些问题还没有被纳入考虑。</p>
+<p>Percolator 的写流程实现可以描述如下：</p>
+<ul>
+<li>Prepare 阶段：客户端将所有数据写入到不同分片的缓冲区中；</li>
+<li>Prewrite 阶段：获取 start timestamp，尝试获取所有行锁，若获取失败进行检查阶段，若获取成功则全部加锁并写入事务；</li>
+<li>Commit 阶段：获取 commit timestamp，检查锁状态，获取 latch，先提交/回滚 Primary Key，后提交/回滚其他数据。</li>
+</ul>
+<p>Percolator 的读流程实现可以描述如下：</p>
+<ul>
+<li>Prepare 阶段：获取 start timestamp；</li>
+<li>Read 阶段：<strong>检查锁状态，若不符合条件则等待/放弃</strong>，否则正常读取。</li>
+</ul>
+<p>可以看到在实际实现中还是有一些细节与之前分析得到的框架是不同的，即读操作在读取之间必须要检查一次锁状态，这主要来自于分布式系统的复杂性。为什么采取这种实现，将会在后面讨论。</p>
+<h2 id="实现的一些细节问题"><a href="#实现的一些细节问题" class="headerlink" title="实现的一些细节问题"></a>实现的一些细节问题</h2><p>Percolator 的实际实现与之前分析的实现思路是有一些不同的细节的。这些细节主要来自于一些 corner case，接下来会讨论这些设计是要解决哪些问题。</p>
+<h3 id="逻辑顺序与物理顺序"><a href="#逻辑顺序与物理顺序" class="headerlink" title="逻辑顺序与物理顺序"></a>逻辑顺序与物理顺序</h3><p>前面提到，Percolator 中事务的起始和结束会通过 timestamp 来记录，这一功能是通过分布式授时中心来实现的。这意味着事务时间的标识位的获取其实是要早于事务到达数据库分片的。我们假设有两个事务 A 和 B，事务 A 先从授时中心获取了时间戳 T1，事务 B 后从授时中心获取时间戳 T2，T1 &lt; T2。这并不代表着事务 A 操作是早于事务 B 操作的，事务 A 完全有可能因为网络延迟等问题晚于事务 B 到达数据库。<strong>Percolator 的实现下，逻辑顺序与物理顺序并不能够保证一致性。</strong></p>
+<p>这种不一致性并不会影响到写-写操作，因为它们本身就是互斥的，但是对于读写操作，就会受到影响。在读事务开始读取前，必须要先检查锁的状态，而并不能直接去读一个已经提交的历史事务，正是因为这种乱序。因为在一个读事务正在读取的过程中，完全有可能有一个 commit timestamp 较小的写事务完成写入，这会造成不可重复读的风险，无法保证 Snapshot Isolation 隔离级别。</p>
+<p>因此，在 Percolator 中一个写事务不仅会造成另一个写事务的阻塞，还会造成另一个读事务的阻塞。这种 lock 机制类似于读写锁，这是与传统单机数据库中的 MVCC 机制有所区别的——传统单机数据库中读写是不会产生互斥的。</p>
+<h3 id="写写不能采用等待的方式"><a href="#写写不能采用等待的方式" class="headerlink" title="写写不能采用等待的方式"></a>写写不能采用等待的方式</h3><p>Percolator 中不能采用等待的方式来进行写并发控制，因为多数情况下事务都是读写混合的，一个写操作很可能依赖于一个读操作。考虑如下一种情况：事务 A 需要读取 k1 来更新 k2 和 k3，而 B 则是读取 k2 来更新 k3，如果 B 先读取了k2，但是并没有来得及获取k3的锁，而 A 立刻获得了 k2 和 k3 的锁，那么 B 需要 等待 A，而 A 写完后，B 需要更新的 k3 数据就错误了。正确的做法必须是 B 放弃当前读取到的所有数据，并且重新开启本次事务，因此不能够采取写写等待的方式来进行写操作的互斥处理。</p>
+<h2 id="Percolator-的缺点"><a href="#Percolator-的缺点" class="headerlink" title="Percolator 的缺点"></a>Percolator 的缺点</h2><h3 id="读写互斥"><a href="#读写互斥" class="headerlink" title="读写互斥"></a>读写互斥</h3><p>经过上述的讨论，Percolator 的实现中由于获取时间戳与操作数据库这两个操作之间是可能会发生重排的，因为 MVCC 相当于退化成为了读写锁的形式，对比传统单机数据库中读写不互斥的实现，性能会比较低。不过分布式事务更重要的是维护事务的正确性，这一些性能牺牲是可以理解的。如果要引入分布式事务，本身就意味着较低的性能，所有的分布式事务性能都会较低。</p>
+<h3 id="两次时间戳的获取"><a href="#两次时间戳的获取" class="headerlink" title="两次时间戳的获取"></a>两次时间戳的获取</h3><p>为了保证 Snapshot Isolation，Percolator 中引入了两个时间戳来描述一次事务。为了维护全局时间戳的一致性，必须要使用分布式时间服务器，这意味着在更多的网络通信，会带来更多的延时问题。但是这一问题是有优化方案的，tikv 中的解决策略是在 prewrite 阶段计算出每一个 region 中读事务的时间戳，求出这些时间戳的最大值作为本次事务的 commit timestamp。这一优化的思路是确保当前写入操作的提交时间发生在所有当前读操作之后。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -307,157 +447,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/01/%E4%BB%8Eunsafe.Pointer%E5%87%BA%E5%8F%91%EF%BC%8C%E6%B5%85%E6%9E%90Go%E5%8F%8D%E5%B0%84%E5%8E%9F%E7%90%86/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/01/%E4%BB%8Eunsafe.Pointer%E5%87%BA%E5%8F%91%EF%BC%8C%E6%B5%85%E6%9E%90Go%E5%8F%8D%E5%B0%84%E5%8E%9F%E7%90%86/" class="post-title-link" itemprop="url">从unsafe.Pointer出发，浅析Go反射原理</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-              
-
-              <time title="创建时间：2023-03-01 01:09:33 / 修改时间：15:25:37" itemprop="dateCreated datePublished" datetime="2023-03-01T01:09:33+08:00">2023-03-01</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>6.6k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>6 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>反射是 Go 语言中较为难以理解的一个特性，网上讲解反射的文章有很多，但是要么讲解细致但是篇幅过长，要么讲解稍微模糊。但其实如果掌握了反射所使用到了一些技术，反射本身是很好理解的，其原理就是一个向上和向下转换的过程。本文会从反射所基于的语言特性出发，简要地分析反射这一特性是如何实现的。</p>
-<h2 id="unsafe-Pointer"><a href="#unsafe-Pointer" class="headerlink" title="unsafe.Pointer"></a>unsafe.Pointer</h2><p>在讨论<code>unsafe.Pointer</code>之前，我们先来讨论一下 C 语言中的原始指针类型以及指针之间的相互转换。在 C 语言中，所有指针都是可以相互转换的，而对指针取值其实就相当于取当前指针所声明类型长度的一段内存。我们可以利用 C 语言指针的这种特性在不同长度的结构体实现变换，最为经典的例子是 linux 链表。Go 中同样也有指针，但由于 Go 是一种 GC 语言，如果保留 C 指针的这样灵活性，将会对 GC 扫描带来很大的挑战，如果一个指针向上转换了，那么很有可能会造成内存泄露的问题。</p>
-<p>为了实现 C 语言中这种灵活转换的特性，Go 中引入了<code>unsafe.Pointer</code>这一类型。<code>unsafe.Pointer</code>是 go 中用于实现类型转换的一种中间类，我们可以将一个长度为 n 的<code>unsafe.Pointer</code>视作是一个长度为 n 的数组（即内存中的某一段数据），但是这一段数组中的数据对用户来说是不可见的。在某种意义上来说，<code>unsafe.Pointer</code>是用来告诉 GC 扫描器这段内存已经被分配，如果需要进行垃圾清理，必须释放这段内存，防止内存泄露。在 C++ 中，这一特性是通过将析构函数作为虚函数来实现的。</p>
-<p>为了更直观地表示这一功能，以一个代码实例来演示：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> A <span class="keyword">struct</span> &#123;</span><br><span class="line">    header <span class="type">int</span></span><br><span class="line">    hidden unsafe.Pointer	<span class="comment">// 占位，该字段的所有信息对用户隐藏</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> B <span class="keyword">struct</span> &#123;</span><br><span class="line">    header  <span class="type">int</span></span><br><span class="line">    toHide <span class="type">int</span>	<span class="comment">// 将会被隐藏的字段</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    b := B&#123;<span class="number">1</span>, <span class="number">1</span>&#125;</span><br><span class="line">    <span class="keyword">var</span> a A</span><br><span class="line">    a = *(*A)(unsafe.Pointer(&amp;b))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这段代码是可以编译通过并运行的，通过调试器来观察 a 中的值。</p>
-<p><img src="/images/image-20230301110108021.png" alt="image-20230301110108021"></p>
-<p>可以看到，b 中 header 字段的值被拷贝给了 a，而 hidden 字段则成为了一个 8 字节长度（int 长度）的<code>unsafe.Pointer</code>用于占位，当 a 声明周期结束时，将会释放 header + hidden 长度的内存。要实现这一功能，必须要保证两个结构体的几个起始字段类型和顺序是相同的，并且“基类”需要以<code>unsafe.Pointer</code>字段结尾。</p>
-<p>在 go 语言中，为了实现反射大量使用了这一特性，如果对这一特性不了解，建议先学习一下 linux 中的链表实现，这将有助于理解 go 的反射原理。</p>
-<h2 id="eface-和-iface"><a href="#eface-和-iface" class="headerlink" title="eface 和 iface"></a>eface 和 iface</h2><p><code>eface</code>和<code>iface</code>是 go 中非空接口与空接口的底层实现，其原始定义代码出现在 runtime2.go:202：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> iface <span class="keyword">struct</span> &#123;</span><br><span class="line">    tab  *itab	<span class="comment">// 存储接口与原始类的类型信息</span></span><br><span class="line">    data unsafe.Pointer <span class="comment">// 存储原始类的其他信息</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> eface <span class="keyword">struct</span> &#123;</span><br><span class="line">    _type *_type	<span class="comment">// 存储原始类的类型信息</span></span><br><span class="line">    data  unsafe.Pointer	<span class="comment">// 存储原始类的其他信息</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>我们将代码展开，来比较两个结构体之间的差异：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> iface <span class="keyword">struct</span> &#123;</span><br><span class="line">    <span class="comment">// 原 tab 字段 start</span></span><br><span class="line">    inter *interfacetype	<span class="comment">// 存储接口类型信息</span></span><br><span class="line">    _type *_type	<span class="comment">// 存储原始类的类型信息</span></span><br><span class="line">    hash  <span class="type">uint32</span> <span class="comment">// copy of _type.hash. Used for type switches.</span></span><br><span class="line">    _     [<span class="number">4</span>]<span class="type">byte</span>	<span class="comment">// 占位，4 字节</span></span><br><span class="line">    fun   [<span class="number">1</span>]<span class="type">uintptr</span> <span class="comment">// variable sized. fun[0]==0 means _type does not implement inter.</span></span><br><span class="line">    <span class="comment">// 原 tab 字段 end</span></span><br><span class="line"></span><br><span class="line">    data unsafe.Pointer <span class="comment">// 存储原始类的其他信息</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> eface <span class="keyword">struct</span> &#123;</span><br><span class="line">    _type *_type	<span class="comment">// 存储原始类的类型信息</span></span><br><span class="line">    data  unsafe.Pointer	<span class="comment">// 存储原始类的其他信息</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>注意这两个类型展开后的区别，<code>iface</code>在起始位置比<code>eface</code>多了一个 inter 字段，该字段用于存储接口信息，这是为了比较不同的非空接口是否相等；而<code>iface</code>和<code>eface</code>的最后一个字段都是<code>unsafe.Pointer</code>类型。暂时不考虑其中存储的数据类型，将<code>iface.hash</code>字段至<code>iface.data</code>字段也都视为字节（这些字段是为了实现与 XXtype 之间的相互转换），那么可以发现，<code>iface</code>实际上可以表示为如下的形式：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> iface <span class="keyword">struct</span> &#123;</span><br><span class="line">    inter *interfacetype	<span class="comment">// 存储接口类型信息</span></span><br><span class="line">    _type *_type	<span class="comment">// 存储原始类的类型信息</span></span><br><span class="line">    data  unsafe.Pointer	<span class="comment">// 存储原始类的其他信息</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>实际上，去掉<code>inter</code>字段后，<code>iface</code>就成为了<code>eface</code>，因此只需要在该字段上进行相关操作，就能够实现两者之间的相互转换。用一张图来表示两者之间的关系：</p>
-<p><img src="/images/eface%20and%20iface.png" alt="eface and iface"></p>
-<h2 id="XXtype-类型"><a href="#XXtype-类型" class="headerlink" title="XXtype 类型"></a>XXtype 类型</h2><p>在 runtime/type.go 文件中，有如下结构体的定义：<code>interfacetype</code>, <code>methodtype</code> , <code>maptype</code>, <code>arraytype</code>, <code>chantype</code>, <code>slicetype</code>, <code>functype</code>, <code>ptrtype</code>, <code>structtype</code>。这些结构体表示了在接口中，go 语言中各种类型的存储形式。值得注意的是，这些结构体全部以<code>_type</code>类型的字段作为起始，这一类型同样被接口用于记录类型。以 <code>structtype</code>为例：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> structtype <span class="keyword">struct</span> &#123;</span><br><span class="line">    <span class="comment">// Type 信息</span></span><br><span class="line">    typ     _type</span><br><span class="line">    <span class="comment">// Value 信息</span></span><br><span class="line">    pkgPath name	<span class="comment">// 4 字节</span></span><br><span class="line">    fields  []structfield	<span class="comment">// 24 字节</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>以同一字段作为起始位置，这种做法在 C 中比较常见，其实就是通过统一字段加类型转换的方式实现了零成本的多态，例如 linux 链表，Lua LValue 的实现，都是使用了这种思想。go 中的指针虽然带有类型检查，不能强制转换，但是同样可以使用<code>unsafe.Pointer</code>来实现类似的“向上转换”。事实上，如果将<code>structtype</code>中 Value 信息部分视作一个<code>unsafe.Pointer</code>，那么就可以将其视作是一个<code>eface</code>类型。在 go 中，空接口就是使用这种方式来存储类型信息的，因为空接口没有任何方法，只需要进行类型转换和比较，因此只需要保留 Type 信息字段即可。另外注意到在 typ 字段后的字节（不同 struct 中字段名不同）都是一个指针类型，长度是四个字节，这个长度与<code>iface</code>中的 hash 字段是相互对应的。</p>
-<p><img src="/images/iface-xxtype.png" alt="iface-xxtype"></p>
-<p>用一张图像来表示更为直观，<code>iface</code>结构体的第二和第三个字段与 XXtype 中的第一个和第二个字段是对齐的，两个结构体的长度也是相同的；这也意味着 XXtype 与<code>eface</code>结构体的第一个字段是对齐的，二者的结构体也是相同的。三者之间可以通过一定的方式相互转换，这是接口赋值与反射的基础原理。</p>
-<h2 id="struct-与-interface-的转换"><a href="#struct-与-interface-的转换" class="headerlink" title="struct 与 interface 的转换"></a>struct 与 interface 的转换</h2><p>读到这里，应该可以隐约明白 Relect 是如何实现的了，但是其中还有比较关键的一步，那就是<code>structtype</code>类型究竟是如何生成并且被存储到一个空接口或非空接口中的。许多博客文章起始都没有提到这一点，或者是对这一点介绍地较为简略。</p>
-<p>在零成本抽样的 C++ 中以虚函数表的形式来实现了多态，然而这一功能并非 Zero Cost；同样地，在 go 中一个 struct 被赋值给一个它所实现的 interface，这个过程并不是零成本的。go 编译器隐藏了一些必要的工作：在编译时，编译器会增加一些代码来完成这些额外的工作。</p>
-<p>在如下的代码片段中：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// B 是一个接口</span></span><br><span class="line"><span class="keyword">type</span> B <span class="keyword">interface</span> &#123;&#125;</span><br><span class="line"><span class="comment">// A 是一个结构体</span></span><br><span class="line"><span class="keyword">type</span> A <span class="keyword">struct</span> &#123;&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">    <span class="keyword">var</span> b B</span><br><span class="line">    a := A&#123;&#125;</span><br><span class="line">    <span class="comment">// 编译器会做许多额外工作</span></span><br><span class="line">    b = a</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>当 struct A 被赋值给 interface B 时，经过 go 编译器编译后的代码，实际上会实现如下的逻辑：</p>
-<ul>
-<li>若生成一个非空接口，将接口所需的<code>interfacetype</code>类型信息拷贝到栈上；</li>
-<li>在符号表中寻找 A 类型及其实现的方法，以及 A 实例 data，将这些拷贝到栈上；</li>
-<li>调用<code>convT2E64(t *_type, elem unsafe.Pointer) (e eface)</code>生成空接口，或调用<code>convT2I(tab *itab, elem unsafe.Pointer) (i iface)</code>生成非空接口。</li>
-</ul>
-<p>这个过程实际上是在搜寻所需要的类型信息，并将类型信息与类型实例中各字段的值打包在一起，<strong>生成一个 XXtype 类型实例</strong>，最终使用“向上转换”生成接口实例。<strong>这个过程中发生了值的拷贝</strong>，因为利用<code>unsafe.Pointer</code>实现“向上转换”的前提是数据是连续的。无法确定 A 实例中值在内存中的地址前有足够的空间来分配生成接口所需的字段，因为需要将 A 实例的值拷贝到内存中的其他区域。可以看到，struct 到 interface 的转换其实是一个代价较大的操作。</p>
-<h2 id="Reflect-的实现"><a href="#Reflect-的实现" class="headerlink" title="Reflect 的实现"></a>Reflect 的实现</h2><p>既然已经知道，struct 赋值给 interface 之后会发生什么，那么理解 Reflect 的实现就是一个非常简单的事情。Reflect 主要实现了取值和取类型这两类的操作。</p>
-<h3 id="取类型"><a href="#取类型" class="headerlink" title="取类型"></a>取类型</h3><p>首先分析一下取类型的源码：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">TypeOf</span><span class="params">(i any)</span></span> Type &#123;</span><br><span class="line">    <span class="comment">// 这一步是为了取空接口中完整的数据类型</span></span><br><span class="line">    eface := *(*emptyInterface)(unsafe.Pointer(&amp;i))	<span class="comment">// emptyInterface 与 eface 是 alias 的关系</span></span><br><span class="line">    <span class="keyword">return</span> toType(eface.typ)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 类型转换与封装</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">toType</span><span class="params">(t *rtype)</span></span> Type &#123;</span><br><span class="line">    <span class="keyword">if</span> t == <span class="literal">nil</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> <span class="literal">nil</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> t</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这段源码虽然很短，但是理解起来还是稍微困难的。感觉这里理解困难的点主要在于 go 是自举，这里用了一些 go 语言编译中的一些特性，如果用 C 的眼光去看这段代码，其实会更好理解。这段代码其实主要做了以下工作：</p>
-<ul>
-<li>在传参阶段，将 struct 转换为 any 类型，这一步发生了上一节中所讲内容；</li>
-<li>对 any 类型 i 进行原地转换，这一步是为了取接口中存储的原始值；</li>
-<li>将原始值中的 type 字段传递给一个接口 Type，实现封装。</li>
-</ul>
-<p>可以注意到，这个过程中发生了<strong>两次接口的赋值</strong>，由于接口赋值需要拷贝数据，因此在反射中只取类型也是一个代价高昂的操作。最好不要重复获取一个对象的 Type。</p>
-<h3 id="取值"><a href="#取值" class="headerlink" title="取值"></a>取值</h3><p>对一个对象进行反射取值操作，最终会得到一个<code>Value</code>结构体，结构体的实现如下：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> Value <span class="keyword">struct</span> &#123;</span><br><span class="line">    typ *rtype	</span><br><span class="line">    ptr unsafe.Pointer	<span class="comment">// data</span></span><br><span class="line">    flag	<span class="comment">// 操作标识</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>可以看到<code>Value</code>其实就是一个<code>eface</code>加上一个<code>flag</code>标识位，该标识位用于表示可以被采取什么样的操作。事实上，它就是由<code>eface</code>拼接得到的：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">ValueOf</span><span class="params">(i any)</span></span> Value &#123;</span><br><span class="line">    <span class="keyword">if</span> i == <span class="literal">nil</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> Value&#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 防止 GC，这里不需要关心</span></span><br><span class="line">    escapes(i)</span><br><span class="line">    <span class="comment">// 关键过程发生在这里</span></span><br><span class="line">    <span class="keyword">return</span> unpackEface(i)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">unpackEface</span><span class="params">(i any)</span></span> Value &#123;</span><br><span class="line">    <span class="comment">// 取得空接口中的原始数据</span></span><br><span class="line">    e := (*emptyInterface)(unsafe.Pointer(&amp;i))</span><br><span class="line">    <span class="comment">// <span class="doctag">NOTE:</span> don&#x27;t read e.word until we know whether it is really a pointer or not.</span></span><br><span class="line">    t := e.typ</span><br><span class="line">    <span class="keyword">if</span> t == <span class="literal">nil</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> Value&#123;&#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 生成标志位</span></span><br><span class="line">    f := flag(t.Kind())</span><br><span class="line">    <span class="keyword">if</span> ifaceIndir(t) &#123;</span><br><span class="line">      f |= flagIndir</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 将类型，数据，标志位进行拼接</span></span><br><span class="line">    <span class="keyword">return</span> Value&#123;t, e.word, f&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>这个过程中仍然是发生了两次拷贝，一次是 struct 传入 any 接口，一次是创建 Value 结构体。注意到，Value 这里使用的是复制后的数据，因此如果想使用反射来修改原数据，一定要传入指针。</p>
-<h3 id="取字段"><a href="#取字段" class="headerlink" title="取字段"></a>取字段</h3><p>反射中的取字段是将<code>Value</code>类型向下转换来实现的。在<code>Value.ptr</code>字段中存储了 XXtype 除类型头外的所有信息，在获取 Value 的基础上再使用“向下转换”可以获取类型具体，我们以获取 struct 中字段个数的方法为例：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(v Value)</span></span> NumField() <span class="type">int</span> &#123;</span><br><span class="line">    <span class="comment">// 通过 flag 字段检验类型</span></span><br><span class="line">    v.mustBe(Struct)</span><br><span class="line">    <span class="comment">// Value 向下转换，得到 structType</span></span><br><span class="line">    tt := (*structType)(unsafe.Pointer(v.typ))</span><br><span class="line">    <span class="comment">// 返回 structType 中的信息</span></span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">len</span>(tt.fields)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>代码中比较关键的过程就是使用<code>unsafe.Pointer</code>来向下转换，这里向下转换能够成为是因为<code>Value</code>，<code>eface</code>，<code>XXtype</code>的同源性，这三者本身就是相同的。</p>
-<p>在反射中需要如果使用字段的名称来获取字段，需要经过如下代码，该代码最终是：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(v Value)</span></span> FieldByName(name <span class="type">string</span>) Value &#123;</span><br><span class="line">    v.mustBe(Struct)</span><br><span class="line">    <span class="keyword">if</span> f, ok := v.typ.FieldByName(name); ok &#123;</span><br><span class="line">      <span class="keyword">return</span> v.FieldByIndex(f.Index)</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> Value&#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 该函数是调用链的最后一环</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="params">(t *structType)</span></span> FieldByName(name <span class="type">string</span>) (f StructField, present <span class="type">bool</span>) &#123;</span><br><span class="line">    <span class="comment">// Quick check for top-level name, or struct without embedded fields.</span></span><br><span class="line">    hasEmbeds := <span class="literal">false</span></span><br><span class="line">    <span class="keyword">if</span> name != <span class="string">&quot;&quot;</span> &#123;</span><br><span class="line">      <span class="comment">// 核心：遍历并且比较各个字段的名称</span></span><br><span class="line">      <span class="keyword">for</span> i := <span class="keyword">range</span> t.fields &#123;</span><br><span class="line">        tf := &amp;t.fields[i]</span><br><span class="line">        <span class="keyword">if</span> tf.name.name() == name &#123;</span><br><span class="line">          <span class="keyword">return</span> t.Field(i), <span class="literal">true</span></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> tf.embedded() &#123;</span><br><span class="line">          hasEmbeds = <span class="literal">true</span></span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> !hasEmbeds &#123;</span><br><span class="line">      <span class="keyword">return</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> t.FieldByNameFunc(<span class="function"><span class="keyword">func</span><span class="params">(s <span class="type">string</span>)</span></span> <span class="type">bool</span> &#123; <span class="keyword">return</span> s == name &#125;)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>可以看到，<code>FieldByName</code>函数其实是使用遍历加比较字符串的方式来确认字段是否匹配的，当结构体的字段数量较大，并且字段名较长时，性能就会比较差。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>Reflect 的实现其实并不是很难，阻碍理解的地方主要在于 struct 与 interface 的转换、unsafe.Pointer 的使用这两点。由于 interface 和 Reflect 中需要全量拷贝值，因此使用引用类型是一个非常明智的抉择。但与之相对的，大量使用引用类型会导致 GC 问题。可以考虑将类型取指针后再赋值给接口。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -529,7 +518,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">47</span>
+          <span class="site-state-item-count">48</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

@@ -22,30 +22,33 @@
     var CONFIG = {"hostname":"tangrc99.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="技术爱好者">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Sepk">
-<meta property="og:url" content="https://tangrc99.com/index.html">
+  <meta name="description" content="NVIDIA 集合通信库（NCCL）是一个实现了多 GPU collective communication 的集合通信库。NCCL 在设计上是以 GPU Driven 为核心的，而非传统的 CPU Driven 代码，以获取更小的传输延迟和更大的传输带宽。在源码中，NCCL 有许多实现上的细节，本文将分享 NCCL 源码中有关网络传输以及 GDR 部分的相关内容。 GPU Driven 模式在讲">
+<meta property="og:type" content="article">
+<meta property="og:title" content="NCCL 网络浅析">
+<meta property="og:url" content="https://tangrc99.com/2023/07/07/NCCL%20%E7%BD%91%E7%BB%9C%E6%B5%85%E6%9E%90/index.html">
 <meta property="og:site_name" content="Sepk">
-<meta property="og:description" content="技术爱好者">
+<meta property="og:description" content="NVIDIA 集合通信库（NCCL）是一个实现了多 GPU collective communication 的集合通信库。NCCL 在设计上是以 GPU Driven 为核心的，而非传统的 CPU Driven 代码，以获取更小的传输延迟和更大的传输带宽。在源码中，NCCL 有许多实现上的细节，本文将分享 NCCL 源码中有关网络传输以及 GDR 部分的相关内容。 GPU Driven 模式在讲">
 <meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-07-07T06:17:26.974Z">
+<meta property="article:modified_time" content="2023-07-08T13:10:33.024Z">
 <meta property="article:author" content="tangrc99">
+<meta property="article:tag" content="RDMA">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="https://tangrc99.com/">
+<link rel="canonical" href="https://tangrc99.com/2023/07/07/NCCL%20%E7%BD%91%E7%BB%9C%E6%B5%85%E6%9E%90/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : true,
-    isPost : false,
+    isHome : false,
+    isPost : true,
     lang   : 'zh-CN'
   };
 </script>
 
-  <title>Sepk</title>
+  <title>NCCL 网络浅析 | Sepk</title>
   
 
 
@@ -187,9 +190,10 @@
         <div class="content-wrap">
           
 
-          <div class="content index posts-expand">
+          <div class="content post posts-expand">
             
-      
+
+    
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
@@ -205,10 +209,9 @@
       <meta itemprop="name" content="Sepk">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/07/07/NCCL%20%E7%BD%91%E7%BB%9C%E6%B5%85%E6%9E%90/" class="post-title-link" itemprop="url">NCCL 网络浅析</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          NCCL 网络浅析
+        </h1>
 
         <div class="post-meta">
             <span class="post-meta-item">
@@ -261,7 +264,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>NVIDIA 集合通信库（NCCL）是一个实现了多 GPU collective communication 的集合通信库。NCCL 在设计上是以 GPU Driven 为核心的，而非传统的 CPU Driven 代码，以获取更小的传输延迟和更大的传输带宽。在源码中，NCCL 有许多实现上的细节，本文将分享 NCCL 源码中有关网络传输以及 GDR 部分的相关内容。</p>
+        <p>NVIDIA 集合通信库（NCCL）是一个实现了多 GPU collective communication 的集合通信库。NCCL 在设计上是以 GPU Driven 为核心的，而非传统的 CPU Driven 代码，以获取更小的传输延迟和更大的传输带宽。在源码中，NCCL 有许多实现上的细节，本文将分享 NCCL 源码中有关网络传输以及 GDR 部分的相关内容。</p>
 <h2 id="GPU-Driven-模式"><a href="#GPU-Driven-模式" class="headerlink" title="GPU Driven 模式"></a>GPU Driven 模式</h2><p>在讲解网络以及 RDMA 部分的实现之前，首先需要了解 GPU Driven 这一核心的思路。由于 CPU 与 GPU 之间存在着通信的延迟，如果使用 CPU 进行数据链路的控制，在数据包较小时，CPU - GPU 中间的通信延迟就会显得不可忽略。以一个经典的 CPU 模型来展示：</p>
 <p>GPU Driven 就是绕过 CPU 线程的控制，直接使用 GPU 线程去做数据链路的控制。在具体实现上，CPU Driven 其实就是传统的事件\阻塞模型，当 GPU 数据准备完毕后，通知 CPU 去做一些控制工作；而 GPU Driven 则是通过轮询某个标识位，让控制工作去等待数据准备完毕。这样就能够避免线程调度所带来的不可避免的延迟。听起来，GPU Driven 确实延迟会很低，但是不可避免地其 CPU 占用率会较高。但是当数据的传输工作较为密集时，CPU 占用率的提升就显得可以接收，这正是 NCCL 的应用场景。</p>
 <p>作为集合通信库，NCCL 完成每一个集合通信操作，例如 allreduce，都是以小块的形式去发送数据，但是当一个集合通信操作被下发到 NCCL 中时，未来所要完成的所有操作都是确定的了。因此，每一个节点所需要接收和发送的数据量都是已经确定好的，这样就能够实现控制事件提前下发并等待数据准备完毕。</p>
@@ -286,124 +289,35 @@
 <li>减少接收 comp channel 通知次数</li>
 </ol>
 
-      
     </div>
 
     
     
     
+
       <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/07/05/nvidia-peermem%20%E5%92%8C%20dmabuf%20%E4%B8%A4%E7%A7%8D%20GDR%20%E6%96%B9%E5%BC%8F%E7%9A%84%E5%8C%BA%E5%88%AB/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2023/07/05/nvidia-peermem%20%E5%92%8C%20dmabuf%20%E4%B8%A4%E7%A7%8D%20GDR%20%E6%96%B9%E5%BC%8F%E7%9A%84%E5%8C%BA%E5%88%AB/" class="post-title-link" itemprop="url">nvidia-peermem 和 dmabuf 两种 GDR 方式的区别</a>
-        </h2>
+          <div class="post-tags">
+              <a href="/tags/RDMA/" rel="tag"><i class="fa fa-tag"></i> RDMA</a>
+          </div>
 
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
+        
 
-              <time title="创建时间：2023-07-05 00:00:00" itemprop="dateCreated datePublished" datetime="2023-07-05T00:00:00+08:00">2023-07-05</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-07-06 13:51:12" itemprop="dateModified" datetime="2023-07-06T13:51:12+08:00">2023-07-06</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/RDMA/" itemprop="url" rel="index"><span itemprop="name">RDMA</span></a>
-                </span>
-            </span>
 
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>2.1k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>2 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>NCCL 的源码中，具有两种方式的 GDR，<code>nvidia-peermem</code>和<code>dmabuf</code>，在注册收发缓冲区时会优先选择后面一种方式。源码注释中的<code>nv_peermem</code>和<code>nvidia-peermem</code>是同一个东西，在不同版本的叫法有所不同。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> p=<span class="number">0</span>; p&lt;NCCL_NUM_PROTOCOLS; p++) &#123;</span><br><span class="line">    resources-&gt;buffers[p] = NCCL_NET_MAP_GET_POINTER(<span class="built_in">map</span>, cpu, buffs[p]);</span><br><span class="line">    <span class="keyword">if</span> (resources-&gt;buffers[p]) &#123;</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> CUDA_VERSION &gt;= 11070</span></span><br><span class="line">      <span class="comment">/* DMA-BUF support */</span></span><br><span class="line">      <span class="type">int</span> type = NCCL_NET_MAP_DEV_MEM(<span class="built_in">map</span>, buffs[p]) ? NCCL_PTR_CUDA : NCCL_PTR_HOST;</span><br><span class="line">      <span class="keyword">if</span> (type == NCCL_PTR_CUDA &amp;&amp; resources-&gt;useDmaBuf) &#123;</span><br><span class="line">        <span class="type">int</span> dmabuf_fd;</span><br><span class="line">        CUCHECK(cuMemGetHandleForAddressRange((<span class="type">void</span> *)&amp;dmabuf_fd, (CUdeviceptr)resources-&gt;buffers[p], resources-&gt;buffSizes[p], CU_MEM_RANGE_HANDLE_TYPE_DMA_BUF_FD, <span class="number">0</span>));</span><br><span class="line">        NCCLCHECK(proxyState-&gt;ncclNet-&gt;regMrDmaBuf(resources-&gt;netRecvComm, resources-&gt;buffers[p], resources-&gt;buffSizes[p], type, <span class="number">0ULL</span>, dmabuf_fd, &amp;resources-&gt;mhandles[p]));</span><br><span class="line">        (<span class="type">void</span>)close(dmabuf_fd);</span><br><span class="line">      &#125; <span class="keyword">else</span> <span class="comment">// FALL-THROUGH to nv_peermem GDR path</span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">      &#123;</span><br><span class="line">        NCCLCHECK(proxyState-&gt;ncclNet-&gt;regMr(resources-&gt;netRecvComm, resources-&gt;buffers[p], resources-&gt;buffSizes[p], NCCL_NET_MAP_DEV_MEM(<span class="built_in">map</span>, buffs[p]) ? NCCL_PTR_CUDA : NCCL_PTR_HOST, &amp;resources-&gt;mhandles[p]));</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
-
-<p>中文网站上，有关 dmabuf 和<code>ibv_reg_dmabuf_mr</code>的相关资料比较少。在阅读源码时，笔者不确定这两种方式是否有性能上的差异，因此在 NCCL 的仓库下提出了一个<a target="_blank" rel="noopener" href="https://github.com/NVIDIA/nccl/issues/908">issue</a>，得到的回复是，这两者之间没有性能上的差别：</p>
-<blockquote>
-<p>No, there is no performance difference.</p>
-</blockquote>
-<p>之后，笔者调研了一下相关资料，对比了两者之间的差异，在此作为二手资料进行分享。</p>
-<p>虽然 RDMA 这个概念已经很早了，但是 GDR 的提出不过是最近十年左右的事情——早期并没有大量数据直接传输到 GPU 上的需求。因此，GDR 这一方案也并没有一个明确的标准。GDR 与普通 RDMA 的区别在于，计算机访问显存和内存的方式不一样，早期的 libverbs 接口中，并不存在<code>ibv_reg_dmabuf_mr</code>，只存在<code>ibv_reg_mr</code>这一通用的接口。因此<code>cudaMalloc</code>分配出的假显存被注册时，IB core 是不知道这是一片映射得到的内存，在尝试去 pin 这块内存时，内核会报错，具体的原因可以参见<code>pin_user_pages</code>这一函数的<a target="_blank" rel="noopener" href="https://www.kernel.org/doc/html/v5.7/core-api/pin_user_pages.html">设计文档</a>，里面有比较详细的介绍。</p>
-<p><code>nvidia-peermem</code>的这一方案，是 Mallenox 公司推出的。它没有改变 libverbs 的接口，而是修改了自身的驱动，对于不能 pin 住的内存，它会轮询额外加载的<code>peer_memory_client</code>模块，让这些模块尝试翻译并 pin 住这些内存区域。对于 N 卡来说，这一模块就是<code>nvidia-peermem</code>。在忽略 GPU 页表切换时，其实这一模块就是完成了一个地址翻译的工作，数据传输本质上还是依赖于显卡驱动的。</p>
-<p><code>ibv_reg_dmabuf_mr</code>是 OpenFabric 提出的方案，为了反对 Mallenox 公司对 GDR 方案的垄断：<code>nvidia-peermem</code>需要绑定 Mallenox 的网卡。这一方案利用 Kernel 中设计的 dmabuf，将其作为中间值，从而让 RNIC 能够拿到翻译后的物理地址。<code>ibv_reg_dmabuf_mr</code>就是为了这一方案而新引入 libverbs 中的一个接口。这一方案的实现是更加优雅的，并且在注册 mr 时不需要轮询，在注册时的性能“理论上”会好一些。<code>ibv_reg_dmabuf_mr</code>这一接口的具体实现，直至 Linux Kernel 5.12 才被加入内核中，因此对软件栈的要求是比较高的。</p>
-<p>如果使用的是 Mallenox 网卡，两种方案并没有本质上的区别，因为数据传输都是由显卡驱动完成的。</p>
-
-      
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/07/05/nvidia-peermem%20%E5%92%8C%20dmabuf%20%E4%B8%A4%E7%A7%8D%20GDR%20%E6%96%B9%E5%BC%8F%E7%9A%84%E5%8C%BA%E5%88%AB/" rel="prev" title="nvidia-peermem 和 dmabuf 两种 GDR 方式的区别">
+      <i class="fa fa-chevron-left"></i> nvidia-peermem 和 dmabuf 两种 GDR 方式的区别
+    </a></div>
+      <div class="post-nav-item"></div>
     </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
       </footer>
+    
   </article>
   
   
   
-
-
-  
-  <nav class="pagination">
-    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><span class="space">&hellip;</span><a class="page-number" href="/page/24/">24</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
-  </nav>
 
 
 
@@ -455,6 +369,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#GPU-Driven-%E6%A8%A1%E5%BC%8F"><span class="nav-number">1.</span> <span class="nav-text">GPU Driven 模式</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1"><span class="nav-number">2.</span> <span class="nav-text">网络通信</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%A3%E7%90%86%E7%BA%BF%E7%A8%8B"><span class="nav-number">2.1.</span> <span class="nav-text">代理线程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%BB%9C%E4%BA%8B%E4%BB%B6%E7%9A%84%E4%B8%8B%E5%8F%91"><span class="nav-number">2.2.</span> <span class="nav-text">网络事件的下发</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RDMA-%E9%80%9A%E4%BF%A1"><span class="nav-number">3.</span> <span class="nav-text">RDMA 通信</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BC%93%E5%86%B2%E5%8C%BA%E7%9A%84%E5%88%86%E9%85%8D"><span class="nav-number">3.1.</span> <span class="nav-text">缓冲区的分配</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%8E%A7%E5%88%B6%E7%BC%93%E5%86%B2%E5%8C%BA"><span class="nav-number">3.1.1.</span> <span class="nav-text">控制缓冲区</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%94%B6%E5%8F%91%E7%BC%93%E5%86%B2%E5%8C%BA"><span class="nav-number">3.1.2.</span> <span class="nav-text">收发缓冲区</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RDMA-%E9%80%9A%E4%BF%A1%E4%BC%98%E5%8C%96"><span class="nav-number">3.2.</span> <span class="nav-text">RDMA 通信优化</span></a></li></ol></li></ol></div>
       </div>
       <!--/noindex-->
 

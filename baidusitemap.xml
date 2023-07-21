@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://tangrc99.com/2023/07/07/NCCL%20%E7%BD%91%E7%BB%9C%E6%B5%85%E6%9E%90/</loc>
+    <lastmod>2023-07-08</lastmod>
+  </url>
+  <url>
     <loc>https://tangrc99.com/2023/07/05/nvidia-peermem%20%E5%92%8C%20dmabuf%20%E4%B8%A4%E7%A7%8D%20GDR%20%E6%96%B9%E5%BC%8F%E7%9A%84%E5%8C%BA%E5%88%AB/</loc>
     <lastmod>2023-07-06</lastmod>
   </url>
