@@ -144,9 +144,9 @@
           
           <category> 数据库 </category>
           
-          <category> redis </category>
-          
           <category> go </category>
+          
+          <category> redis </category>
           
       </categories>
       
@@ -346,9 +346,9 @@
       
         <tags>
             
-            <tag> redis </tag>
-            
             <tag> 数据库 </tag>
+            
+            <tag> redis </tag>
             
         </tags>
       
@@ -370,9 +370,9 @@
           
           <category> 数据库 </category>
           
-          <category> etcd </category>
-          
           <category> go </category>
+          
+          <category> etcd </category>
           
       </categories>
       
@@ -428,18 +428,18 @@
           
           <category> 编程语言 </category>
           
-          <category> 计算机网络 </category>
-          
           <category> go </category>
+          
+          <category> 计算机网络 </category>
           
       </categories>
       
       
         <tags>
             
-            <tag> 计算机网络 </tag>
-            
             <tag> go </tag>
+            
+            <tag> 计算机网络 </tag>
             
         </tags>
       
@@ -459,18 +459,18 @@
           
           <category> 编程语言 </category>
           
-          <category> 计算机网络 </category>
-          
           <category> go </category>
+          
+          <category> 计算机网络 </category>
           
       </categories>
       
       
         <tags>
             
-            <tag> 计算机网络 </tag>
-            
             <tag> go </tag>
+            
+            <tag> 计算机网络 </tag>
             
         </tags>
       
@@ -551,9 +551,9 @@
       
         <tags>
             
-            <tag> 数据结构 </tag>
-            
             <tag> linux </tag>
+            
+            <tag> 数据结构 </tag>
             
         </tags>
       
@@ -954,9 +954,9 @@
       
         <tags>
             
-            <tag> 计算机网络 </tag>
-            
             <tag> TCP </tag>
+            
+            <tag> 计算机网络 </tag>
             
         </tags>
       
@@ -1272,9 +1272,9 @@
       
         <tags>
             
-            <tag> 计算机网络 </tag>
-            
             <tag> TCP </tag>
+            
+            <tag> 计算机网络 </tag>
             
         </tags>
       
