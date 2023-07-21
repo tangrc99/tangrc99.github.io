@@ -193,6 +193,105 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/07/05/nvidia-peermem%20%E5%92%8C%20dmabuf%20%E4%B8%A4%E7%A7%8D%20GDR%20%E6%96%B9%E5%BC%8F%E7%9A%84%E5%8C%BA%E5%88%AB/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/07/05/nvidia-peermem%20%E5%92%8C%20dmabuf%20%E4%B8%A4%E7%A7%8D%20GDR%20%E6%96%B9%E5%BC%8F%E7%9A%84%E5%8C%BA%E5%88%AB/" class="post-title-link" itemprop="url">nvidia-peermem 和 dmabuf 两种 GDR 方式的区别</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-07-05 00:00:00" itemprop="dateCreated datePublished" datetime="2023-07-05T00:00:00+08:00">2023-07-05</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-07-06 13:51:12" itemprop="dateModified" datetime="2023-07-06T13:51:12+08:00">2023-07-06</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/RDMA/" itemprop="url" rel="index"><span itemprop="name">RDMA</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>2.1k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>2 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>NCCL 的源码中，具有两种方式的 GDR，<code>nvidia-peermem</code>和<code>dmabuf</code>，在注册收发缓冲区时会优先选择后面一种方式。源码注释中的<code>nv_peermem</code>和<code>nvidia-peermem</code>是同一个东西，在不同版本的叫法有所不同。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="type">int</span> p=<span class="number">0</span>; p&lt;NCCL_NUM_PROTOCOLS; p++) &#123;</span><br><span class="line">    resources-&gt;buffers[p] = NCCL_NET_MAP_GET_POINTER(<span class="built_in">map</span>, cpu, buffs[p]);</span><br><span class="line">    <span class="keyword">if</span> (resources-&gt;buffers[p]) &#123;</span><br><span class="line"><span class="meta">#<span class="keyword">if</span> CUDA_VERSION &gt;= 11070</span></span><br><span class="line">      <span class="comment">/* DMA-BUF support */</span></span><br><span class="line">      <span class="type">int</span> type = NCCL_NET_MAP_DEV_MEM(<span class="built_in">map</span>, buffs[p]) ? NCCL_PTR_CUDA : NCCL_PTR_HOST;</span><br><span class="line">      <span class="keyword">if</span> (type == NCCL_PTR_CUDA &amp;&amp; resources-&gt;useDmaBuf) &#123;</span><br><span class="line">        <span class="type">int</span> dmabuf_fd;</span><br><span class="line">        CUCHECK(cuMemGetHandleForAddressRange((<span class="type">void</span> *)&amp;dmabuf_fd, (CUdeviceptr)resources-&gt;buffers[p], resources-&gt;buffSizes[p], CU_MEM_RANGE_HANDLE_TYPE_DMA_BUF_FD, <span class="number">0</span>));</span><br><span class="line">        NCCLCHECK(proxyState-&gt;ncclNet-&gt;regMrDmaBuf(resources-&gt;netRecvComm, resources-&gt;buffers[p], resources-&gt;buffSizes[p], type, <span class="number">0ULL</span>, dmabuf_fd, &amp;resources-&gt;mhandles[p]));</span><br><span class="line">        (<span class="type">void</span>)close(dmabuf_fd);</span><br><span class="line">      &#125; <span class="keyword">else</span> <span class="comment">// FALL-THROUGH to nv_peermem GDR path</span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br><span class="line">      &#123;</span><br><span class="line">        NCCLCHECK(proxyState-&gt;ncclNet-&gt;regMr(resources-&gt;netRecvComm, resources-&gt;buffers[p], resources-&gt;buffSizes[p], NCCL_NET_MAP_DEV_MEM(<span class="built_in">map</span>, buffs[p]) ? NCCL_PTR_CUDA : NCCL_PTR_HOST, &amp;resources-&gt;mhandles[p]));</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>中文网站上，有关 dmabuf 和<code>ibv_reg_dmabuf_mr</code>的相关资料比较少。在阅读源码时，笔者不确定这两种方式是否有性能上的差异，因此在 NCCL 的仓库下提出了一个<a target="_blank" rel="noopener" href="https://github.com/NVIDIA/nccl/issues/908">issue</a>，得到的回复是，这两者之间没有性能上的差别：</p>
+<blockquote>
+<p>No, there is no performance difference.</p>
+</blockquote>
+<p>之后，笔者调研了一下相关资料，对比了两者之间的差异，在此作为二手资料进行分享。</p>
+<p>虽然 RDMA 这个概念已经很早了，但是 GDR 的提出不过是最近十年左右的事情——早期并没有大量数据直接传输到 GPU 上的需求。因此，GDR 这一方案也并没有一个明确的标准。GDR 与普通 RDMA 的区别在于，计算机访问显存和内存的方式不一样，早期的 libverbs 接口中，并不存在<code>ibv_reg_dmabuf_mr</code>，只存在<code>ibv_reg_mr</code>这一通用的接口。因此<code>cudaMalloc</code>分配出的假显存被注册时，IB core 是不知道这是一片映射得到的内存，在尝试去 pin 这块内存时，内核会报错，具体的原因可以参见<code>pin_user_pages</code>这一函数的<a target="_blank" rel="noopener" href="https://www.kernel.org/doc/html/v5.7/core-api/pin_user_pages.html">设计文档</a>，里面有比较详细的介绍。</p>
+<p><code>nvidia-peermem</code>的这一方案，是 Mallenox 公司推出的。它没有改变 libverbs 的接口，而是修改了自身的驱动，对于不能 pin 住的内存，它会轮询额外加载的<code>peer_memory_client</code>模块，让这些模块尝试翻译并 pin 住这些内存区域。对于 N 卡来说，这一模块就是<code>nvidia-peermem</code>。在忽略 GPU 页表切换时，其实这一模块就是完成了一个地址翻译的工作，数据传输本质上还是依赖于显卡驱动的。</p>
+<p><code>ibv_reg_dmabuf_mr</code>是 OpenFabric 提出的方案，为了反对 Mallenox 公司对 GDR 方案的垄断：<code>nvidia-peermem</code>需要绑定 Mallenox 的网卡。这一方案利用 Kernel 中设计的 dmabuf，将其作为中间值，从而让 RNIC 能够拿到翻译后的物理地址。<code>ibv_reg_dmabuf_mr</code>就是为了这一方案而新引入 libverbs 中的一个接口。这一方案的实现是更加优雅的，并且在注册 mr 时不需要轮询，在注册时的性能“理论上”会好一些。<code>ibv_reg_dmabuf_mr</code>这一接口的具体实现，直至 Linux Kernel 5.12 才被加入内核中，因此对软件栈的要求是比较高的。</p>
+<p>如果使用的是 Mallenox 网卡，两种方案并没有本质上的区别，因为数据传输都是由显卡驱动完成的。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/06/23/2023-06-23-NCCL-RDMA-%E5%A4%87%E5%BF%98/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -289,104 +388,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/04/21/%E4%BB%8E%E5%91%BD%E4%BB%A4%E8%A1%A5%E5%85%A8%E5%8A%9F%E8%83%BD%E6%9D%A5%E7%9C%8B%E7%BB%88%E7%AB%AF%E4%B8%8E-Shell-%E7%9A%84%E5%85%B3%E7%B3%BB/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/04/21/%E4%BB%8E%E5%91%BD%E4%BB%A4%E8%A1%A5%E5%85%A8%E5%8A%9F%E8%83%BD%E6%9D%A5%E7%9C%8B%E7%BB%88%E7%AB%AF%E4%B8%8E-Shell-%E7%9A%84%E5%85%B3%E7%B3%BB/" class="post-title-link" itemprop="url">从命令补全功能来看终端与 Shell 的关系</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-              
-
-              <time title="创建时间：2023-04-21 15:37:22 / 修改时间：16:39:03" itemprop="dateCreated datePublished" datetime="2023-04-21T15:37:22+08:00">2023-04-21</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9F/" itemprop="url" rel="index"><span itemprop="name">操作系统</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>2.1k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>2 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>当程序需要读取标准输入时，用户输入的字符串会被显示在终端界面上，在按下回车键之后才能够被程序读取。但是在一些场景下，这种交互逻辑是不合适的，例如需要将用户输入的密码进行隐藏，或者是根据用户已有的输入进行自动补全。这些功能的实现并不依赖于传统的标准输入交互，而是需要定义一套自己的交互逻辑。本文将介绍这种功能背后所用到的一些知识。</p>
-<h2 id="IO-控制层"><a href="#IO-控制层" class="headerlink" title="IO 控制层"></a>IO 控制层</h2><p>当我们在终端中输入字符串时，字符串明明是被输入到标准输入，那么为什么会显示在标准输出呢？以及为什么程序不能够实时地接收到用户的输入呢？这是其实是因为用户在键盘上的输入并不会被直接写入到程序的标准输入中去，而是需要先经过一个 IO 控制层。IO 控制层中有默认的交互逻辑用于缓存并处理用户的输入。</p>
-<p>IO 控制层定义了一套默认的用户输入准则，能够大大减少交互程序的设计复杂度。在交互性程序中，用户的输入并不能够保证一定正确，因此 IO 控制层会先将键盘输入写入到自身的缓冲区，并且将这些字符写入到程序的<strong>标准输出</strong>上，等到用户按下回车才会将缓冲区中的输入发送给用户程序，这样程序就不需要关心删除用户错误输入的逻辑。当用户按下退格时，IO 控制层会删除掉缓冲区中的相关字符串，并且<strong>覆盖标准输出中的信息</strong>。在通常的终端中，已经输出的信息是不能够删除的，这其实也是 IO 控制层的默认规则——为了防止用户删除过多的相关消息。但事实上，在命令行终端上，所有的字符都是可以删除的，例如贪吃蛇游戏就是利用相关的功能来实现的。</p>
-<p>在另一方面，IO 控制层还需要处理一些控制信号，例如键盘中的 Control-C、Control-Z 信号、方向键等。当 IO 控制层收到键盘上的这些指令时，会生成相应的 Signal 并使用 kill 命令发送给程序。</p>
-<p>IO 控制层的相关功能存储在<code>Termios</code>结构体中，当用户不需要 IO 控制层中的某些功能时，可以使用系统调用<code>ioctl()</code>函数来对其进行更改。一些需要实时交互的程序中，例如游戏，可以通过设置<code>Termios</code>中的标准模式标识位来关闭按行缓冲的模式，实时接收用户的输入。在不需要进行输入回显的情景下，例如输入密码，可以设置<code>Termios</code>中的回显为关闭状态，防止输入被打印到标准输出上。</p>
-<h2 id="Shell-命令补全"><a href="#Shell-命令补全" class="headerlink" title="Shell 命令补全"></a>Shell 命令补全</h2><p>Shell 的命令补全是依赖于 GNU Readline 的，可以将后者理解为 IO 控制层的个性化定制版本。它通过设置 IO 控制层的相关参数，关闭了默认功能，并且自行实现了输入的处理逻辑。在标准的 IO 控制模式中，用户按下 Tab 键意味着输入一个制表符，而在 Shell 语境下，当用户按下 Tab 键时，会根据当前的输入进行命令补全。仔细梳理一下命令补全所需的功能，可以概括为以下几点：实时获取用户输入、缓存用户输入、补全字典、字符串显示以及抹除的功能。前面几条比较容易接触到，自行维护一个输入缓冲区以及前缀树即可，而字符串的显示以及模式则需要用到与屏幕控制码相关的内容。</p>
-<p>屏幕控制码是终端中用于控制输出显示的特殊字符串，它可以用于控制屏幕上的光标位置、颜色、显示内容等相关功能。例如将一个光标移动到终端的 y 行 x 列，就可以通过将字符串<code>&quot;\033[y;xH&quot;</code>写入标准输出来实现。Readline 中的补全功能其实是通过读取光标位置、移动光标、打印待补全字符串、恢复光标到最初位置，这一系列操作来完成的，这些操作都是通过屏幕控制码来完成的。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">printStringToComplete</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="comment">// 控制命令：读取光标位置</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;\033[6n&quot;</span>);</span><br><span class="line">    <span class="comment">// 控制命令：从标准输入读取位置</span></span><br><span class="line">    <span class="type">int</span> y,x;</span><br><span class="line">    <span class="built_in">scanf</span>(<span class="string">&quot;\033[%d;%dR&quot;</span>, &amp;y, &amp;x);</span><br><span class="line">    <span class="comment">// 控制命令，移动光标</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;\033[%d;%dH&quot;</span>,y+<span class="number">1</span>,<span class="number">0</span>);</span><br><span class="line">    <span class="comment">// 打印字符串</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;str to complete&quot;</span>);</span><br><span class="line">    <span class="comment">// 恢复光标至原位置</span></span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">&quot;\033[%d;%dH&quot;</span>,y,x);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>以上的代码就可以实现在当前输入的下一行打印出一行字符串并且返回到原始的输入位置。由于这段代码的处理速度非常快，因此在用户眼中是一个整体的过程。除了 Shell 中的命令补全，vim 中的相关操作同样也是使用这种技术路线来实现的。</p>
-<h2 id="终端与-Shell"><a href="#终端与-Shell" class="headerlink" title="终端与 Shell"></a>终端与 Shell</h2><p>命令行终端与 Shell 是两个经常容易混淆的概念，但实际上两者的位置是不同的。Shell 的软件位置其实是位于命令行终端的上层，或者说后端。命令行终端的职责更加偏向于处理 IO 设备的各种输入，通过 IO 控制层（或 Shell 自定义的处理逻辑）将其转换为操作系统中的可读语言（各种命令符号），然后将处理后的信息输入到 Shell 程序的标准输入中。而 Shell 的职责则是读取经过处理的输入，按照既定的逻辑调用操作系统的各种接口，最终实现相关的功能。</p>
-<p><img src="/images/terminal-shell.png" alt="terminal-shell"></p>
-<p>事实上，终端不止有命令行终端一种，物理终端同样也是终端的一种。在 IO 控制层中，有一些命令是用于调节输入的波特率等参数的，这些参数只适用于物理终端。终端的意义在于“输入的转换”，而在命令行终端中，这一职责其实被淡化了，因此也就容易与其他概念进行混淆。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/24/">24</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/25/">25</a><a class="extend next" rel="next" href="/page/3/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -454,20 +459,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-count">49</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-count">19</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-count">22</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>

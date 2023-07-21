@@ -193,6 +193,98 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/28/%E4%B8%8D%E5%8F%AF%E9%87%8D%E5%A4%8D%E8%AF%BB%E4%B8%8E%E5%B9%BB%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.png">
+      <meta itemprop="name" content="tangrc99">
+      <meta itemprop="description" content="技术爱好者">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Sepk">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/03/28/%E4%B8%8D%E5%8F%AF%E9%87%8D%E5%A4%8D%E8%AF%BB%E4%B8%8E%E5%B9%BB%E8%AF%BB%E7%9A%84%E4%B8%80%E4%BA%9B%E6%80%9D%E8%80%83/" class="post-title-link" itemprop="url">不可重复读与幻读的一些思考</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2023-03-28 15:15:11 / 修改时间：15:15:56" itemprop="dateCreated datePublished" datetime="2023-03-28T15:15:11+08:00">2023-03-28</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index"><span itemprop="name">数据库</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="本文字数">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">本文字数：</span>
+              <span>1.3k</span>
+            </span>
+            <span class="post-meta-item" title="阅读时长">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">阅读时长 &asymp;</span>
+              <span>1 分钟</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>在一次面试中，被问到一个问题“不可重复读会带来什么危害，能不能举一些具体的场景来说明？”。虽然对不可重复读这个概念是非常清晰的，但是一时间还真的无法想出具体的案例来说明不可重复读会在什么场景下带来危害。遗憾的是，网上的相关资料比较少，并且其中许多资料都有一些错误，在整理阅读后，我以本篇文章来记录一些自己的思考和理解。</p>
+<p>严格意义上来说，读已提交这个隔离级别其实已经可以满足绝大多数的事务。在可重复读级别下，其实还会带来一定的困惑性，例如一个典型的查询-更新事务。数据库中的隔离级别中，可重复读其实并不是特别重要，因为单单解决不可重复读在大部分业务场景下仍然不能够解决所有的危害。这里以一个案例来说明不可重复读带来的危害，该案例及其相关的文献都来自<a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_24054301/article/details/123086098">博客文章</a>。</p>
+<blockquote>
+<p>银行做活动。事务a查询某地区余额1000以下送一包餐巾纸，生成名单。事务b新增了一个新用户小明，并存款500。事务a查询1000到2000送一桶油，生成名单，这样小明没有收到礼物，而同时注册的小李存了1500却收到了一桶油。</p>
+</blockquote>
+<p><img src="https://img-blog.csdnimg.cn/6f7f638815894efb8de44ce855419125.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBAYmJx54Ok6bih,size_18,color_FFFFFF,t_70,g_se,x_16" alt="不可重复读的危害"></p>
+<p>这里带来的后果是在长事务 A 的范围读取中，两次读取到的数据不一致，从而导致小明的账户获取了两次礼品，这很好理解。那么我们将这个案例进行泛化，可以发现这些问题主要是出现在数据库遍历的业务场景下，这些事务必须要保障多次读取到的数据来自同一时刻，即必须看到某一时刻下数据库的视图。这里即使是使用可重复读隔离级别也是不能够保证业务安全的，因为这里还会有可能出现幻读的问题——一个账户在活动截止后才被创建，而此时事务 A 仍未结束，就会出现新账户也被送出礼品的问题。</p>
+<p>仔细思考，其实会出现不可重复读的业务场景下，同样也是会出现幻读这一问题的，因为在业务场景中很少是在一次事务中针对某一行数据进行多次查询。那么<strong>单单解决不可重复读，其实意义并不是特别大</strong>，只有将不可重复读与幻读一起解决才能够保证<strong>读数据库快照</strong>这一业务场景的正确性。</p>
+<p>这一问题其实就是 ANSI SQL 四种隔离级别的缺陷：可重复读隔离级别并不能够真正解决这一业务场景下的问题，而能够解决这一问题的可串行化隔离级别又会导致数据库的性能大幅度降低——这一场景需要大范围查询数据库中的数据，会极大概率与其他事务发生冲突，这就会造成事务的并发量下降。在快照隔离这一事务隔离级别下，其实才能够最好地去解决这一业务场景问题。</p>
+<p>在 OLAP 的应用场景中，大部分事务都是需要读取数据库快照的，例如：数据库备份、离线数据分析等。这些事务的运行时间较长，并且要求输入的数据来自同一时刻，否则事务便失去了意义。可以发现，一些通用数据库或面向 OLAP 的数据库通常都提供了快照隔离的事务等级。Oracle 是一个例外，这里猜测是由于 Oracle 的发布年代过早，而快照隔离这个概念在 1997 年才被提出。MySQL 定义的可重复读其实就是一个快照隔离的事务隔离等级。</p>
+<p>总而言之，不可重复读带来的危害在多数情况下是与幻读带来的危害高度重叠的，它们两者会出现的业务场景也是类似的，那就是需要对某一时刻的数据进行分析的<strong>读快照</strong>场景。一些可以规避不可重复读的技术手段，同样可以很低成本地规避幻读，因此这两者通常是作为一个整体被解决的，而最终数据库给出的解决方案就是快照隔离。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
     <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/25/Percolator-%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -329,128 +421,10 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://tangrc99.com/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="tangrc99">
-      <meta itemprop="description" content="技术爱好者">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Sepk">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/03/23/Lua-%E4%B8%8E-Go-GC-%E6%9C%BA%E5%88%B6%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">Lua 与 Go GC 机制的一些记录</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2023-03-23 23:24:21" itemprop="dateCreated datePublished" datetime="2023-03-23T23:24:21+08:00">2023-03-23</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-03-24 18:55:10" itemprop="dateModified" datetime="2023-03-24T18:55:10+08:00">2023-03-24</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/" itemprop="url" rel="index"><span itemprop="name">编程语言</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/go/" itemprop="url" rel="index"><span itemprop="name">go</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E7%BC%96%E7%A8%8B%E8%AF%AD%E8%A8%80/Lua/" itemprop="url" rel="index"><span itemprop="name">Lua</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>3.8k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>3 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>Lua 和 Go 都是具有 GC 机制的语言，两者在标记阶段都采用了三色标记法，但是由于两种语言的类型、特性等方面不同，它们的 GC 机制在实现上具有很大的差别。本文主要概括性地描述两种语言的 GC 实现思路，不讨论具体的实现。</p>
-<h2 id="Lua-的-GC-实现"><a href="#Lua-的-GC-实现" class="headerlink" title="Lua 的 GC 实现"></a>Lua 的 GC 实现</h2><p>Lua 中的 GC 实现是比较简单的，这主要来自于 Lua 不支持用户自定义类型、不支持指针类型，这两个特性决定了 Lua 中的对象引用机制是比较简单的。同时，Lua 是一门脚本语言，但是同样具有编译机制，从 Lua 虚拟机的角度来看，每一个 TValue 都是高度抽象化的，在 GC 的过程中可以将这些分配处的 TValue 当做一个普通的 C 对象来处理。</p>
-<p>在 Lua 的基本对象中，并不是所有的对象都会被 GC 扫描，有一些对象是分配在栈上的，一些对象的生命周期则是由 C 程序来控制的。这些对象是不需要进行 GC 的。而其他需要 GC 的对象，则具有一个统一的 struct 头<code>GCObject</code>，该 struct 的定义如下：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> CommonHeader	struct GCObject *next; lu_byte tt; lu_byte marked</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* Common type for all collectable objects */</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">GCObject</span> &#123;</span></span><br><span class="line">    CommonHeader;</span><br><span class="line">&#125; GCObject;</span><br></pre></td></tr></table></figure>
-
-<p><code>GCObject</code>是一个非侵入式链表，所有可以被 GC 的对象都会被放入这个链表中，这是为了方便后续的扫描。Lua 这里的实现得益于它的运行环境是搭建在 C 语言之上的一个虚拟机，而非真实的物理机环境。Lua 栈上的每一个对象都是一个<code>GCObject</code>，而 C 语言中则只能看得到内存段。这里的实现有一些空间换时间的意味，每一个被分配出的 TValue 都加入这个头，就意味着在进行 GC 的时候就不需要再对整个 Lua 栈进行扫描了，因此在 GC 的标记起始阶段就会快很多。不过 Lua 脚本的规模并不大，一段程序需要分配出的对象并不多，所以这里的额外内存消耗的可控的。</p>
-<p>Lua 脚本的运行起点是函数，如果脚本未定义外部函数，那么编译器会为其自动生成 main 函数。除去一些存储在 _ENV 表中的全局变量，其余对象的生命周期都是随着当前函数栈的切换而结束的。Lua 中的函数会被编译为一个<code>Proto</code>类型：</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">** Function Prototypes</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">Proto</span> &#123;</span></span><br><span class="line">    CommonHeader;</span><br><span class="line">    ...</span><br><span class="line">    GCObject *gclist;</span><br><span class="line">&#125; Proto;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-<p>可以看到，该类型中具有一个字段<code>gclist</code>，该字段会链接所有分配出的 <code>GCObject</code>。</p>
-<h2 id="Go-的-GC-实现"><a href="#Go-的-GC-实现" class="headerlink" title="Go 的 GC 实现"></a>Go 的 GC 实现</h2><p>有关 Go 中 GC 机制的详细探讨，可以参考<a target="_blank" rel="noopener" href="https://www.jianshu.com/p/ebd8b012572e#">博客文章</a>。以下内容参考了该文章。</p>
-<p>Go 中的 GC 实现比 Lua 要更为复杂，复杂度主要来自于：指针类型、struct 类型、物理机环境。指针类型和 struct 类型使得 GC 扫描更加复杂，并且在物理机环境下对象的视图是内存段。另外， Go 主要用来编写大型的程序，如果使用类似 Lua 的 Header，可能会耗费比较多的内存，是不现实的。</p>
-<p>在 Go 语言中，编译器会在编译期为每一个 struct 类型生成一个<code>_type</code>类型的对象，并且记录在 runtime 中。该类型的定义如下：</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> _type <span class="keyword">struct</span> &#123;</span><br><span class="line">    size       <span class="type">uintptr</span></span><br><span class="line">    ptrdata    <span class="type">uintptr</span> <span class="comment">// size of memory prefix holding all pointers</span></span><br><span class="line">    hash       <span class="type">uint32</span></span><br><span class="line">    tflag      tflag</span><br><span class="line">    align      <span class="type">uint8</span></span><br><span class="line">    fieldalign <span class="type">uint8</span></span><br><span class="line">    kind       <span class="type">uint8</span></span><br><span class="line">    alg        *typeAlg</span><br><span class="line">    <span class="comment">// gcdata stores the GC type data for the garbage collector.</span></span><br><span class="line">    <span class="comment">// If the KindGCProg bit is set in kind, gcdata is a GC program.</span></span><br><span class="line">    <span class="comment">// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.</span></span><br><span class="line">    gcdata    *<span class="type">byte</span></span><br><span class="line">    str       nameOff</span><br><span class="line">    ptrToThis typeOff</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>该类型中的<code>gcdate</code>字段与 GC 机制密切相关，该字段主要用于保存 struct 中指针的位置。在 GC 扫描中，指针指向的对象地址与当前地址并非连续的，需要做一些额外的处理——因为在内存中，并不能直接去确认某一段存储的是否是一个指针值。在编译期，编译器将会确认一个 struct 中所包含的指针个数以及位置，以 bitmap 的形式存储在<code>gcdata</code>字段中。这种实现的思路将指针的确定在编译期完成，能够避免在程序的运行阶段大幅度地对内存段进行扫描，能够有助于提升效率。</p>
-<p>为了进行 GC，必须为分配出的 Go 对象建立起标识位，从而判断内存段中的对象类型。在生成对象时，go 语言不仅仅会开辟出对象所需要的内存，同样也会开辟出一片内存区域来存储<code>_type</code>类型的指针。可以类比使用<code>malloc</code>函数时，会多出 20 字节的大小来分配空间的相关信息。当需要进行 GC 扫描时，会先读取出<code>_type</code>类型，将当前对象设置为已经标记，然后根据<code>gcdata</code>字段来确定是否含有指针以及下一次扫描的范围。Go 进行对象创建的函数是<code>runtime/malloc.go</code>中的<code>newobject</code>，该函数在内部仅仅调用了<code>mallocgc</code>函数。<code>mallocgc</code>函数较长，但是其中大部分内容与 GC 无关，该函数中与 GC 相关的部分是判别<code>type</code>类型是否需要 GC 扫描，如果对象需要 GC 扫描，会使用<code>heapBitsSetType</code>函数来进行一些工作。</p>
-<p>Go 中 GC 扫描是从 goroutine 栈上开始的，当 GC 开始时，程序将会从栈的起始位置开始，按照已经预留好的类型信息逐个进行扫描和确认。对象的内存区域使用的是<code>scanblock</code>函数，这个函数会以 8 字节为步进值，对一个对象所在的内存空间进行扫描，判断内存空间中是否有指针存在，并且判断指针的有效性。若指针有效会将指针指向的对象加入到灰色标记对象中。</p>
-<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">scanblock</span><span class="params">(b0, n0 <span class="type">uintptr</span>, ptrmask *<span class="type">uint8</span>, gcw *gcWork, stk *stackScanState)</span></span> &#123;</span><br><span class="line">  b := b0</span><br><span class="line">  n := n0</span><br><span class="line">  <span class="comment">// 本次扫描达到地址 n 后结束</span></span><br><span class="line">  <span class="keyword">for</span> i := <span class="type">uintptr</span>(<span class="number">0</span>); i &lt; n; &#123;</span><br><span class="line">    <span class="comment">// 计算当前地址偏移量上是否是指针，如果不是指针则地址 +8 </span></span><br><span class="line">    bits := <span class="type">uint32</span>(*addb(ptrmask, i/(sys.PtrSize*<span class="number">8</span>)))</span><br><span class="line">    <span class="keyword">if</span> bits == <span class="number">0</span> &#123;</span><br><span class="line">      i += sys.PtrSize * <span class="number">8</span></span><br><span class="line">      <span class="keyword">continue</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 当前位置上有指针</span></span><br><span class="line">    <span class="keyword">for</span> j := <span class="number">0</span>; j &lt; <span class="number">8</span> &amp;&amp; i &lt; n; j++ &#123;</span><br><span class="line">      <span class="comment">// 指针类型？只有标识了指针类型的，才有可能走到下面的逻辑去；</span></span><br><span class="line">      <span class="keyword">if</span> bits&amp;<span class="number">1</span> != <span class="number">0</span> &#123;</span><br><span class="line">        <span class="comment">// 类型转换，获取当前内存地址存储的指针值</span></span><br><span class="line">        p := *(*<span class="type">uintptr</span>)(unsafe.Pointer(b + i))</span><br><span class="line">        <span class="keyword">if</span> p != <span class="number">0</span> &#123;</span><br><span class="line">          <span class="keyword">if</span> obj, span, objIndex := findObject(p, b, i); obj != <span class="number">0</span> &#123;</span><br><span class="line">            <span class="comment">// 将指针指向的对象标记为灰色</span></span><br><span class="line">            greyobject(obj, b, i, span, gcw, objIndex)</span><br><span class="line">          &#125; <span class="keyword">else</span> <span class="keyword">if</span> stk != <span class="literal">nil</span> &amp;&amp; p &gt;= stk.stack.lo &amp;&amp; p &lt; stk.stack.hi &#123;</span><br><span class="line">            stk.putPtr(p)</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      bits &gt;&gt;= <span class="number">1</span></span><br><span class="line">      i += sys.PtrSize</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h2 id="简单对比分析"><a href="#简单对比分析" class="headerlink" title="简单对比分析"></a>简单对比分析</h2><p>本质上来说，Lua 和 Go 中的 GC 思想都是类似的，核心要点就是要记录下每一个内存段上所存储的类型，然后再根据一定的方式来依次访问分配出的每一个对象。Lua 中的 tt 和 Go 中的 _type 都是为了记录类型的相关内容，但由于 Go 的复杂度更高，因此需要实现更多的功能。</p>
-<p>由于 Lua 语言是比较简单的，对象的分配和回收都建立在 C 语言层面之上，天然具有较高的抽象性；Lua 中的 GC 实现使用了链表头的形式，这一组织形式意味着 Lua 中可以更快地寻找到需要 GC 的对象，但是这种实现方式对空间的浪费比较严重。Lua 的 GC 扫描也是较为简单的，这主要还是因为 Lua 中每一段都被包裹在一个函数中，比较容易找到对象的分配位置，只需要在函数中记录每一个分配的对象即可。整体来说，Lua 的 GC 实现比较浪费空间，但是 GC 的性能可能会较好一点，这主要来自于 Lua 独特的对象管理机制。</p>
-<p>Go 中的 GC 机制重点在于指针位置的确认上，借助 struct 的内存对齐机制和 bitmap 存储机制可以简单高效地记录 struct 中的每一个指针。在扫描方面，虽然 Go 程序的运行是以 goroutine 为起点的，但由于 Go 程序一般规模较大，直接记录每一个可 GC 的对象需要耗费大量的内存空间，这是不太现实的。使用栈扫描虽然会在一定程度上降低起始标记阶段的性能，但是会极大地降低因为 GC 而使用的内存空间，这是一个更加合理的做法。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/24/">24</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+    <a class="extend prev" rel="prev" href="/page/3/"><i class="fa fa-angle-left" aria-label="上一页"></i></a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/25/">25</a><a class="extend next" rel="next" href="/page/5/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
   </nav>
 
 
@@ -518,20 +492,20 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">48</span>
+          <span class="site-state-item-count">49</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">18</span>
+        <span class="site-state-item-count">19</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">20</span>
+        <span class="site-state-item-count">22</span>
         <span class="site-state-item-name">标签</span></a>
       </div>
   </nav>
